@@ -1,11 +1,11 @@
 ---
 name: architecture-design
-description: Creates comprehensive software architecture documentation (ARCHITECTURE.md) through guided interviews. Use when users need to document system architecture, create architecture diagrams, design new systems, or update existing architecture documentation. Supports multiple technology stacks (Node.js, Python, Java, .NET, Go) and architectural patterns (monolith, microservices, serverless). Generates C4 model diagrams and follows industry best practices.
+description: Creates comprehensive software architecture documentation (ARCHITECTURE.md) with Mermaid diagrams, OpenAPI specifications, and PDF output through guided interviews. Use when users need to document system architecture, create architecture diagrams, design new systems, generate API specifications, or create complete documentation packages. Supports multiple technology stacks (Node.js, Python, Java, .NET, Go) and architectural patterns (monolith, microservices, serverless). Generates 5 C4 model Mermaid diagrams and packages everything as ZIP.
 ---
 
 # Architecture Design Expert
 
-Create professional ARCHITECTURE.md documentation through structured interviews. Generate complete documentation covering all 11 required sections with technology-specific guidance.
+Create professional ARCHITECTURE.md documentation with visual diagrams and API specifications through structured interviews. Generate complete documentation covering all 11 required sections with technology-specific guidance, 5 Mermaid.js diagrams (C4 Context, Container, Component, Data Flow, Deployment), OpenAPI 3.0 specifications, PDF output, and comprehensive ZIP packages.
 
 ## Core Workflow
 
@@ -226,18 +226,129 @@ python scripts/validate_architecture.py ARCHITECTURE.md
 3. Update multiple sections
 4. Consider version note
 
+## Mermaid Diagram Generation
+
+After creating ARCHITECTURE.md, generate 5 Mermaid diagrams.
+
+### Load Mermaid Instructions
+
+When user requests diagrams or complete package:
+```
+Load references/mermaid-diagrams.md
+```
+
+### Generate Diagrams
+
+Create all 5 diagrams following mermaid-diagrams.md:
+1. **C4 Context** (Level 1) - System in context
+2. **C4 Container** (Level 2) - Main components
+3. **C4 Component** (Level 3) - Internal structure
+4. **Data Flow** - How data moves
+5. **C4 Deployment** - Infrastructure topology
+
+Use `scripts/generate_mermaid.py` with system JSON config.
+
+**Save as separate .mmd files:**
+- `01-context.mmd`
+- `02-container.mmd`
+- `03-component.mmd`
+- `04-dataflow.mmd`
+- `05-deployment.mmd`
+
+**Embed in ARCHITECTURE.md Section 2** as code blocks.
+
+## OpenAPI Specification Generation
+
+For systems with APIs, generate OpenAPI 3.0 spec.
+
+### Generate API Spec
+
+Use `scripts/generate_openapi.py`:
+
+**For simple CRUD:**
+```bash
+python scripts/generate_openapi.py "ResourceName"
+```
+
+**For custom APIs:**
+```bash
+python scripts/generate_openapi.py '{"system_name": "...", "endpoints": [...]}'
+```
+
+Save as `openapi.json`.
+
+## PDF and Package Creation
+
+Create comprehensive deliverable package.
+
+### Generate PDF
+
+Convert ARCHITECTURE.md to PDF using:
+- Pandoc (preferred)
+- WeasyPrint (fallback)
+- Notice file if tools unavailable
+
+### Create ZIP Package
+
+Use `scripts/create_package.py`:
+```bash
+python scripts/create_package.py <work_dir> <output.zip>
+```
+
+**Package contents:**
+```
+architecture-package.zip
+├── ARCHITECTURE.md
+├── ARCHITECTURE.pdf
+├── openapi.json
+└── diagrams/
+    ├── 01-context.png
+    ├── 02-container.png
+    ├── 03-component.png
+    ├── 04-dataflow.png
+    ├── 05-deployment.png
+    └── source/
+        ├── 01-context.mmd
+        ├── 02-container.mmd
+        ├── 03-component.mmd
+        ├── 04-dataflow.mmd
+        └── 05-deployment.mmd
+```
+
+## Complete Workflow
+
+**Enhanced workflow with all features:**
+
+1. **Interview** (5-7 questions)
+2. **Select template** based on pattern
+3. **Load references** (technology + pattern + mermaid if needed)
+4. **Generate ARCHITECTURE.md** (all 11 sections)
+5. **Validate** using validate_architecture.py
+6. **Generate Mermaid diagrams** (5 diagrams)
+7. **Generate OpenAPI spec** (if API system)
+8. **Create PDF** from markdown
+9. **Package everything** into ZIP
+10. **Deliver** complete package
+
 ## Output Format
 
-**Create file at:**
+**Standard output:**
 ```
 /mnt/user-data/outputs/ARCHITECTURE.md
 ```
 
+**Enhanced output (with diagrams/API/PDF):**
+```
+/mnt/user-data/outputs/architecture-package.zip
+```
+
 **After creation:**
 1. Run validation
-2. Report validation status
-3. Provide file link
-4. Summarize key sections (2-3 sentences)
+2. Generate diagrams
+3. Create package
+4. Report status
+5. Provide download link
+6. Summarize contents (2-3 sentences)
 
 ## Example Usage
 

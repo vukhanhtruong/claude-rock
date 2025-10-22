@@ -163,7 +163,7 @@ def render_mermaid_diagrams(work_dir: str, diagrams_dir: str) -> list:
 
 
 def create_package_zip(work_dir: str, output_zip: str) -> bool:
-    """Create a ZIP package with all documentation files."""
+    """Create a ZIP package with all documentation files in proper structure."""
     
     work_path = Path(work_dir)
     
@@ -185,48 +185,71 @@ def create_package_zip(work_dir: str, output_zip: str) -> bool:
     
     # PDF (if exists)
     pdf_file = work_path / 'ARCHITECTURE.pdf'
+    pdf_exists = False
     if pdf_file.exists():
         files_to_include.append(('ARCHITECTURE.pdf', pdf_file))
+        pdf_exists = True
     else:
         # Check for the txt notice
         pdf_txt = work_path / 'ARCHITECTURE.pdf.txt'
         if pdf_txt.exists():
             files_to_include.append(('PDF_GENERATION_NOTICE.txt', pdf_txt))
     
-    # Diagrams directory
+    # Find .mmd source files (should be in work_dir root)
+    mmd_files = sorted(list(work_path.glob('*.mmd')))
+    
+    # Find diagram images (PNG/SVG)
     diagrams_dir = work_path / 'diagrams'
     diagram_files = []
     if diagrams_dir.exists():
-        diagram_files = list(diagrams_dir.glob('*.png')) + list(diagrams_dir.glob('*.svg'))
+        diagram_files = sorted(list(diagrams_dir.glob('*.png')) + list(diagrams_dir.glob('*.svg')))
     
-    # Create ZIP
+    # Create ZIP with proper structure
     try:
         with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Add main files
+            # Add main files at root
             for arc_name, file_path in files_to_include:
                 zipf.write(file_path, arc_name)
                 print(f"📦 Added: {arc_name}")
             
-            # Add diagram files
-            if diagram_files:
-                for diagram_file in diagram_files:
-                    arc_name = f"diagrams/{diagram_file.name}"
-                    zipf.write(diagram_file, arc_name)
-                    print(f"📦 Added: {arc_name}")
-            
-            # Add .mmd source files
-            mmd_files = list(work_path.glob('*.mmd'))
+            # Add .mmd source files to diagrams/source/
             if mmd_files:
                 for mmd_file in mmd_files:
                     arc_name = f"diagrams/source/{mmd_file.name}"
                     zipf.write(mmd_file, arc_name)
                     print(f"📦 Added: {arc_name}")
+            
+            # Add rendered diagram images to diagrams/
+            if diagram_files:
+                for diagram_file in diagram_files:
+                    arc_name = f"diagrams/{diagram_file.name}"
+                    zipf.write(diagram_file, arc_name)
+                    print(f"📦 Added: {arc_name}")
         
+        # Print summary
         print(f"\n✅ Package created: {output_zip}")
+        print(f"\n📦 Package contents:")
+        print(f"   ├── ARCHITECTURE.md")
+        if pdf_exists:
+            print(f"   ├── ARCHITECTURE.pdf")
+        if openapi_file.exists():
+            print(f"   ├── openapi.json")
+        if mmd_files or diagram_files:
+            print(f"   └── diagrams/")
+            if diagram_files:
+                for df in diagram_files:
+                    print(f"       ├── {df.name}")
+            if mmd_files:
+                print(f"       └── source/")
+                for mf in mmd_files:
+                    print(f"           ├── {mf.name}")
+        
         return True
         
     except Exception as e:
         print(f"❌ Error creating ZIP: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

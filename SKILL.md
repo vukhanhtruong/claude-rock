@@ -317,38 +317,57 @@ architecture-package.zip
 
 ## Complete Workflow
 
-**Enhanced workflow with all features:**
-
 1. **Interview** (5-7 questions)
-2. **Select template** based on pattern
-3. **Load references** (technology + pattern + mermaid if needed)
-4. **Generate ARCHITECTURE.md** (all 11 sections)
-5. **Validate** using validate_architecture.py
-6. **Generate Mermaid diagrams** (5 diagrams)
-7. **Generate OpenAPI spec** (if API system)
-8. **Create PDF** from markdown
-9. **Package everything** into ZIP
-10. **Deliver** complete package
+2. **Select template** and **load references**
+3. **Setup work directory**: `/home/claude/arch-work/`
+4. **Generate ARCHITECTURE.md** in work directory (all 11 sections)
+5. **Generate Mermaid diagrams** (5 .mmd files) in work directory root
+6. **Generate OpenAPI spec** (if applicable) in work directory
+7. **Package**: `python scripts/create_package.py /home/claude/arch-work /mnt/user-data/outputs/architecture-package.zip`
+   - Converts MD to PDF
+   - Renders .mmd to PNG (in diagrams/)
+   - Creates ZIP with proper structure
+8. **Deliver** complete package
+
+## Proper File Organization
+
+**Work directory structure:**
+```
+/home/claude/arch-work/
+├── ARCHITECTURE.md
+├── openapi.json
+├── *.mmd (5 files)
+└── diagrams/ (created during packaging)
+    └── *.png (5 files, if rendered)
+```
+
+**Final ZIP structure:**
+```
+architecture-package.zip
+├── ARCHITECTURE.md
+├── ARCHITECTURE.pdf
+├── openapi.json
+└── diagrams/
+    ├── *.png (5 rendered images)
+    └── source/
+        └── *.mmd (5 source files)
+```
+
+**Critical:** .mmd files go in `diagrams/source/`, NOT root. Use `create_package.py` for correct structure.
 
 ## Output Format
 
-**Standard output:**
-```
-/mnt/user-data/outputs/ARCHITECTURE.md
-```
-
-**Enhanced output (with diagrams/API/PDF):**
+**Final package location:**
 ```
 /mnt/user-data/outputs/architecture-package.zip
 ```
 
-**After creation:**
-1. Run validation
-2. Generate diagrams
-3. Create package
-4. Report status
-5. Provide download link
-6. Summarize contents (2-3 sentences)
+**Contents structure:** See "Proper File Organization" above.
+
+**After completion:**
+1. Validate and report status
+2. Provide download link
+3. Summarize package contents
 
 ## Example Usage
 

@@ -6,32 +6,21 @@
     "email": "vukhanhtruong@gmail.com"
   },
   "metadata": {
-    "description": "Architecture Design Claude skill",
+    "description": "Architecture Design",
     "version": "2.0.1"
   },
   "plugins": [
     {
       "name": "architecture-design",
-      "source": "./",
-      "description": "Create comprehensive software architecture documentation through guided interviews. Generate professional ARCHITECTURE.md files with system diagrams, technology-specific patterns, and best practices for monolith, microservices, and serverless architectures.",
+      "source": "./skills/architecture-design",
+      "description": "Create comprehensive software architecture documentation through guided interviews.",
       "version": "2.0.1",
       "author": {
         "name": "Truong Vu",
         "email": "vukhanhtruong@gmail.com"
       },
-      "keywords": [
-        "architecture",
-        "documentation",
-        "system-design",
-        "templates",
-        "software-engineering",
-        "technical-documentation",
-        "C4-model",
-        "microservices",
-        "serverless",
-        "development-tools"
-      ],
-      "category": "development",
+      "keywords": ["architecture", "documentation", "system-design"],
+      "category": "documentation",
       "strict": false
     }
   ]

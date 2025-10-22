@@ -34,7 +34,16 @@ The Architecture Design skill transforms Claude into an expert architecture cons
 - **Visual Diagrams**: Generates system diagrams and C4 model representations
 - **Advanced Features**: Mermaid diagrams, OpenAPI specs, PDF generation, ZIP packaging
 
-## Installation
+## Claude Code Installation
+
+```
+
+/plugin marketplace add vukhanhtruong/claude-skill-architecture-design
+
+/plugin install architecture-design@claude-rock
+```
+
+## Claude Installation
 
 ### Step 1: Download the Skill
 

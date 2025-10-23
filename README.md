@@ -6,7 +6,7 @@ This repository contains **Claude Skills** designed to enhance the capabilities 
 
 **Current Skills:**
 
-- [**Architecture Design**](/plugins/architecture-design/README.md) - Creates comprehensive software architecture documentation
+- [**Architecture Design**](/plugins/architecture-design/skills/README.md) - Creates comprehensive software architecture documentation
 
 ## Quick Start
 
@@ -31,22 +31,6 @@ Install the plugins you need:
 
 ```
 
-## Folder Structure
-
-```
-claude-rock/
-├── .claude-plugin/
-│   └── marketplace.json          # Plugin manifest
-├── plugins/
-│   └── architecture-design/       # Main skill directory
-│       ├── SKILL.md              # Skill implementation guide
-│       ├── README.md             # Skill documentation
-│       ├── assets/               # Architecture templates
-│       ├── references/           # Technology patterns
-│       └── scripts/              # Automation utilities
-└── README.md                     # This file
-```
-
 ## Contributing
 
 ### 🚀 **Adding New Skills**
@@ -54,7 +38,7 @@ claude-rock/
 **Skill Structure:**
 
 ```
-plugins/your-skill/
+plugins/your-plugin/skills/
 ├── SKILL.md           # Skill implementation details
 ├── README.md          # User-facing documentation
 ├── assets/            # Templates and resources

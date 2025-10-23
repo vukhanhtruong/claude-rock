@@ -1,4 +1,4 @@
-# Claude Skills Repository 🚀
+# Claude Rock 🚀
 
 ## Overview
 
@@ -10,13 +10,15 @@ This repository contains **Claude Skills** designed to enhance the capabilities 
 
 ## Quick Start
 
-### 1. Add the Marketplace to Claude Code
+### Claude Code Installation
+
+#### 1. Add the Marketplace to Claude Code
 
 ```bash
 /plugin marketplace add vukhanhtruong/claude-rock
 ```
 
-### 2: Install Plugins
+#### 2: Install Plugins
 
 Browse available plugins:
 
@@ -30,6 +32,27 @@ Install the plugins you need:
 /plugin install architecture-design
 
 ```
+
+### Claude Chat Installation
+
+### Step 1: Download the Skill
+
+1. Go to this [page](https://github.com/vukhanhtruong/claude-rock/tree/main/build)
+2. Download a skill and save it to your computer
+
+### Step 2: Upload to Claude
+
+1. Go to [Settings > Capabilities](https://claude.ai/settings/capabilities)
+2. Click "Upload Skill"
+3. Select the file you downloaded
+4. Wait for the upload to complete
+
+### Step 3: Enable the Skill
+
+1. In the same Settings > Capabilities page
+2. Find "Architecture Design" in your skills list
+3. Toggle the switch to enable it
+4. The skill is now ready to use
 
 ## Contributing
 

@@ -1,1 +1,2 @@
-.claude
+plugins/**/.claude-plugin/*.*
+!.claude-plugin

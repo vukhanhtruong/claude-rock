@@ -1,11 +1,11 @@
 ---
 name: architecture-design
-description: Creates comprehensive software architecture documentation (ARCHITECTURE.md) with Mermaid diagrams, OpenAPI specifications, and PDF output through guided interviews. Use when users need to document system architecture, create architecture diagrams, design new systems, generate API specifications, or create complete documentation packages. Supports multiple technology stacks (Node.js, Python, Java, .NET, Go) and architectural patterns (monolith, microservices, serverless). Generates 5 C4 model Mermaid diagrams and packages everything as ZIP.
+description: Creates comprehensive software architecture documentation (ARCHITECTURE.md) with Mermaid diagrams, OpenAPI specifications, and PDF output through guided interviews. Use when users need to document system architecture, create architecture diagrams, design new systems, generate API specifications, or create complete documentation packages. Supports multiple technology stacks (Node.js, Python, Java, .NET, Go) and architectural patterns (monolith, microservices, serverless). Generates 5 C4 model Mermaid diagrams.
 ---
 
 # Architecture Design Expert
 
-Create professional ARCHITECTURE.md documentation with visual diagrams and API specifications through structured interviews. Generate complete documentation covering all 11 required sections with technology-specific guidance, 5 Mermaid.js diagrams (C4 Context, Container, Component, Data Flow, Deployment), OpenAPI 3.0 specifications, PDF output, and comprehensive ZIP packages.
+Create professional ARCHITECTURE.md documentation with visual diagrams and API specifications through structured interviews. Generate complete documentation covering all 11 required sections with technology-specific guidance, 5 Mermaid.js diagrams (C4 Context, Container, Component, Data Flow, Deployment), OpenAPI 3.0 specifications.
 
 ## Core Workflow
 
@@ -309,47 +309,6 @@ python scripts/generate_openapi.py '{"system_name": "...", "endpoints": [...]}'
 
 Save as `openapi.json`.
 
-## PDF and Package Creation
-
-Create comprehensive deliverable package.
-
-### Generate PDF
-
-Convert ARCHITECTURE.md to PDF using:
-
-- Pandoc (preferred)
-- WeasyPrint (fallback)
-- Notice file if tools unavailable
-
-### Create ZIP Package
-
-Use `scripts/create_package.py`:
-
-```bash
-python scripts/create_package.py <work_dir> <output.zip>
-```
-
-**Package contents:**
-
-```
-architecture-package.zip
-├── ARCHITECTURE.md
-├── ARCHITECTURE.pdf
-├── openapi.json
-└── diagrams/
-    ├── 01-context.png
-    ├── 02-container.png
-    ├── 03-component.png
-    ├── 04-dataflow.png
-    ├── 05-deployment.png
-    └── source/
-        ├── 01-context.mmd
-        ├── 02-container.mmd
-        ├── 03-component.mmd
-        ├── 04-dataflow.mmd
-        └── 05-deployment.mmd
-```
-
 ## Complete Workflow
 
 1. **Interview** (5-7 questions)
@@ -358,51 +317,17 @@ architecture-package.zip
 4. **Generate ARCHITECTURE.md** in work directory (all 11 sections)
 5. **Generate Mermaid diagrams** (5 .mmd files) in work directory root
 6. **Generate OpenAPI spec** (if applicable) in work directory
-7. **Deliver** complete package
+7. **Deliver** all generated artifacts
 
-## Proper File Organization
-
-**Work directory structure:**
+## Proper Organization
 
 ```
-$(pwd)
 ├── ARCHITECTURE.md
 ├── openapi.json
 ├── *.mmd (5 files)
 └── diagrams/ (created during packaging)
     └── *.png (5 files, if rendered)
 ```
-
-**Final ZIP structure:**
-
-```
-architecture-package.zip
-├── ARCHITECTURE.md
-├── ARCHITECTURE.pdf
-├── openapi.json
-└── diagrams/
-    ├── *.png (5 rendered images)
-    └── source/
-        └── *.mmd (5 source files)
-```
-
-**Critical:** .mmd files go in `diagrams/source/`, NOT root. Use `create_package.py` for correct structure.
-
-## Output Format
-
-**Final package location:**
-
-```
-/mnt/user-data/outputs/architecture-package.zip
-```
-
-**Contents structure:** See "Proper File Organization" above.
-
-**After completion:**
-
-1. Validate and report status
-2. Provide download link
-3. Summarize package contents
 
 ## Example Usage
 

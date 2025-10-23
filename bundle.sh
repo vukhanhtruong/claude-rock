@@ -67,6 +67,7 @@ zip -r "$DEST_PATH" "$SKILL_NAME" \
   --exclude="*/.git/*" \
   --exclude="*/node_modules/*" \
   --exclude="*/.pytest_cache/*" \
+  --exclude="*/.claude-plugin/*" \
   --exclude="*.pyc" \
   --exclude="*.pyo" \
   --exclude="*.log"

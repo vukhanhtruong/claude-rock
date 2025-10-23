@@ -30,7 +30,7 @@ The Architecture Design skill transforms Claude into an expert architecture cons
 ```
 
 - **Visual Diagrams**: Generates system diagrams and C4 model representations
-- **Advanced Features**: Mermaid diagrams, OpenAPI specs, PDF generation, ZIP packaging
+- **Advanced Features**: Mermaid diagrams, OpenAPI spec
 
 ## Claude Code Installation
 
@@ -45,7 +45,7 @@ The Architecture Design skill transforms Claude into an expert architecture cons
 
 ### Step 1: Download the Skill
 
-1. Download the [bundle zip](https://github.com/vukhanhtruong/claude-rock/build/architecture-design.zip) file
+1. Download the [bundle zip](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/architecture-design.zip) file
 2. Save it to your computer
 
 ### Step 2: Upload to Claude
@@ -132,8 +132,6 @@ Get a complete ARCHITECTURE.md with:
 
 - **Visual Diagrams** - Mermaid.js diagrams (C4 Context, Container, Component, Data Flow, Deployment)
 - **API Specifications** - OpenAPI 3.0 compliant documentation
-- **PDF Version** - Professionally formatted documentation
-- **ZIP Package** - Organized deliverable with all files
 
 ### System Diagrams
 
@@ -142,12 +140,11 @@ Get a complete ARCHITECTURE.md with:
 - Clear component relationships
 - Data flow visualization
 
-### Package Structure
+### Structure
 
 ```
-architecture-package.zip
+$(pwd)
 ├── ARCHITECTURE.md          # Main documentation
-├── ARCHITECTURE.pdf         # PDF version (if requested)
 ├── openapi.json            # API specification (if applicable)
 └── diagrams/               # Visual documentation
     ├── 01-context.png      # System context diagram

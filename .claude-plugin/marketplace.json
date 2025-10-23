@@ -21,7 +21,8 @@
       },
       "keywords": ["architecture", "documentation", "system-design"],
       "category": "documentation",
-      "strict": false
+      "strict": false,
+      "skills": ["./skills/architecture-design"]
     }
   ]
 }

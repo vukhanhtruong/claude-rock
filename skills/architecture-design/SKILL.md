@@ -354,21 +354,18 @@ architecture-package.zip
 
 1. **Interview** (5-7 questions)
 2. **Select template** and **load references**
-3. **Generate ARCHITECTURE.md** in current work directory (all 11 sections)
-4. **Generate Mermaid diagrams** (5 .mmd files) in work directory root
-5. **Generate OpenAPI spec** (if applicable) in work directory
-6. **Package**:
-   - Converts MD to PDF
-   - Renders .mmd to PNG (in diagrams/)
-   - Creates ZIP with proper structure
+3. **Setup work directory**: `$(pwd)`
+4. **Generate ARCHITECTURE.md** in work directory (all 11 sections)
+5. **Generate Mermaid diagrams** (5 .mmd files) in work directory root
+6. **Generate OpenAPI spec** (if applicable) in work directory
 7. **Deliver** complete package
 
-## Proper ZIP File Organization
+## Proper File Organization
 
 **Work directory structure:**
 
 ```
-(current directory)
+$(pwd)
 ├── ARCHITECTURE.md
 ├── openapi.json
 ├── *.mmd (5 files)

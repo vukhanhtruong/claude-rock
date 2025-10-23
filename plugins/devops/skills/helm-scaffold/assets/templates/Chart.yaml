@@ -1,0 +1,15 @@
+apiVersion: v2
+name: CHARTNAME
+description: A Helm chart for Kubernetes
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - kubernetes
+  - helm
+home: https://github.com/yourorg/CHARTNAME
+sources:
+  - https://github.com/yourorg/CHARTNAME
+maintainers:
+  - name: Your Name
+    email: your.email@example.com

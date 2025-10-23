@@ -22,6 +22,27 @@
       "keywords": ["architecture", "documentation", "system-design"],
       "category": "documentation",
       "strict": false
+    },
+    {
+      "name": "devops",
+      "source": "./plugins/devops",
+      "description": "devops skills such as generate Helm chart, Terraform script, CI/CD pipeline, GitOps, Docker.",
+      "version": "2.0.1",
+      "author": {
+        "name": "Truong Vu",
+        "email": "vukhanhtruong@gmail.com"
+      },
+      "keywords": [
+        "devops",
+        "helm",
+        "kubernetes",
+        "terraform",
+        "cicd",
+        "gitops",
+        "docker"
+      ],
+      "category": "devops",
+      "strict": false
     }
   ]
 }

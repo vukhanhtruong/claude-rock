@@ -1,9 +1,9 @@
 ---
 name: architecture-design
-description: Creates comprehensive software architecture documentation (ARCHITECTURE.md) with Mermaid diagrams, OpenAPI specifications, and PDF output through guided interviews. Use when users need to document system architecture, create architecture diagrams, design new systems, generate API specifications, or create complete documentation packages. Supports multiple technology stacks (Node.js, Python, Java, .NET, Go) and architectural patterns (monolith, microservices, serverless). Generates 5 C4 model Mermaid diagrams.
+description: Creates detailed software architecture documentation (ARCHITECTURE.md) with C4 diagrams, OpenAPI specs, and PDF export for various stacks and patterns.
 ---
 
-# Architecture Design Expert
+# Architecture Design
 
 Create professional ARCHITECTURE.md documentation with visual diagrams and API specifications through structured interviews. Generate complete documentation covering all 11 required sections with technology-specific guidance, 5 Mermaid.js diagrams (C4 Context, Container, Component, Data Flow, Deployment), OpenAPI 3.0 specifications.
 

@@ -1,24 +1,32 @@
 # Claude Rock 🚀
 
-## Overview
-
 This repository contains **Claude Skills** designed to enhance the capabilities of Claude Code for software engineers.
 
-**Current Skills:**
+## Skills:
 
-- [**Architecture Design**](/plugins/architecture-design/skills/README.md) - Creates comprehensive software architecture documentation
+### Architecture Design
 
-## Quick Start
+| Skill                                                               | Description                                               | Download                                                                                              |
+| ------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [architecture-design](plugins/architecture-design/skills/README.md) | Creates comprehensive software architecture documentation | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/architecture-design.zip) |
 
-### Claude Code Installation
+### DevOps
 
-#### 1. Add the Marketplace to Claude Code
+| Skill                                                           | Description                                                     | Download                                                                                               |
+| --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [helm-scaffold](/plugins/devops/skills/helm-scaffold/README.md) | Generates production-ready Helm charts following best practices | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/devops-helm-scaffold.zip) |
+
+# Quick Start
+
+## Claude Code Installation
+
+### 1. Add the Marketplace to Claude Code
 
 ```bash
 /plugin marketplace add vukhanhtruong/claude-rock
 ```
 
-#### 2: Install Plugins
+### 2: Install Plugins
 
 Browse available plugins:
 
@@ -30,33 +38,28 @@ Install the plugins you need:
 
 ```bash
 /plugin install architecture-design
-
 ```
 
-### Claude Chat Installation
+To verify installation, ask Claude Code:
 
-### Step 1: Download the Skill
+```bash
+Show available skills?
+```
 
-1. Go to this [page](https://github.com/vukhanhtruong/claude-rock/tree/main/build)
-2. Download a skill and save it to your computer
+**NOTE**: Make sure restart Claude Code after installing or enable/disable plugins.
 
-### Step 2: Upload to Claude
+## Claude Chat Installation
 
+1. Download the skill ZIP file the [Skills table](#skills) above.
 1. Go to [Settings > Capabilities](https://claude.ai/settings/capabilities)
-2. Click "Upload Skill"
-3. Select the file you downloaded
-4. Wait for the upload to complete
+1. Click "Upload Skill"
+1. Select the file you downloaded
+1. Toggle the switch to enable it
+1. The skill is now ready to use
 
-### Step 3: Enable the Skill
+# Contributing
 
-1. In the same Settings > Capabilities page
-2. Find "Architecture Design" in your skills list
-3. Toggle the switch to enable it
-4. The skill is now ready to use
-
-## Contributing
-
-### 🚀 **Adding New Skills**
+## 🚀 **Adding New Skills**
 
 **Skill Structure:**
 
@@ -76,7 +79,7 @@ plugins/your-plugin/skills/
 - README.md should be user-facing documentation
 - Include proper marketplace.json metadata
 
-### 📝 **Update Process**
+## 📝 **Update Process**
 
 1. Create skill directory following structure
 2. Add SKILL.md with comprehensive workflow
@@ -84,6 +87,6 @@ plugins/your-plugin/skills/
 4. Update marketplace.json with metadata
 5. Test skill functionality thoroughly
 
-## License
+# License
 
 MIT License - see the [LICENSE](./LICENSE.md) file for details.

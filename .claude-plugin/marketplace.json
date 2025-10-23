@@ -6,13 +6,13 @@
     "email": "vukhanhtruong@gmail.com"
   },
   "metadata": {
-    "description": "Architecture Design",
+    "description": "A collection of plugins to enhance Claude's capabilities.",
     "version": "2.0.1"
   },
   "plugins": [
     {
       "name": "architecture-design",
-      "source": "./skills/architecture-design",
+      "source": "./plugins/architecture-design",
       "description": "Create comprehensive software architecture documentation through guided interviews.",
       "version": "2.0.1",
       "author": {
@@ -21,8 +21,7 @@
       },
       "keywords": ["architecture", "documentation", "system-design"],
       "category": "documentation",
-      "strict": false,
-      "skills": ["./skills/architecture-design"]
+      "strict": false
     }
   ]
 }

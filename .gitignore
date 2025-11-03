@@ -1,2 +1,11 @@
 plugins/**/.claude-plugin/*.*
 !.claude-plugin
+
+node_modules/
+dist/
+
+openspec/
+
+.claude
+AGENTS.md
+CLAUDE.md

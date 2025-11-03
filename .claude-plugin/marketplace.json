@@ -43,6 +43,26 @@
       ],
       "category": "devops",
       "strict": false
+    },
+    {
+      "name": "browser-devtools",
+      "source": "./plugins/browser-devtools",
+      "description": "Provides debugging web applications, monitoring network traffic, capturing screenshots, DOM inspection, performance analysis, and testing UI interactions during development.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Truong Vu",
+        "email": "vukhanhtruong@gmail.com"
+      },
+      "keywords": [
+        "browser",
+        "automation",
+        "debugging",
+        "playwright",
+        "chrome",
+        "testing"
+      ],
+      "category": "development",
+      "strict": false
     }
   ]
 }

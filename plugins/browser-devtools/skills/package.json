@@ -1,0 +1,37 @@
+{
+  "name": "browser-devtools",
+  "version": "1.0.0",
+  "description": "Browser debugging and automation skill using Playwright for developers",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "install-browsers": "playwright install",
+    "test": "node dist/scripts/test.js"
+  },
+  "keywords": [
+    "browser",
+    "debugging",
+    "automation",
+    "playwright",
+    "development"
+  ],
+  "author": "Claude Skills",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@playwright/test": "^1.40.0",
+    "playwright": "^1.40.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/yargs": "^17.0.32",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

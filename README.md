@@ -16,6 +16,12 @@ This repository contains **Claude Skills** designed to enhance the capabilities 
 | --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | [helm-scaffold](/plugins/devops/skills/helm-scaffold/README.md) | Generates production-ready Helm charts following best practices | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/devops-helm-scaffold.zip) |
 
+### Browser Devtools
+
+| Skill                                                                        | Description                                             | Download                                                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [browser-devtools](/plugins/browser-devtools/skills/helm-scaffold/README.md) | Browser debugging and automation skill using Playwright | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/browser-devtools.zip) |
+
 # Quick Start
 
 ## Claude Code Installation

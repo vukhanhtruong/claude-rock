@@ -8,6 +8,28 @@ license: Apache-2.0
 
 Modern browser debugging and automation skill for developers using Playwright. Programmatic browser control for debugging, testing, and analyzing web applications during development.
 
+## Decision tree
+
+Here the decison tree when user want to inspect the console log, apply the same pattern for other prompt.
+
+```
+User task → Is URL provided?
+    ├─ Yes → Detect if it reachable.
+    │         ├─ Success → Implement Reconnaissance-then-action (RTA)
+    |         |              1. Navigate to provided URL.
+    |         |              2. Inspect console log
+    |         |              3. Identify the errors
+    |         |              4. Execute actions with discovered issues
+    │         └─ Fails → End
+    │
+    └─ No → Is the development server already running?
+              ├─ No → End
+              │
+              └─ Yes → Ask user if they want to test development server?
+                        ├─ Yes →  Reconnaissance-then-action (RTA)
+                        ├─ No → End
+```
+
 ## Quick Start
 
 ### Installation
@@ -292,12 +314,12 @@ node dist/scripts/navigate.js --url https://example.com --browser webkit
 
 ## Best Practices
 
+- **Compliance Decision tree**: The decision tree must be followed strictly.
 - **Use specific selectors**: Prefer IDs and classes over generic tags
 - **Wait for elements**: Use appropriate wait strategies for dynamic content
 - **Clean up sessions**: Close sessions when done to free resources
 - **Monitor performance**: Regularly check Core Web Vitals during development
 - **Validate forms**: Test form inputs and validation systematically
-- **Capture evidence**: Take screenshots when debugging visual issues
 
 ## Integration with Development Workflow
 

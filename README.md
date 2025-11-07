@@ -18,9 +18,9 @@ This repository contains **Claude Skills** designed to enhance the capabilities 
 
 ### Browser Devtools
 
-| Skill                                                                        | Description                                             | Download                                                                                           |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [browser-devtools](/plugins/browser-devtools/skills/helm-scaffold/README.md) | Browser debugging and automation skill using Playwright | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/browser-devtools.zip) |
+| Skill                                                          | Description                                             | Download                                                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [browser-devtools](/plugins/browser-devtools/skills/README.md) | Browser debugging and automation skill using Playwright | [ZIP](https://github.com/vukhanhtruong/claude-rock/raw/refs/heads/main/build/browser-devtools.zip) |
 
 # Quick Start
 

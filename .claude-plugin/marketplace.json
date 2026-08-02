@@ -7,61 +7,20 @@
   },
   "metadata": {
     "description": "A collection of plugins to enhance Claude's capabilities.",
-    "version": "2.0.1"
+    "version": "3.0.0"
   },
   "plugins": [
     {
-      "name": "architecture-design",
-      "source": "./plugins/architecture-design",
-      "description": "Create comprehensive software architecture documentation through guided interviews.",
-      "version": "2.0.1",
-      "author": {
-        "name": "Truong Vu",
-        "email": "vukhanhtruong@gmail.com"
-      },
-      "keywords": ["architecture", "documentation", "system-design"],
-      "category": "documentation",
-      "strict": false
-    },
-    {
-      "name": "devops",
-      "source": "./plugins/devops",
-      "description": "devops skills such as generate Helm chart, Terraform script, CI/CD pipeline, GitOps, Docker.",
-      "version": "2.0.1",
-      "author": {
-        "name": "Truong Vu",
-        "email": "vukhanhtruong@gmail.com"
-      },
-      "keywords": [
-        "devops",
-        "helm",
-        "kubernetes",
-        "terraform",
-        "cicd",
-        "gitops",
-        "docker"
-      ],
-      "category": "devops",
-      "strict": false
-    },
-    {
-      "name": "browser-devtools",
-      "source": "./plugins/browser-devtools",
-      "description": "Provides debugging web applications, monitoring network traffic, capturing screenshots, DOM inspection, performance analysis, and testing UI interactions during development.",
+      "name": "arch-docs",
+      "source": "./plugins/arch-docs",
+      "description": "Interview + research driven architecture documentation with interactive diagrams, provenance-tagged facts, offline viewer, and cross-consistency validation.",
       "version": "1.0.0",
       "author": {
         "name": "Truong Vu",
         "email": "vukhanhtruong@gmail.com"
       },
-      "keywords": [
-        "browser",
-        "automation",
-        "debugging",
-        "playwright",
-        "chrome",
-        "testing"
-      ],
-      "category": "development",
+      "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr"],
+      "category": "documentation",
       "strict": false
     }
   ]

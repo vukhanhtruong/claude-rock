@@ -20,6 +20,14 @@ test('passes valid file, anchor, and external links', () => {
   assert.deepEqual(validateLinks({ links, files, anchors }), []);
 });
 
+test('resolves relative links against the linking doc directory', () => {
+  const links = [
+    { fromDoc: 'docs/DOMAIN-OVERVIEW.md', href: 'adr/0007-gate.md' },
+    { fromDoc: 'docs/DOMAIN-OVERVIEW.md', href: '../ARCHITECTURE.md#core-components' },
+  ];
+  assert.deepEqual(validateLinks({ links, files, anchors }), []);
+});
+
 test('fails missing file and missing anchor', () => {
   const links = [
     { fromDoc: 'A.md', href: 'docs/adr/0099-none.md' },

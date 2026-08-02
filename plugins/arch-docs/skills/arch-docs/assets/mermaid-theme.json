@@ -1,0 +1,19 @@
+{
+  "themeVariables": {
+    "fontFamily": "'IBM Plex Sans', system-ui, sans-serif",
+    "fontSize": "16px",
+    "primaryColor": "#0f766e26",
+    "primaryBorderColor": "#0f766e",
+    "primaryTextColor": "#134e4a",
+    "secondaryColor": "#47556926",
+    "secondaryBorderColor": "#475569",
+    "secondaryTextColor": "#1e293b",
+    "tertiaryColor": "#0f766e14",
+    "tertiaryBorderColor": "#475569",
+    "tertiaryTextColor": "#1e293b",
+    "lineColor": "#475569",
+    "noteBkgColor": "#0f766e1a",
+    "noteBorderColor": "#0f766e",
+    "noteTextColor": "#134e4a"
+  }
+}

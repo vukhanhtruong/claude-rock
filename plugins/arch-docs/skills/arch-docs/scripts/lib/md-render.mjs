@@ -1,4 +1,4 @@
-import { slugify } from './validate-links.mjs';
+import { nextSlug } from './slug-registry.mjs';
 
 export function renderMarkdown(md, slugs = new Map()) {
   const ctx = {
@@ -12,7 +12,7 @@ export function renderMarkdown(md, slugs = new Map()) {
 function shapeOf(lines, i) {
   const line = lines[i];
   if (!line.trim()) return 'blank';
-  if (/^#{1,3}\s+/.test(line)) return 'heading';
+  if (/^#{1,6}\s+/.test(line)) return 'heading';
   if (line.trim().startsWith('```')) return 'fence';
   if (/^<!--\s*likec4:view\s+\S+\s*-->/.test(line.trim())) return 'marker';
   if (line.startsWith('|') && /^\|[\s|:-]+\|$/.test((lines[i + 1] ?? '').trim())) return 'table';
@@ -30,18 +30,15 @@ function dispatch(ctx) {
 }
 
 function renderHeading(ctx) {
-  const [, hashes, raw] = ctx.lines[ctx.i].match(/^(#{1,3})\s+(.*)$/);
+  const [, hashes, raw] = ctx.lines[ctx.i].match(/^(#{1,6})\s+(.*)$/);
   const level = hashes.length;
   const text = raw.trim();
-  if (level === 1) {
-    ctx.html.push(`<h1>${inline(text)}</h1>`);
-  } else {
-    const base = slugify(text);
-    const nth = (ctx.slugs.get(base) ?? 0) + 1;
-    ctx.slugs.set(base, nth);
-    const slug = nth === 1 ? base : `${base}-${nth}`;
+  if (level === 2 || level === 3) {
+    const slug = nextSlug(text, ctx.slugs);
     ctx.html.push(`<h${level} id="${slug}">${inline(text)}</h${level}>`);
     ctx.headings.push({ level, text, slug });
+  } else {
+    ctx.html.push(`<h${level}>${inline(text)}</h${level}>`);
   }
   ctx.i += 1;
 }
@@ -91,7 +88,7 @@ function renderParagraph(ctx) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function inline(text) {

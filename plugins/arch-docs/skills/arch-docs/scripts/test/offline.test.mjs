@@ -27,3 +27,11 @@ test('keeps the host bundle valid whatever js quote style wraps the css', () => 
     assert.doesNotThrow(() => new Function(out), `${style}: broke the host string literal`);
   }
 });
+
+test('throws if the bundle contains a literal </script> that would truncate the tag', () => {
+  assert.throws(() => stripRemoteAssets('var x = "</script>";'), /script/i);
+});
+
+test('catches the closing tag regardless of case (</SCRIPT>)', () => {
+  assert.throws(() => stripRemoteAssets('var x = "</SCRIPT>";'), /script/i);
+});

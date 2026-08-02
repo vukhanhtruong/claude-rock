@@ -37,3 +37,16 @@ test('render.mjs fails loudly on a missing bundle', () => {
     '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
   ]));
 });
+
+test('render.mjs throws loudly if a bundle contains a literal </script>', () => {
+  const out = mkdtempSync(join(tmpdir(), 'arch-docs-render-'));
+  const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
+  assert.throws(() => execFileSync('node', [
+    'plugins/arch-docs/skills/arch-docs/scripts/render.mjs',
+    '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
+    '--out', out,
+    '--likec4-bundle', stub('l.js', 'var s = "</script>";'),
+    '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
+    '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
+  ]));
+});

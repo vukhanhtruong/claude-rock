@@ -46,10 +46,25 @@ test('renders a plain fenced block as preformatted code', () => {
 
 test('escapes html inside a plain fenced block', () => {
   const { html } = renderMarkdown('```json\n{"a": "<b>"}\n```');
-  assert.match(html, /<pre><code>\{"a": "&lt;b&gt;"\}<\/code><\/pre>/);
+  assert.match(html, /<pre><code>\{&quot;a&quot;: &quot;&lt;b&gt;&quot;\}<\/code><\/pre>/);
 });
 
 test('renders absolute-URL links with the href intact', () => {
   const { html } = renderMarkdown('[Stripe](https://stripe.com/docs/api)');
   assert.match(html, /<a href="https:\/\/stripe\.com\/docs\/api">Stripe<\/a>/);
+});
+
+test('renders h4-h6 as real heading tags with no id', () => {
+  const { html, headings } = renderMarkdown('#### Deep\n\n##### Deeper\n\n###### Deepest');
+  assert.match(html, /<h4>Deep<\/h4>/);
+  assert.match(html, /<h5>Deeper<\/h5>/);
+  assert.match(html, /<h6>Deepest<\/h6>/);
+  assert.doesNotMatch(html, /<h4 id=/);
+  assert.deepEqual(headings, []);
+});
+
+test('escapes a quote in a link target so it cannot break out of the href attribute', () => {
+  const { html } = renderMarkdown('[x](y"onclick="alert(1))');
+  assert.doesNotMatch(html, /"\s*onclick=/);
+  assert.match(html, /&quot;/);
 });

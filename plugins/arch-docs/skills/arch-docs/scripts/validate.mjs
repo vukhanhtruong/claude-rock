@@ -41,21 +41,25 @@ function componentRows(tables) {
   }));
 }
 
-function listDirs(dir) {
+function listDirs(dir, hidden = false) {
   return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules')
+    .filter((e) => e.isDirectory() && (hidden || !e.name.startsWith('.')) && e.name !== 'node_modules')
     .map((e) => e.name);
 }
 
-function fsDirs(root) {
-  const top = listDirs(root);
-  return top.flatMap((d) => [d, ...listDirs(join(root, d)).map((c) => `${d}/${c}`)]);
+function walkDirs(root, hidden = false) {
+  const top = listDirs(root, hidden);
+  return top.flatMap((d) => [d, ...listDirs(join(root, d), hidden).map((c) => `${d}/${c}`)]);
 }
 
 function brownfieldFindings({ inputs, args, root }) {
   const clusters = args.clusters ? JSON.parse(readFileSync(args.clusters, 'utf8')) : [];
   return [
-    ...validateTree({ boundaryRows: boundaryRows(inputs.tables), fsDirs: fsDirs(root) }),
+    ...validateTree({
+      boundaryRows: boundaryRows(inputs.tables),
+      fsDirs: walkDirs(root),
+      allDirs: walkDirs(root, true),
+    }),
     ...validateClusters({ clusters, componentRows: componentRows(inputs.tables) }),
   ];
 }

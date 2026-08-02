@@ -23,3 +23,21 @@ test('nested fs dir is covered by a documented ancestor', () => {
   const findings = validateTree({ boundaryRows: ['src'], fsDirs: ['src', 'src/billing'] });
   assert.deepEqual(findings, []);
 });
+
+test('a documented hidden dir that exists is not reported missing', () => {
+  const findings = validateTree({
+    boundaryRows: ['.claude-plugin', 'src'],
+    fsDirs: ['src'],
+    allDirs: ['.claude-plugin', 'src'],
+  });
+  assert.deepEqual(findings, []);
+});
+
+test('a hidden dir still does not have to be documented', () => {
+  const findings = validateTree({
+    boundaryRows: ['src'],
+    fsDirs: ['src'],
+    allDirs: ['.git', 'src'],
+  });
+  assert.deepEqual(findings, []);
+});

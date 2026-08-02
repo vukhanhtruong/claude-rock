@@ -36,6 +36,19 @@ test('keeps heading ids unique across docs sharing a slug registry', () => {
   assert.equal(headings[0].slug, 'considered-options-2');
 });
 
+test('renders a plain fenced block as preformatted code', () => {
+  const md = 'Tree:\n\n```\nroot/\n├── src/\n└── docs/\n```\n\nAfter.';
+  const { html } = renderMarkdown(md);
+  assert.match(html, /<pre><code>root\/\n├── src\/\n└── docs\/<\/code><\/pre>/);
+  assert.doesNotMatch(html, /``/);
+  assert.match(html, /<p>After\.<\/p>/);
+});
+
+test('escapes html inside a plain fenced block', () => {
+  const { html } = renderMarkdown('```json\n{"a": "<b>"}\n```');
+  assert.match(html, /<pre><code>\{"a": "&lt;b&gt;"\}<\/code><\/pre>/);
+});
+
 test('renders absolute-URL links with the href intact', () => {
   const { html } = renderMarkdown('[Stripe](https://stripe.com/docs/api)');
   assert.match(html, /<a href="https:\/\/stripe\.com\/docs\/api">Stripe<\/a>/);

@@ -13,7 +13,7 @@ function shapeOf(lines, i) {
   const line = lines[i];
   if (!line.trim()) return 'blank';
   if (/^#{1,3}\s+/.test(line)) return 'heading';
-  if (line.trim() === '```mermaid') return 'fence';
+  if (line.trim().startsWith('```')) return 'fence';
   if (/^<!--\s*likec4:view\s+\S+\s*-->/.test(line.trim())) return 'marker';
   if (line.startsWith('|') && /^\|[\s|:-]+\|$/.test((lines[i + 1] ?? '').trim())) return 'table';
   return 'paragraph';
@@ -47,12 +47,17 @@ function renderHeading(ctx) {
 }
 
 function renderFence(ctx) {
+  const lang = ctx.lines[ctx.i].trim().slice(3).trim();
   const code = [];
   let j = ctx.i + 1;
   while (j < ctx.lines.length && ctx.lines[j].trim() !== '```') { code.push(ctx.lines[j]); j += 1; }
-  const canvas = `<div class="mermaid-canvas">${escapeHtml(code.join('\n'))}</div>`;
-  ctx.html.push(`<div class="diagram-shell">${canvas}</div>`);
+  const body = escapeHtml(code.join('\n'));
   ctx.i = j + 1;
+  if (lang !== 'mermaid') {
+    ctx.html.push(`<pre><code>${body}</code></pre>`);
+    return;
+  }
+  ctx.html.push(`<div class="diagram-shell"><div class="mermaid-canvas">${body}</div></div>`);
 }
 
 function renderMarker(ctx) {

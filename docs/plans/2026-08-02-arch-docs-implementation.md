@@ -1,0 +1,1848 @@
+# arch-docs Plugin Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build the `arch-docs` Claude Code plugin: interview + research + provenance-tagged architecture docs, LikeC4/mermaid diagrams, offline localhost viewer, cross-consistency validator.
+
+**Architecture:** One skill (`plugins/arch-docs/skills/arch-docs/`) whose SKILL.md orchestrates mode detection, interview, a research Workflow script, doc writing into fixed contracts, then validation and rendering. All executable logic lives in zero-dependency ESM modules under `scripts/lib/`, each a pure function tested with `node --test`; the CLI entry points (`validate.mjs`, `serve.mjs`) are thin shells. Prose contracts live in `references/*.md`.
+
+**Tech Stack:** Node ≥ 20 (built-ins only: `node:test`, `node:http`, `node:net`, `node:fs`), `npx likec4` at doc-generation time, mermaid + `@mermaid-js/layout-elk` vendored into generated HTML.
+
+**Spec:** `docs/specs/2026-08-02-arch-docs-design.md` — the requirements source. Read it before starting.
+
+## Global Constraints
+
+- Node ≥ 20; ESM `.mjs`; **zero runtime npm dependencies** (`npx likec4` is invoked as an external command, never a package dependency).
+- Quality gates (every file): ≤200 lines/file, ≤20 lines/function, ≤3 params/function, ≤2 nesting levels, ≤10 functions/file, coverage ≥80%.
+- TDD RED→GREEN→VALIDATE: every test must be run and observed FAILING before its implementation is written.
+- Provenance vocabulary, exact strings: `observed` · `stated` · `researched` · `proposed`.
+- Viewer default port **4173**, scan upward when busy.
+- Commits: Conventional Commits, imperative, ≤50-char subject. **Never add AI attribution trailers.**
+- kebab-case directory names throughout.
+- Test files live in `plugins/arch-docs/skills/arch-docs/scripts/test/`, named `*.test.mjs`. Run all: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/`.
+- `Finding` — the shared result type of every validator: `{ check: string, message: string }`. A validator returns `Finding[]`, empty array = pass.
+
+---
+
+### Task 1: Plugin scaffold + marketplace entry
+
+**Files:**
+- Create: `plugins/arch-docs/.claude-plugin/plugin.json`
+- Modify: `.claude-plugin/marketplace.json` (replace all three stale entries)
+
+**Interfaces:**
+- Produces: the `plugins/arch-docs/skills/arch-docs/` directory tree all later tasks write into.
+
+- [ ] **Step 1: Write plugin.json**
+
+```json
+{
+  "name": "arch-docs",
+  "version": "1.0.0",
+  "description": "Interview + research driven architecture documentation with interactive LikeC4/mermaid diagrams, provenance-tagged facts, offline localhost viewer, and a cross-consistency validator.",
+  "author": {
+    "name": "Truong Vu",
+    "email": "vukhanhtruong@gmail.com"
+  }
+}
+```
+
+- [ ] **Step 2: Replace the plugins array in `.claude-plugin/marketplace.json`**
+
+Keep `name`, `id`, `owner` as-is. Set `metadata.version` to `"3.0.0"` and replace the whole `plugins` array (the three listed plugins were deleted in commit `9f98936`; their entries are dead):
+
+```json
+"plugins": [
+  {
+    "name": "arch-docs",
+    "source": "./plugins/arch-docs",
+    "description": "Interview + research driven architecture documentation with interactive diagrams, provenance-tagged facts, offline viewer, and cross-consistency validation.",
+    "version": "1.0.0",
+    "author": {
+      "name": "Truong Vu",
+      "email": "vukhanhtruong@gmail.com"
+    },
+    "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr"],
+    "category": "documentation",
+    "strict": false
+  }
+]
+```
+
+- [ ] **Step 3: Create the directory tree**
+
+```bash
+mkdir -p plugins/arch-docs/skills/arch-docs/{references,assets,scripts/lib,scripts/test,workflows}
+```
+
+- [ ] **Step 4: Verify both JSON files parse**
+
+Run: `jq . plugins/arch-docs/.claude-plugin/plugin.json && jq '.plugins | length' .claude-plugin/marketplace.json`
+Expected: pretty-printed JSON, then `1`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add .claude-plugin/marketplace.json plugins/arch-docs
+git commit -m "feat: scaffold arch-docs plugin and marketplace entry"
+```
+
+---
+
+### Task 2: `lib/frontmatter.mjs` — frontmatter parser
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/frontmatter.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/frontmatter.test.mjs`
+
+**Interfaces:**
+- Produces: `parseFrontmatter(md: string) → { data: object|null, error?: string }`. Values are strings, except values starting with `[` or `{`, which are `JSON.parse`d (the `electedDocs` convention: a JSON array on one line).
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseFrontmatter } from '../lib/frontmatter.mjs';
+
+test('parses simple key: value pairs', () => {
+  const md = '---\nname: shop\nmode: brownfield\n---\n# Doc';
+  const { data } = parseFrontmatter(md);
+  assert.deepEqual(data, { name: 'shop', mode: 'brownfield' });
+});
+
+test('parses JSON values for electedDocs', () => {
+  const md = '---\nelectedDocs: [{"name":"threat-model","elected":false,"reason":"CLI tool"}]\n---';
+  const { data } = parseFrontmatter(md);
+  assert.equal(data.electedDocs[0].reason, 'CLI tool');
+});
+
+test('returns error when no frontmatter block', () => {
+  const { data, error } = parseFrontmatter('# Just a doc');
+  assert.equal(data, null);
+  assert.match(error, /no frontmatter/);
+});
+
+test('returns error for a malformed line', () => {
+  const { data, error } = parseFrontmatter('---\nnot a pair\n---');
+  assert.equal(data, null);
+  assert.match(error, /bad line/);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/frontmatter.test.mjs`
+Expected: FAIL — `Cannot find module .../lib/frontmatter.mjs`
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function parseFrontmatter(md) {
+  const m = md.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return { data: null, error: 'no frontmatter block' };
+  const data = {};
+  for (const line of m[1].split('\n')) {
+    if (!line.trim()) continue;
+    const i = line.indexOf(':');
+    if (i === -1) return { data: null, error: `bad line: ${line}` };
+    data[line.slice(0, i).trim()] = parseValue(line.slice(i + 1).trim());
+  }
+  return { data };
+}
+
+function parseValue(raw) {
+  if (!raw.startsWith('[') && !raw.startsWith('{')) return raw;
+  try { return JSON.parse(raw); } catch { return raw; }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/frontmatter.test.mjs`
+Expected: PASS, 4/4
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add frontmatter parser"
+```
+
+---
+
+### Task 3: `lib/md-tables.mjs` — markdown table parser
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/md-tables.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/md-tables.test.mjs`
+
+**Interfaces:**
+- Produces: `parseTables(md: string) → Array<{ section: string, headers: string[], rows: string[][] }>`. `section` = text of the nearest preceding heading (any level, `#` prefix stripped). Tables must use leading+trailing pipes (the format `writing.md` mandates).
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseTables } from '../lib/md-tables.mjs';
+
+const MD = `## Core Components
+
+| Component | Responsibility | src |
+|---|---|---|
+| api | serves REST | observed |
+| worker | queue jobs | stated |
+
+## External Integrations
+
+| System | Method | src |
+|---|---|---|
+| stripe | REST | researched [1] |
+`;
+
+test('parses tables with section, headers, rows', () => {
+  const tables = parseTables(MD);
+  assert.equal(tables.length, 2);
+  assert.equal(tables[0].section, 'Core Components');
+  assert.deepEqual(tables[0].headers, ['Component', 'Responsibility', 'src']);
+  assert.deepEqual(tables[0].rows[1], ['worker', 'queue jobs', 'stated']);
+  assert.equal(tables[1].section, 'External Integrations');
+});
+
+test('returns empty array when no tables', () => {
+  assert.deepEqual(parseTables('# Title\nprose only'), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/md-tables.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function parseTables(md) {
+  const lines = md.split('\n');
+  const tables = [];
+  let section = '';
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].startsWith('#')) section = lines[i].replace(/^#+\s*/, '');
+    if (!isHeaderRow(lines, i)) continue;
+    const table = readTable(lines, i, section);
+    tables.push(table);
+    i += table.rows.length + 1;
+  }
+  return tables;
+}
+
+function isHeaderRow(lines, i) {
+  const next = lines[i + 1] ?? '';
+  return lines[i].startsWith('|') && /^\|[\s|:-]+\|$/.test(next.trim());
+}
+
+function readTable(lines, i, section) {
+  const rows = [];
+  for (let j = i + 2; j < lines.length && lines[j].startsWith('|'); j += 1) {
+    rows.push(cells(lines[j]));
+  }
+  return { section, headers: cells(lines[i]), rows };
+}
+
+function cells(line) {
+  return line.split('|').slice(1, -1).map((c) => c.trim());
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/md-tables.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add markdown table parser"
+```
+
+---
+
+### Task 4: `lib/md-links.mjs` — link extractor
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/md-links.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/md-links.test.mjs`
+
+**Interfaces:**
+- Produces: `extractLinks(md: string) → Array<{ text: string, href: string }>` — every inline markdown link, including those inside table cells. External links (`http://`, `https://`) are included; filtering is the validator's job.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { extractLinks } from '../lib/md-links.mjs';
+
+test('extracts links from prose and table cells', () => {
+  const md = 'See [ADR-7](docs/adr/0007-gate.md) and | [api](ARCHITECTURE.md#core-components) |';
+  const links = extractLinks(md);
+  assert.deepEqual(links, [
+    { text: 'ADR-7', href: 'docs/adr/0007-gate.md' },
+    { text: 'api', href: 'ARCHITECTURE.md#core-components' },
+  ]);
+});
+
+test('returns empty array when no links', () => {
+  assert.deepEqual(extractLinks('plain text'), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/md-links.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function extractLinks(md) {
+  const links = [];
+  const re = /\[([^\]]*)\]\(([^)\s]+)\)/g;
+  let m;
+  while ((m = re.exec(md)) !== null) links.push({ text: m[1], href: m[2] });
+  return links;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/md-links.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add markdown link extractor"
+```
+
+---
+
+### Task 5: `lib/er-entities.mjs` — ER entity extractor
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/er-entities.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/er-entities.test.mjs`
+
+**Interfaces:**
+- Produces: `erEntities(md: string) → string[]` — unique entity names from every ```mermaid fence containing `erDiagram`. Captures block-form entities (`NAME {`) and both sides of relationship lines (`A ||--o{ B : label`).
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { erEntities } from '../lib/er-entities.mjs';
+
+const MD = '```mermaid\nerDiagram\n  ORDER ||--o{ LINE_ITEM : contains\n  CUSTOMER {\n    string name\n  }\n```';
+
+test('collects entities from relations and blocks', () => {
+  assert.deepEqual(erEntities(MD).sort(), ['CUSTOMER', 'LINE_ITEM', 'ORDER']);
+});
+
+test('ignores non-er mermaid fences', () => {
+  const md = '```mermaid\nflowchart TD\n  A --> B\n```';
+  assert.deepEqual(erEntities(md), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/er-entities.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function erEntities(md) {
+  const names = new Set();
+  const fences = md.match(/```mermaid\n[\s\S]*?```/g) ?? [];
+  for (const fence of fences) {
+    if (!/^\s*erDiagram/m.test(fence)) continue;
+    for (const line of fence.split('\n')) collect(line, names);
+  }
+  return [...names];
+}
+
+function collect(line, names) {
+  const rel = line.match(/^\s*(\w+)\s+[|}o][|o.-]+[|{o]\s+(\w+)\s*:/);
+  if (rel) { names.add(rel[1]); names.add(rel[2]); return; }
+  const block = line.match(/^\s*(\w+)\s*\{\s*$/);
+  if (block) names.add(block[1]);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/er-entities.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add mermaid ER entity extractor"
+```
+
+---
+
+### Task 6: `lib/validate-provenance.mjs`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-provenance.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-provenance.test.mjs`
+
+**Interfaces:**
+- Consumes: table shape from `parseTables` (Task 3).
+- Produces: `validateProvenance({ tables }) → Finding[]`. Rules: every table whose section is NOT exempt (`Decisions`, `Glossary` — the two generated sections) must have a `src` header; every row's `src` cell must start with one of the four provenance words. `researched` may carry a suffix (source link), so match on prefix.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateProvenance } from '../lib/validate-provenance.mjs';
+
+const ok = { section: 'Core Components', headers: ['C', 'src'], rows: [['api', 'observed']] };
+const badValue = { section: 'Data Stores', headers: ['S', 'src'], rows: [['pg', 'guessed']] };
+const noColumn = { section: 'External Integrations', headers: ['System'], rows: [['stripe']] };
+const generated = { section: 'Decisions', headers: ['ADR'], rows: [['0001']] };
+
+test('passes valid tables and exempts generated sections', () => {
+  assert.deepEqual(validateProvenance({ tables: [ok, generated] }), []);
+});
+
+test('fails a row with an unknown src value', () => {
+  const findings = validateProvenance({ tables: [badValue] });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].message, /guessed/);
+});
+
+test('fails a table missing the src column', () => {
+  const findings = validateProvenance({ tables: [noColumn] });
+  assert.match(findings[0].message, /src column/);
+});
+
+test('accepts researched with a source suffix', () => {
+  const t = { section: 'X', headers: ['A', 'src'], rows: [['a', 'researched [stripe docs]']] };
+  assert.deepEqual(validateProvenance({ tables: [t] }), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-provenance.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+const ALLOWED = ['observed', 'stated', 'researched', 'proposed'];
+const EXEMPT = ['Decisions', 'Glossary'];
+
+export function validateProvenance({ tables }) {
+  const findings = [];
+  for (const t of tables) {
+    if (EXEMPT.some((e) => t.section.includes(e))) continue;
+    findings.push(...checkTable(t));
+  }
+  return findings;
+}
+
+function checkTable(t) {
+  const col = t.headers.indexOf('src');
+  if (col === -1) {
+    return [{ check: 'provenance', message: `table in "${t.section}" has no src column` }];
+  }
+  return t.rows.filter((r) => !ALLOWED.some((a) => (r[col] ?? '').startsWith(a)))
+    .map((r) => ({ check: 'provenance', message: `"${t.section}" row "${r[0]}": bad src "${r[col]}"` }));
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-provenance.test.mjs`
+Expected: PASS, 4/4
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add provenance completeness check"
+```
+
+---
+
+### Task 7: `lib/validate-elections.mjs`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-elections.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-elections.test.mjs`
+
+**Interfaces:**
+- Consumes: `data` object from `parseFrontmatter` (Task 2).
+- Produces: `validateElections({ frontmatter }) → Finding[]`. Rules: `electedDocs` must be an array containing an entry for each of the four companions (`threat-model`, `interface-contract`, `estimation`, `domain-overview`); each entry needs boolean `elected`; entries with `elected: false` need a non-empty `reason`.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateElections } from '../lib/validate-elections.mjs';
+
+const full = [
+  { name: 'threat-model', elected: true },
+  { name: 'interface-contract', elected: true },
+  { name: 'estimation', elected: false, reason: 'user declined estimates' },
+  { name: 'domain-overview', elected: false, reason: 'thin domain: CLI wrapper' },
+];
+
+test('passes a complete election record', () => {
+  assert.deepEqual(validateElections({ frontmatter: { electedDocs: full } }), []);
+});
+
+test('fails when a companion has no record', () => {
+  const findings = validateElections({ frontmatter: { electedDocs: full.slice(0, 3) } });
+  assert.match(findings[0].message, /domain-overview/);
+});
+
+test('fails un-elected entry without reason', () => {
+  const docs = [...full.slice(0, 3), { name: 'domain-overview', elected: false }];
+  const findings = validateElections({ frontmatter: { electedDocs: docs } });
+  assert.match(findings[0].message, /reason/);
+});
+
+test('fails when electedDocs missing entirely', () => {
+  const findings = validateElections({ frontmatter: {} });
+  assert.equal(findings.length, 1);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-elections.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+const COMPANIONS = ['threat-model', 'interface-contract', 'estimation', 'domain-overview'];
+
+export function validateElections({ frontmatter }) {
+  const docs = frontmatter.electedDocs;
+  if (!Array.isArray(docs)) {
+    return [{ check: 'elections', message: 'frontmatter electedDocs missing or not a list' }];
+  }
+  return COMPANIONS.flatMap((name) => checkOne(name, docs.find((d) => d.name === name)));
+}
+
+function checkOne(name, entry) {
+  if (!entry) return [{ check: 'elections', message: `no election record for ${name}` }];
+  if (typeof entry.elected !== 'boolean') {
+    return [{ check: 'elections', message: `${name}: elected must be true or false` }];
+  }
+  if (!entry.elected && !entry.reason) {
+    return [{ check: 'elections', message: `${name}: not elected but no reason recorded` }];
+  }
+  return [];
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-elections.test.mjs`
+Expected: PASS, 4/4
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add election record check"
+```
+
+---
+
+### Task 8: `lib/likec4-extract.mjs` + real LikeC4 fixture
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/likec4-extract.mjs`
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/test/fixtures/sample.c4`
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/test/fixtures/sample-model.json` (generated, committed)
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/likec4-extract.test.mjs`
+
+**Interfaces:**
+- Produces: `extractModel(likec4Json) → { elements: Array<{id, kind, title}>, deployed: string[] }`. `deployed` = element ids referenced by any `instanceOf` in the deployment model. This normalized shape is what `validate-model-tables` (Task 9) and `validate-deployment` (Task 10) consume — they never see raw LikeC4 JSON.
+
+- [ ] **Step 1: Write the sample model**
+
+`scripts/test/fixtures/sample.c4`:
+
+```
+specification {
+  element person
+  element system
+  element container
+  deploymentNode node
+}
+model {
+  customer = person 'Customer'
+  shop = system 'Shop' {
+    web = container 'Web App'
+    api = container 'API'
+  }
+  stripe = system 'Stripe' {
+    #external
+  }
+  customer -> web 'uses'
+  web -> api 'calls'
+  api -> stripe 'charges'
+}
+deployment {
+  node prod 'Production' {
+    instanceOf shop.api
+  }
+}
+views {
+  view index { include * }
+}
+```
+
+Note: `web` deliberately has no `instanceOf` — it is the undeployed-container fixture for Task 10.
+
+- [ ] **Step 2: Generate the real JSON fixture**
+
+```bash
+cd plugins/arch-docs/skills/arch-docs/scripts/test/fixtures
+npx likec4 export json --outfile sample-model.json .
+```
+
+Inspect `sample-model.json` to find where elements, kinds, tags, and deployment `instanceOf` references live in the real schema (top-level keys will be similar to `elements`, `deployments`; adjust the implementation in Step 4 to the actual keys — the fixture is the source of truth, do not guess).
+
+- [ ] **Step 3: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { extractModel } from '../lib/likec4-extract.mjs';
+
+const raw = JSON.parse(readFileSync(new URL('./fixtures/sample-model.json', import.meta.url), 'utf8'));
+
+test('extracts elements with kind and title', () => {
+  const model = extractModel(raw);
+  const api = model.elements.find((e) => e.id === 'shop.api');
+  assert.equal(api.kind, 'container');
+  assert.equal(api.title, 'API');
+});
+
+test('collects deployed element ids from instanceOf', () => {
+  const model = extractModel(raw);
+  assert.ok(model.deployed.includes('shop.api'));
+  assert.ok(!model.deployed.includes('shop.web'));
+});
+```
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/likec4-extract.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 4: Write the implementation against the real fixture keys**
+
+Skeleton (adjust property paths to what Step 2 revealed; keep each function ≤20 lines):
+
+```js
+export function extractModel(raw) {
+  return { elements: listElements(raw), deployed: listDeployed(raw) };
+}
+
+function listElements(raw) {
+  return Object.entries(raw.elements ?? {}).map(([id, el]) => ({
+    id,
+    kind: el.kind,
+    title: el.title,
+  }));
+}
+
+function listDeployed(raw) {
+  const out = new Set();
+  for (const node of Object.values(raw.deployments?.elements ?? {})) {
+    if (node.element) out.add(node.element);
+  }
+  return [...out];
+}
+```
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/likec4-extract.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 6: Commit (fixture included)**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add likec4 model extractor with real fixture"
+```
+
+---
+
+### Task 9: `lib/validate-model-tables.mjs`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-model-tables.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-model-tables.test.mjs`
+
+**Interfaces:**
+- Consumes: normalized model (Task 8), tables (Task 3), `erEntities` output (Task 5).
+- Produces: `validateModelTables({ model, tables, erNames }) → Finding[]`. Three bidirectional comparisons, matching case-insensitively on title/first-column (markdown links stripped: `[api](x)` → `api`):
+  1. model `container`/`component` elements ↔ rows of the `Core Components` table
+  2. model elements tagged/kinded external ↔ rows of the `External Integrations` table
+  3. rows of the `Data Stores` table ↔ `erNames`
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateModelTables } from '../lib/validate-model-tables.mjs';
+
+const model = {
+  elements: [
+    { id: 'shop.api', kind: 'container', title: 'API' },
+    { id: 'shop.web', kind: 'container', title: 'Web App' },
+    { id: 'stripe', kind: 'external', title: 'Stripe' },
+  ],
+  deployed: ['shop.api'],
+};
+const components = { section: 'Core Components', headers: ['Component', 'src'],
+  rows: [['[API](#x)', 'observed'], ['Web App', 'observed']] };
+const externals = { section: 'External Integrations', headers: ['System', 'src'],
+  rows: [['Stripe', 'researched [docs]']] };
+const stores = { section: 'Data Stores', headers: ['Store', 'src'], rows: [['orders', 'observed']] };
+
+test('passes when model and tables agree', () => {
+  const findings = validateModelTables({
+    model, tables: [components, externals, stores], erNames: ['orders'],
+  });
+  assert.deepEqual(findings, []);
+});
+
+test('fails component in table but not in model', () => {
+  const extra = { ...components, rows: [...components.rows, ['Ghost', 'proposed']] };
+  const findings = validateModelTables({ model, tables: [extra, externals, stores], erNames: ['orders'] });
+  assert.match(findings[0].message, /Ghost.*not in model/i);
+});
+
+test('fails container in model but missing from table', () => {
+  const thin = { ...components, rows: [components.rows[0]] };
+  const findings = validateModelTables({ model, tables: [thin, externals, stores], erNames: ['orders'] });
+  assert.match(findings[0].message, /Web App.*no table row/i);
+});
+
+test('fails store without ER entity and vice versa', () => {
+  const findings = validateModelTables({
+    model, tables: [components, externals, stores], erNames: ['payments'],
+  });
+  assert.equal(findings.length, 2);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-model-tables.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function validateModelTables({ model, tables, erNames }) {
+  const els = (kinds) => model.elements.filter((e) => kinds.includes(e.kind)).map((e) => e.title);
+  return [
+    ...diff(els(['container', 'component']), names(tables, 'Core Components'), 'model', 'component'),
+    ...diff(els(['external']), names(tables, 'External Integrations'), 'model', 'external'),
+    ...diff(erNames, names(tables, 'Data Stores'), 'ER diagram', 'store'),
+  ];
+}
+
+function names(tables, section) {
+  const t = tables.find((x) => x.section.includes(section));
+  return (t?.rows ?? []).map((r) => r[0].replace(/\[([^\]]*)\]\([^)]*\)/, '$1'));
+}
+
+function diff(modelSide, tableSide, sourceName, label) {
+  const low = (xs) => xs.map((x) => x.toLowerCase());
+  const [m, t] = [low(modelSide), low(tableSide)];
+  return [
+    ...modelSide.filter((x) => !t.includes(x.toLowerCase()))
+      .map((x) => ({ check: 'model-tables', message: `${label} "${x}" in ${sourceName} but no table row` })),
+    ...tableSide.filter((x) => !m.includes(x.toLowerCase()))
+      .map((x) => ({ check: 'model-tables', message: `${label} "${x}" in table but not in ${sourceName}` })),
+  ];
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-model-tables.test.mjs`
+Expected: PASS, 4/4
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add table-model agreement check"
+```
+
+---
+
+### Task 10: `lib/validate-deployment.mjs`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-deployment.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-deployment.test.mjs`
+
+**Interfaces:**
+- Consumes: normalized model (Task 8).
+- Produces: `validateDeployment({ model }) → Finding[]` — a finding per `container`-kind element whose id is not in `model.deployed`.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateDeployment } from '../lib/validate-deployment.mjs';
+
+const model = {
+  elements: [
+    { id: 'shop.api', kind: 'container', title: 'API' },
+    { id: 'shop.web', kind: 'container', title: 'Web App' },
+    { id: 'customer', kind: 'person', title: 'Customer' },
+  ],
+  deployed: ['shop.api'],
+};
+
+test('flags undeployed containers only', () => {
+  const findings = validateDeployment({ model });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].message, /Web App/);
+});
+
+test('passes when every container is deployed', () => {
+  const all = { ...model, deployed: ['shop.api', 'shop.web'] };
+  assert.deepEqual(validateDeployment({ model: all }), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-deployment.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function validateDeployment({ model }) {
+  return model.elements
+    .filter((e) => e.kind === 'container' && !model.deployed.includes(e.id))
+    .map((e) => ({
+      check: 'deployment',
+      message: `container "${e.title}" (${e.id}) has no instanceOf in any deployment node`,
+    }));
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-deployment.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add undeployed container check"
+```
+
+---
+
+### Task 11: `lib/validate-links.mjs`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-links.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-links.test.mjs`
+
+**Interfaces:**
+- Consumes: links (Task 4).
+- Produces: `validateLinks({ links, files, anchors }) → Finding[]`.
+  - `links`: `Array<{ fromDoc: string, href: string }>` — every link from every generated doc.
+  - `files`: `string[]` — repo-relative paths that exist (the runner supplies this from `fs`).
+  - `anchors`: `Record<path, string[]>` — heading slugs per doc (runner builds via `slugify` exported from this module: lowercase, strip non-`[a-z0-9 -]`, spaces→`-`).
+  - Rules: skip `http(s):` hrefs. For `path#frag` — path (when present) must be in `files`; frag (when present) must be in `anchors` of the target (or of `fromDoc` when path is empty).
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateLinks, slugify } from '../lib/validate-links.mjs';
+
+const files = ['ARCHITECTURE.md', 'docs/adr/0007-gate.md'];
+const anchors = { 'ARCHITECTURE.md': ['core-components', 'security'] };
+
+test('slugify matches github style', () => {
+  assert.equal(slugify('Core Components'), 'core-components');
+  assert.equal(slugify('Quality Requirements & SLOs'), 'quality-requirements--slos');
+});
+
+test('passes valid file, anchor, and external links', () => {
+  const links = [
+    { fromDoc: 'DOMAIN-OVERVIEW.md', href: 'docs/adr/0007-gate.md' },
+    { fromDoc: 'DOMAIN-OVERVIEW.md', href: 'ARCHITECTURE.md#core-components' },
+    { fromDoc: 'ARCHITECTURE.md', href: '#security' },
+    { fromDoc: 'ARCHITECTURE.md', href: 'https://likec4.dev/' },
+  ];
+  assert.deepEqual(validateLinks({ links, files, anchors }), []);
+});
+
+test('fails missing file and missing anchor', () => {
+  const links = [
+    { fromDoc: 'A.md', href: 'docs/adr/0099-none.md' },
+    { fromDoc: 'A.md', href: 'ARCHITECTURE.md#nope' },
+  ];
+  const findings = validateLinks({ links, files, anchors });
+  assert.equal(findings.length, 2);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-links.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function slugify(heading) {
+  return heading.toLowerCase().replace(/[^a-z0-9 -]/g, '').replace(/ /g, '-');
+}
+
+export function validateLinks({ links, files, anchors }) {
+  return links.flatMap((l) => checkLink(l, files, anchors));
+}
+
+function checkLink(link, files, anchors) {
+  if (/^https?:/.test(link.href)) return [];
+  const [path, frag] = link.href.split('#');
+  const bad = (why) => [{ check: 'links', message: `${link.fromDoc}: "${link.href}" ${why}` }];
+  if (path && !files.includes(path)) return bad('target file missing');
+  if (frag && !(anchors[path || link.fromDoc] ?? []).includes(frag)) return bad('anchor missing');
+  return [];
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-links.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add cross-doc link check"
+```
+
+---
+
+### Task 12: `lib/validate-tree.mjs` (brownfield)
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-tree.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-tree.test.mjs`
+
+**Interfaces:**
+- Consumes: the §3 boundary-map table (Task 3 shape): first column = directory path, e.g. `src/billing/`.
+- Produces: `validateTree({ boundaryRows, fsDirs }) → Finding[]`.
+  - `boundaryRows`: `string[]` — documented directories (trailing `/` optional, normalized off).
+  - `fsDirs`: `string[]` — actual depth-1 directories of the target repo (runner supplies; hidden and gitignored dirs already excluded).
+  - Bidirectional: documented-but-missing = finding; existing-but-undocumented = finding.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateTree } from '../lib/validate-tree.mjs';
+
+test('passes when boundary map matches filesystem', () => {
+  const findings = validateTree({ boundaryRows: ['src/', 'docs'], fsDirs: ['src', 'docs'] });
+  assert.deepEqual(findings, []);
+});
+
+test('fails documented dir missing from fs', () => {
+  const findings = validateTree({ boundaryRows: ['src/legacy/'], fsDirs: ['src'] });
+  assert.match(findings[0].message, /src\/legacy.*not found/);
+});
+
+test('fails fs dir absent from boundary map', () => {
+  const findings = validateTree({ boundaryRows: ['src'], fsDirs: ['src', 'scripts'] });
+  assert.match(findings[0].message, /scripts.*not documented/);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-tree.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function validateTree({ boundaryRows, fsDirs }) {
+  const documented = boundaryRows.map(norm);
+  const actual = fsDirs.map(norm);
+  return [
+    ...documented.filter((d) => !actual.some((a) => d === a || d.startsWith(`${a}/`)))
+      .map((d) => ({ check: 'tree', message: `documented dir "${d}" not found on filesystem` })),
+    ...actual.filter((a) => !documented.some((d) => d === a || d.startsWith(`${a}/`)))
+      .map((a) => ({ check: 'tree', message: `dir "${a}" exists but is not documented in the boundary map` })),
+  ];
+}
+
+function norm(p) {
+  return p.replace(/\/+$/, '');
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-tree.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add boundary-map tree drift check"
+```
+
+---
+
+### Task 13: `lib/validate-clusters.mjs` (brownfield)
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/validate-clusters.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/validate-clusters.test.mjs`
+
+**Interfaces:**
+- Consumes: `get_architecture` cluster shape (subset): `Array<{ label: string, cohesion: number, top_nodes: string[] }>` where `top_nodes` are file paths; §6 component rows reduced by the runner to `Array<{ name: string, keyPaths: string[] }>`.
+- Produces: `validateClusters({ clusters, componentRows, minCohesion }) → Finding[]` (`minCohesion` default `0.5`).
+  - Match heuristic (documented in the message): a cluster matches a component when any `top_node` path starts with any of the component's `keyPaths`.
+  - Cluster with `cohesion ≥ minCohesion` and no matching component = finding. Component matching no cluster = finding.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateClusters } from '../lib/validate-clusters.mjs';
+
+const clusters = [
+  { label: 'billing', cohesion: 0.8, top_nodes: ['src/billing/invoice.ts'] },
+  { label: 'utils', cohesion: 0.2, top_nodes: ['src/utils/date.ts'] },
+];
+const rows = [{ name: 'Billing', keyPaths: ['src/billing'] }];
+
+test('passes when clusters and components align', () => {
+  assert.deepEqual(validateClusters({ clusters, componentRows: rows }), []);
+});
+
+test('fails high-cohesion cluster with no component', () => {
+  const extra = [...clusters, { label: 'search', cohesion: 0.9, top_nodes: ['src/search/index.ts'] }];
+  const findings = validateClusters({ clusters: extra, componentRows: rows });
+  assert.match(findings[0].message, /search/);
+});
+
+test('fails component matching no cluster', () => {
+  const rows2 = [...rows, { name: 'Ghost', keyPaths: ['src/ghost'] }];
+  const findings = validateClusters({ clusters, componentRows: rows2 });
+  assert.match(findings[0].message, /Ghost/);
+});
+
+test('ignores low-cohesion clusters', () => {
+  const findings = validateClusters({ clusters, componentRows: rows, minCohesion: 0.5 });
+  assert.deepEqual(findings.filter((f) => f.message.includes('utils')), []);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-clusters.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function validateClusters({ clusters, componentRows, minCohesion = 0.5 }) {
+  const matches = (c, row) => c.top_nodes.some((n) => row.keyPaths.some((p) => n.startsWith(p)));
+  return [
+    ...clusters.filter((c) => c.cohesion >= minCohesion && !componentRows.some((r) => matches(c, r)))
+      .map((c) => ({ check: 'clusters', message: `cluster "${c.label}" (cohesion ${c.cohesion}) has no component row` })),
+    ...componentRows.filter((r) => !clusters.some((c) => matches(c, r)))
+      .map((r) => ({ check: 'clusters', message: `component "${r.name}" matches no detected code cluster` })),
+  ];
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/validate-clusters.test.mjs`
+Expected: PASS, 4/4
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add cluster drift check"
+```
+
+---
+
+### Task 14: `lib/inputs.mjs` + `validate.mjs` CLI runner
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/inputs.mjs`
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/validate.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/inputs.test.mjs`
+- Test fixture dir: `plugins/arch-docs/skills/arch-docs/scripts/test/fixtures/docs-pass/` — a minimal passing doc set: `ARCHITECTURE.md` (frontmatter with all four election records, one components table + one externals table + one stores table each with `src` column, an `erDiagram` fence, headings for anchors), `docs/adr/0001-sample.md`, and a `model.json` copied from Task 8's fixture then edited so `deployed` covers both containers and titles match the tables.
+
+**Interfaces:**
+- Consumes: every `lib/` module from Tasks 2–13.
+- Produces:
+  - `buildInputs({ archPath, modelPath, docPaths }) → { frontmatter, tables, erNames, model, links, files, anchors }` — reads files, assembles validator inputs. `links` gains `fromDoc`; `anchors` built from headings with `slugify` (Task 11).
+  - CLI: `node scripts/validate.mjs --arch <path> --model <json> [--mode brownfield] [--clusters <json>] [--docs <path>...]` → prints one `FAIL [check] message` line per finding, `ok all checks passed` when clean; exit code 1 on any finding. Tree/cluster checks run only with `--mode brownfield`.
+
+- [ ] **Step 1: Build the `docs-pass` fixture dir** — every file listed above, minimal but internally consistent (tables agree with `model.json`, links resolve, anchors exist). Verify by eye against the rules in Tasks 6–11.
+
+- [ ] **Step 2: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { buildInputs } from '../lib/inputs.mjs';
+
+const dir = new URL('./fixtures/docs-pass/', import.meta.url).pathname;
+
+test('buildInputs assembles all validator inputs', async () => {
+  const inputs = await buildInputs({
+    archPath: `${dir}ARCHITECTURE.md`,
+    modelPath: `${dir}model.json`,
+    docPaths: [`${dir}docs/adr/0001-sample.md`],
+  });
+  assert.ok(inputs.frontmatter.electedDocs);
+  assert.ok(inputs.tables.length >= 3);
+  assert.ok(inputs.model.elements.length > 0);
+  assert.ok(Object.keys(inputs.anchors).length > 0);
+});
+
+test('CLI exits 0 on the passing fixture', () => {
+  const out = execFileSync('node', [
+    'plugins/arch-docs/skills/arch-docs/scripts/validate.mjs',
+    '--arch', `${dir}ARCHITECTURE.md`, '--model', `${dir}model.json`,
+  ]).toString();
+  assert.match(out, /all checks passed/);
+});
+
+test('CLI exits 1 when a check fails', () => {
+  assert.throws(() => execFileSync('node', [
+    'plugins/arch-docs/skills/arch-docs/scripts/validate.mjs',
+    '--arch', `${dir}ARCHITECTURE.md`, '--model', `${dir}model-broken.json`,
+  ]));
+});
+```
+
+Also create `model-broken.json` in the fixture dir: copy `model.json`, empty the `deployed` array.
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/inputs.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 4: Implement `lib/inputs.mjs`**
+
+```js
+import { readFile } from 'node:fs/promises';
+import { parseFrontmatter } from './frontmatter.mjs';
+import { parseTables } from './md-tables.mjs';
+import { extractLinks } from './md-links.mjs';
+import { erEntities } from './er-entities.mjs';
+import { extractModel } from './likec4-extract.mjs';
+import { slugify } from './validate-links.mjs';
+
+export async function buildInputs({ archPath, modelPath, docPaths = [] }) {
+  const arch = await readFile(archPath, 'utf8');
+  const docs = await readDocs([archPath, ...docPaths]);
+  return {
+    frontmatter: parseFrontmatter(arch).data ?? {},
+    tables: parseTables(arch),
+    erNames: erEntities(arch),
+    model: extractModel(JSON.parse(await readFile(modelPath, 'utf8'))),
+    links: docs.flatMap((d) => extractLinks(d.md).map((l) => ({ fromDoc: d.path, href: l.href }))),
+    files: docs.map((d) => d.path),
+    anchors: Object.fromEntries(docs.map((d) => [d.path, headingSlugs(d.md)])),
+  };
+}
+
+async function readDocs(paths) {
+  return Promise.all(paths.map(async (p) => ({ path: p, md: await readFile(p, 'utf8') })));
+}
+
+function headingSlugs(md) {
+  return md.split('\n').filter((l) => /^#{1,6}\s/.test(l))
+    .map((l) => slugify(l.replace(/^#+\s*/, '')));
+}
+```
+
+- [ ] **Step 5: Implement `validate.mjs`** — parse argv flags into `{arch, model, mode, clusters, docs: []}` (a ≤20-line loop over `process.argv`), call `buildInputs`, run `validateProvenance`, `validateElections`, `validateModelTables`, `validateDeployment`, `validateLinks` always, plus `validateTree`/`validateClusters` when `--mode brownfield` (reading `--clusters` JSON and boundary rows from the §3 table, depth-1 dirs via `readdirSync` filtered to directories not starting with `.`). Print findings, `process.exit(findings.length ? 1 : 0)`. Keep the file ≤200 lines by delegating everything already in `lib/`.
+
+- [ ] **Step 6: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/inputs.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 7: Run the full suite**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/`
+Expected: all tests green
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add validator CLI runner"
+```
+
+---
+
+### Task 15: `lib/port.mjs` + `serve.mjs` — static server
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/port.mjs`
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/serve.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/serve.test.mjs`
+
+**Interfaces:**
+- Produces:
+  - `findFreePort(start = 4173) → Promise<number>` — first free TCP port ≥ start on 127.0.0.1.
+  - `createServer({ dir, port }) → Promise<{ port, close() }>` (exported from `serve.mjs` for tests; running `node serve.mjs <dir>` starts it on `findFreePort(4173)` and prints `serving <dir> at http://localhost:<port>`).
+  - Serves files under `dir` only (reject `..` traversal with 403), `/` → `index.html`, 404 otherwise. Content types: `.html`, `.js`, `.mjs`, `.css`, `.json`, `.svg`, `.png`, `.woff2`.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { findFreePort } from '../lib/port.mjs';
+import { createServer } from '../serve.mjs';
+
+test('findFreePort returns a usable port', async () => {
+  const port = await findFreePort(4173);
+  assert.ok(port >= 4173);
+});
+
+test('serves index.html, 404s missing, 403s traversal', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-'));
+  writeFileSync(join(dir, 'index.html'), '<h1>ok</h1>');
+  const srv = await createServer({ dir, port: await findFreePort(4200) });
+  const base = `http://127.0.0.1:${srv.port}`;
+  assert.equal((await fetch(`${base}/`)).status, 200);
+  assert.match(await (await fetch(`${base}/`)).text(), /ok/);
+  assert.equal((await fetch(`${base}/nope.js`)).status, 404);
+  assert.equal((await fetch(`${base}/..%2f..%2fetc%2fpasswd`)).status, 403);
+  srv.close();
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/serve.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Implement `lib/port.mjs`**
+
+```js
+import net from 'node:net';
+
+export async function findFreePort(start = 4173) {
+  return (await isFree(start)) ? start : findFreePort(start + 1);
+}
+
+function isFree(port) {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.once('error', () => resolve(false));
+    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));
+  });
+}
+```
+
+- [ ] **Step 4: Implement `serve.mjs`** — `node:http` server; resolve requested path against `dir`, 403 when the resolved path does not start with `dir`, 404 on missing file, content-type from an extension map, `/` mapped to `index.html`. CLI entry guarded by `import.meta.url === pathToFileURL(process.argv[1]).href`. Keep functions ≤20 lines: `createServer`, `handle`, `resolvePath`, `contentType`, `main`.
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/serve.test.mjs`
+Expected: PASS, 2/2
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add port scanner and static viewer server"
+```
+
+---
+
+### Task 16: `lib/embed.mjs` — bundle inliner
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/scripts/lib/embed.mjs`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/embed.test.mjs`
+
+**Interfaces:**
+- Produces: `embed({ template, slots }) → string`. `slots` = `Record<name, content>`; each `<!-- slot:NAME -->` marker in the template is replaced by its content. **Throws** on a marker with no slot or a slot with no marker — a silently empty viewer section is the dishonesty the spec bans.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { embed } from '../lib/embed.mjs';
+
+test('replaces every slot marker', () => {
+  const out = embed({
+    template: '<body><!-- slot:DOC --><script><!-- slot:MERMAID --></script></body>',
+    slots: { DOC: '<h1>hi</h1>', MERMAID: 'window.m=1' },
+  });
+  assert.match(out, /<h1>hi<\/h1>/);
+  assert.match(out, /window\.m=1/);
+});
+
+test('throws on marker without slot', () => {
+  assert.throws(() => embed({ template: '<!-- slot:MISSING -->', slots: {} }), /MISSING/);
+});
+
+test('throws on slot without marker', () => {
+  assert.throws(() => embed({ template: 'no markers', slots: { EXTRA: 'x' } }), /EXTRA/);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/embed.test.mjs`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write the implementation**
+
+```js
+export function embed({ template, slots }) {
+  const markers = [...template.matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]);
+  const missing = markers.filter((m) => !(m in slots));
+  if (missing.length) throw new Error(`no slot content for marker(s): ${missing.join(', ')}`);
+  const unused = Object.keys(slots).filter((s) => !markers.includes(s));
+  if (unused.length) throw new Error(`slot(s) without marker: ${unused.join(', ')}`);
+  return markers.reduce((out, m) => out.replace(`<!-- slot:${m} -->`, slots[m]), template);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/embed.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add viewer bundle inliner"
+```
+
+---
+
+### Task 17: Viewer assets — `viewer-template.html` + `mermaid-theme.json`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/assets/viewer-template.html`
+- Create: `plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/viewer-template.test.mjs`
+
+**Interfaces:**
+- Consumes: `embed` slot convention (Task 16).
+- Produces: a template with exactly these slot markers: `TITLE`, `NAV`, `DOC` (rendered markdown of all pages), `LIKEC4_BUNDLE` (webcomponent JS), `MERMAID_BUNDLE` (mermaid + ELK JS), `THEME` (JSON injected as `window.ARCH_DOCS_THEME`).
+
+**Template requirements (all from the spec / visual-explainer rules):**
+
+- Single-file HTML, **zero external URLs** (no CDN, no Google Fonts links — fonts by local `@font-face` with system fallback stack: `'IBM Plex Sans', system-ui, sans-serif` body, `'IBM Plex Mono', monospace` code).
+- Dark/light: CSS custom properties on `:root`, `prefers-color-scheme` default, `[data-theme]` override, a visible toggle button that flips `data-theme` and persists to `localStorage`.
+- Layout: fixed left sidebar nav (from `NAV` slot) + scrollable main column; every `h2`/`h3` gets an `id` (already slugged by the generator) → deep links work.
+- Every diagram wrapper (`.diagram-shell`) has controls: zoom in, zoom out, reset, expand, **fullscreen** (`requestFullscreen()` on the shell, exit button visible in fullscreen). Ctrl/Cmd+scroll zoom, drag pan. Applies to both `<c4-view>` embeds and mermaid `<div class="mermaid-canvas">` blocks.
+- Mermaid init inline: `mermaid.initialize({ theme: 'base', themeVariables: window.ARCH_DOCS_THEME.themeVariables, layout: 'elk' })` **after** `mermaid.registerLayoutLoaders(elkLayouts)` — the registration line is mandatory (silent dagre fallback otherwise).
+- No violet-fuchsia accents. `mermaid-theme.json` carries: `fontFamily` IBM Plex Sans, an accent pair from the approved directions (use teal `#0f766e` + slate `#475569`), semi-transparent 8-digit-hex node fills, never `color:` inside classDefs.
+
+- [ ] **Step 1: Write the failing test**
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { embed } from '../lib/embed.mjs';
+
+const tpl = readFileSync(new URL('../../assets/viewer-template.html', import.meta.url), 'utf8');
+
+test('template has exactly the six slots and no external URLs', () => {
+  const markers = [...tpl.matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]).sort();
+  assert.deepEqual(markers, ['DOC', 'LIKEC4_BUNDLE', 'MERMAID_BUNDLE', 'NAV', 'THEME', 'TITLE']);
+  assert.doesNotMatch(tpl, /https?:\/\/(?!www\.w3\.org)/);
+});
+
+test('template embeds cleanly and keeps required controls', () => {
+  const out = embed({ template: tpl, slots: {
+    TITLE: 't', NAV: '<a href="#x">x</a>', DOC: '<h2 id="x">x</h2>',
+    LIKEC4_BUNDLE: '/*l*/', MERMAID_BUNDLE: '/*m*/', THEME: '{"themeVariables":{}}',
+  } });
+  for (const control of ['data-zoom-in', 'data-zoom-out', 'data-zoom-reset', 'data-expand', 'data-fullscreen']) {
+    assert.match(out, new RegExp(control));
+  }
+  assert.match(out, /registerLayoutLoaders/);
+  assert.match(out, /theme:\s*'base'/);
+});
+
+test('mermaid theme json parses and bans color in classDefs', () => {
+  const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
+  assert.ok(theme.themeVariables.fontFamily.includes('IBM Plex'));
+  assert.doesNotMatch(JSON.stringify(theme), /"color"/);
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/viewer-template.test.mjs`
+Expected: FAIL — template file missing
+
+- [ ] **Step 3: Build the two asset files to the requirements above.** Study `~/.claude/plugins/cache/visual-explainer-marketplace/visual-explainer/0.8.1/references/css-patterns.md` lines 453–714 (the zoom-controls + viewport + canvas pattern) and `templates/mermaid-flowchart.html` — copy the pattern, add the `data-fullscreen` button calling `shell.requestFullscreen()`. Template stays ≤200 lines by keeping CSS terse (custom properties + the diagram shell + nav; no decorative flourishes).
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/viewer-template.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 5: Smoke-serve** —
+
+```bash
+node -e "
+import('./plugins/arch-docs/skills/arch-docs/scripts/lib/embed.mjs').then(async ({embed}) => {
+  const { readFileSync, mkdirSync, writeFileSync } = await import('node:fs');
+  const tpl = readFileSync('plugins/arch-docs/skills/arch-docs/assets/viewer-template.html','utf8');
+  mkdirSync('/tmp/claude-1000/arch-docs-smoke', {recursive:true});
+  writeFileSync('/tmp/claude-1000/arch-docs-smoke/index.html', embed({template:tpl, slots:{
+    TITLE:'smoke', NAV:'<a href=\"#goals\">Goals</a>', DOC:'<h2 id=\"goals\">Goals</h2><div class=\"diagram-shell\"><div class=\"mermaid-canvas\">flowchart TD; A-->B</div></div>',
+    LIKEC4_BUNDLE:'', MERMAID_BUNDLE:'', THEME:'{\"themeVariables\":{}}'}}));
+});"
+node plugins/arch-docs/skills/arch-docs/scripts/serve.mjs /tmp/claude-1000/arch-docs-smoke
+```
+
+Open the printed URL: page renders, dark/light toggle works, diagram controls visible. Stop the server.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/assets plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add viewer template and mermaid theme"
+```
+
+---
+
+### Task 18: `workflows/research.js`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/workflows/research.js`
+- Test: `plugins/arch-docs/skills/arch-docs/scripts/test/research-workflow.test.mjs`
+
+**Interfaces:**
+- Consumes (as `args`): `{ mode: 'greenfield'|'brownfield', projectType: string, domain: string, statedFacts: Array<{claim: string}>, gaps: string[] }`.
+- Produces (return value): `{ domain: object[], stack: object[], aspects: object[], dropped: Array<{item, reason}> }`. Every agent failure lands in `dropped` with a reason and a `log()` call — a thin result must never present as complete.
+
+**Workflow body (complete, this is the deliverable):**
+
+```js
+export const meta = {
+  name: 'arch-docs-research',
+  description: 'Domain, stack, and per-aspect design research with provenance',
+  phases: [
+    { title: 'Domain', detail: 'concepts + comparable systems' },
+    { title: 'Stack', detail: 'verify stated claims, integration facts' },
+    { title: 'Design', detail: 'greenfield per-aspect proposals' },
+  ],
+}
+
+const FACTS = { type: 'object', required: ['facts'], properties: { facts: { type: 'array', items: {
+  type: 'object', required: ['fact', 'provenance', 'source'],
+  properties: { fact: { type: 'string' }, provenance: { type: 'string' }, source: { type: 'string' } },
+} } } }
+
+const dropped = []
+const keep = (label) => (r) => {
+  if (r) return r.facts
+  dropped.push({ item: label, reason: 'agent returned nothing' })
+  log(`DROPPED ${label}: agent returned nothing`)
+  return []
+}
+
+phase('Domain')
+const domainBriefs = [
+  `Research the ${args.domain} domain: core concepts, canonical vocabulary, regulatory constraints. Cite sources. Every fact gets provenance "researched" and a source URL.`,
+  `Find 2-3 comparable ${args.domain} systems and their published architectures. Cite sources.`,
+]
+const domain = (await parallel(domainBriefs.map((p, i) => () =>
+  agent(p, { label: `domain-${i}`, phase: 'Domain', schema: FACTS }).then(keep(`domain-${i}`))
+))).flat()
+
+phase('Stack')
+const stackJobs = [
+  ...args.statedFacts.map((f) => `Verify this stated claim: "${f.claim}". If verifiable, return it as provenance "researched" with source; if not, return it as provenance "stated" with source "unverified".`),
+  ...args.gaps.map((g) => `Research integration facts for ${g}: auth method, rate limits, pricing tier, failure modes. Provenance "researched" with sources.`),
+]
+const stack = (await parallel(stackJobs.map((p, i) => () =>
+  agent(p, { label: `stack-${i}`, phase: 'Stack', schema: FACTS }).then(keep(`stack-${i}`))
+))).flat()
+
+let aspects = []
+if (args.mode === 'greenfield') {
+  phase('Design')
+  const aspectNames = ['components', 'data', 'deployment', 'security']
+  aspects = (await parallel(aspectNames.map((a) => () =>
+    agent(
+      `Propose the ${a} design for a ${args.projectType} ${args.domain} system, constrained by these researched facts: ${JSON.stringify(domain.slice(0, 20))}. Every proposal gets provenance "proposed", source "this workflow".`,
+      { label: `design-${a}`, phase: 'Design', schema: FACTS },
+    ).then(keep(`design-${a}`))
+  ))).flat()
+} else {
+  log('brownfield mode: per-aspect design skipped, scan owns observed facts')
+}
+
+log(`research done: ${domain.length} domain, ${stack.length} stack, ${aspects.length} proposed, ${dropped.length} dropped`)
+return { domain, stack, aspects, dropped }
+```
+
+- [ ] **Step 1: Write the failing test** — the script is not a valid ESM module (top-level `return`), so test it by wrapping the source in an `AsyncFunction` with stubbed harness globals:
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const src = readFileSync(new URL('../../workflows/research.js', import.meta.url), 'utf8')
+  .replace(/^export const meta =/m, 'const meta =');
+const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+
+function run({ agentImpl, args }) {
+  const calls = { phases: [], logs: [] };
+  const fn = new AsyncFunction('agent', 'parallel', 'pipeline', 'phase', 'log', 'args', 'budget', src);
+  const parallel = (thunks) => Promise.all(thunks.map((t) => t().catch(() => null)));
+  return fn(agentImpl, parallel, null, (p) => calls.phases.push(p), (m) => calls.logs.push(m), args,
+    { total: null, spent: () => 0, remaining: () => Infinity }).then((result) => ({ result, calls }));
+}
+
+const okAgent = async (prompt) => ({ facts: [{ fact: `re: ${prompt.slice(0, 20)}`, provenance: 'researched', source: 'x' }] });
+const ARGS = { mode: 'greenfield', projectType: 'web', domain: 'billing', statedFacts: [{ claim: 'uses stripe' }], gaps: ['stripe'] };
+
+test('greenfield runs all three phases and returns facts', async () => {
+  const { result, calls } = await run({ agentImpl: okAgent, args: ARGS });
+  assert.deepEqual(calls.phases, ['Domain', 'Stack', 'Design']);
+  assert.ok(result.domain.length > 0 && result.aspects.length > 0);
+  assert.equal(result.dropped.length, 0);
+});
+
+test('brownfield skips Design phase', async () => {
+  const { result, calls } = await run({ agentImpl: okAgent, args: { ...ARGS, mode: 'brownfield' } });
+  assert.ok(!calls.phases.includes('Design'));
+  assert.deepEqual(result.aspects, []);
+});
+
+test('failed agent lands in dropped and is logged', async () => {
+  const flaky = async (p) => (p.includes('Verify') ? null : okAgent(p));
+  const { result, calls } = await run({ agentImpl: flaky, args: { ...ARGS, mode: 'brownfield' } });
+  assert.equal(result.dropped.length, 1);
+  assert.ok(calls.logs.some((l) => l.includes('DROPPED')));
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/research-workflow.test.mjs`
+Expected: FAIL — workflow file missing
+
+- [ ] **Step 3: Write `workflows/research.js`** exactly as the body above.
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `node --test plugins/arch-docs/skills/arch-docs/scripts/test/research-workflow.test.mjs`
+Expected: PASS, 3/3
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/workflows plugins/arch-docs/skills/arch-docs/scripts
+git commit -m "feat: add research workflow script"
+```
+
+---
+
+### Task 19: References — `interview.md` + `project-types.md`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/references/interview.md`
+- Create: `plugins/arch-docs/skills/arch-docs/references/project-types.md`
+
+These are prose contracts. No test cycle; the verification step is the content checklist. Write tight prose with tables — the reader is an agent mid-run.
+
+- [ ] **Step 1: Write `interview.md`** containing, in this order:
+  1. Hard rules: adaptive, **cap 12 questions total**, delivered via AskUserQuestion cards of ≤4; never ask what the scan observed or research answered; every answer is recorded with provenance `stated`; domain questions are asked **while the mattpocock `domain-modeling` skill is invoked** so terms land in `CONTEXT.md` immediately.
+  2. Question bank as a table: `| spine section | question | mode | skip when |` covering: Goals & Scope (both modes), Constraints (both), Quality Requirements & SLOs (both — the 3 questions legacy never asked: top quality attribute + its measurable target, availability target, worst-tolerable-loss), domain terms + actors + processes + rules (greenfield or thin CONTEXT.md), project type confirmation (skip when detector confident), deployment target (greenfield), team/ownership (both).
+  3. Card batching: group by spine section, max 3 cards; recommended option first, labeled `(Recommended)`.
+  4. The honest-absence rule: an unanswered/declined question renders in the doc as `Not provided — <who declined/why>`, provenance `stated`, never invented.
+
+- [ ] **Step 2: Write `project-types.md`** containing:
+  1. Detection table: `| type | signals |` for the six types (web/SaaS, AI/LLM app, ML/data pipeline, mobile, CLI/library, embedded/IoT) — signals are file/config patterns (`package.json` + http framework deps; model configs / prompts dir / vector store deps; dvc/airflow/dbt; gradle+swift/kotlin dirs; bin entry + no server deps; platformio/zephyr/firmware toolchains).
+  2. Election matrix (copy row-for-row from spec §3.2): threat-model variant and interface-contract variant per type, plus DOMAIN-OVERVIEW default (elected for domain-heavy; the interview confirms) and estimation (elected when the user wants estimates).
+  3. Table-column variants per type for §6/§8/§9/§10 (e.g. ML adds `lineage` column to Data Stores; mobile adds `offline behaviour` to Core Components; embedded §9 gains `wire protocol`; CLI §10 renders `Not applicable — no deployment: distributed as a binary/package`).
+  4. The fixed-spine rule verbatim: 16 headings never change; a non-applicable section renders one line `Not applicable — <reason>`.
+
+- [ ] **Step 3: Verify against checklist** — every numbered item above appears in the file; each file ≤200 lines; no `TODO`/`TBD` anywhere: `grep -nE 'TODO|TBD' plugins/arch-docs/skills/arch-docs/references/*.md` returns nothing.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/references
+git commit -m "docs: add interview and project-type reference briefs"
+```
+
+---
+
+### Task 20: References — `research.md` + `writing.md`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/references/research.md`
+- Create: `plugins/arch-docs/skills/arch-docs/references/writing.md`
+
+- [ ] **Step 1: Write `research.md`**:
+  1. Phase order and why: domain → stack → per-aspect (bounded contexts constrain component boundaries); brownfield skips per-aspect and only fills gaps the scan could not observe.
+  2. How to invoke `workflows/research.js` via the Workflow tool, with the exact `args` shape from Task 18 and where each input comes from (statedFacts ← interview answers; gaps ← §9 candidates the scan found no config for).
+  3. Provenance rules verbatim: `researched` requires a source; an unverifiable stated claim **stays `stated`** — never upgraded; agent proposals are `proposed`; scan output is `observed`.
+  4. The dropped-items contract: `result.dropped` entries must be surfaced to the user before writing begins.
+
+- [ ] **Step 2: Write `writing.md`**:
+  1. The 16-heading spine with per-section content contract (copy the section list + annotations from spec §3.1 verbatim — this file is the writer's single source).
+  2. One home per fact: diagrams own topology, tables own properties, prose owns neither; the contested-fact router (observability → §11, auth mechanics → §11, auth model → §12, threat list → threat-model doc, rationale → ADRs, debt → §15).
+  3. Table format rules: leading+trailing pipes; `src` column last, values from the four provenance words, `researched` followed by `[source]`.
+  4. Frontmatter contract with the `electedDocs` one-line JSON convention (exact example from Task 7's test).
+  5. Companion contracts: DOMAIN-OVERVIEW's three parts + exclusions (spec §3.2), threat model deliverable (DFD + trust boundaries + threats + mitigations), estimation honesty rule (`not estimated`, never `0`).
+  6. mattpocock integration: CONTEXT.md/CONTEXT-MAP.md formats are theirs — write into them, never restructure; multi-context repos keep per-context files and per-context `docs/adr/`; §14/§16 generators scan all of them; ADRs always include Considered Options.
+  7. ER ≠ domain model note (spec §3.1 contract notes, verbatim).
+
+- [ ] **Step 3: Verify** — checklist pass as in Task 19 Step 3.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/references
+git commit -m "docs: add research and writing reference briefs"
+```
+
+---
+
+### Task 21: References — `likec4.md` + `viewer.md`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/references/likec4.md`
+- Create: `plugins/arch-docs/skills/arch-docs/references/viewer.md`
+
+- [ ] **Step 1: Write `likec4.md`** (thin by design — LikeC4's own skill owns DSL syntax):
+  1. First rule: fetch and follow LikeC4's own skill at `github.com/likec4/likec4` → `skills/likec4-dsl/SKILL.md` for all DSL syntax questions; this file only adds arch-docs conventions.
+  2. Our conventions: model files at `docs/architecture/model/*.c4`; element kinds `person/system/container/component` + `#external` tag; every container must appear in an `instanceOf` (the validator enforces it); C1/C2/C3 view names `index`/`containers`/`components-<container>`; runtime flows as dynamic views named `flow-<slug>` (2–4, named flows only); deployment view `deployment`.
+  3. Generation commands: `npx likec4 export json --outfile <out> <dir>` (validator input) and `npx likec4 gen webcomponent --outfile <out> <dir>` (viewer bundle).
+
+- [ ] **Step 2: Write `viewer.md`**:
+  1. Pipeline, numbered: render markdown pages → build nav + anchor ids (slugify) → `npx likec4 gen webcomponent` → obtain mermaid + `@mermaid-js/layout-elk` ESM bundles (`npm pack`/cache copy — **never a CDN URL in output**) → `embed()` all six slots → write `viewer/index.html` → `node scripts/serve.mjs viewer/`.
+  2. Mermaid rules (from spec §7, verbatim list): `theme: 'base'` only; `registerLayoutLoaders` mandatory; ≤10–12 nodes per diagram, hybrid pattern above that; never native `C4Context`; never `color:` in classDef; IBM Plex fonts; approved accent pairs; every diagram gets zoom/pan/expand/**fullscreen**.
+  3. v1 scope record: deep links + dark/light shipped; reach tracing not shipped (LikeC4 covers architecture views natively); semantic search not shipped (single page + browser find). Both recorded here deliberately — the honest-absence rule applies to the tool itself.
+  4. Port: default 4173, `findFreePort` scans upward.
+
+- [ ] **Step 3: Verify** — checklist pass as in Task 19 Step 3.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/references
+git commit -m "docs: add likec4 and viewer reference briefs"
+```
+
+---
+
+### Task 22: `SKILL.md` + `README.md`
+
+**Files:**
+- Create: `plugins/arch-docs/skills/arch-docs/SKILL.md`
+- Create: `plugins/arch-docs/skills/arch-docs/README.md`
+
+- [ ] **Step 1: Write `SKILL.md`** — frontmatter + orchestration only (details live in references):
+
+````markdown
+---
+name: arch-docs
+description: Create or update professional architecture documentation through a structured interview, live research, and code scanning. Use when the user asks for architecture docs, system documentation, an architecture review doc, C4 diagrams, ADRs, a threat model, or to document an existing codebase.
+---
+
+# arch-docs
+
+Produce provenance-tagged architecture documentation with interactive diagrams,
+served on localhost for review.
+
+## Hard rules
+
+1. Every fact carries provenance: `observed` | `stated` | `researched` (with source) | `proposed`. A claim nobody verified must never render like one that was.
+2. One home per fact — diagrams own topology, tables own properties, prose owns neither.
+3. Unknowns render as honest absences (`Not applicable — <reason>`, `not estimated`, `Not provided`) — never placeholders, never `[TODO]`, never `0`.
+4. Validation blocks rendering: `node scripts/validate.mjs` must exit 0 before the viewer is generated.
+5. mattpocock files (`CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`) are written into their existing formats — never restructured. Invoke the `domain-modeling` skill for term work.
+
+## Flow
+
+1. **Detect mode**: target has source code → brownfield, else greenfield. State the detection and let the user override.
+2. **Scan** (brownfield): `index_repository` if needed, then `get_architecture` — clusters seed §6 Core Components. Read `manage_adr` if present; never write it.
+3. **Interview**: follow `references/interview.md`. Detect project type per `references/project-types.md`.
+4. **Research**: run `workflows/research.js` per `references/research.md`. Surface dropped items before writing.
+5. **Write**: model first (`references/likec4.md`), then ARCHITECTURE.md and companions (`references/writing.md`).
+6. **Validate**: `node scripts/validate.mjs --arch ... --model ...` (add `--mode brownfield --clusters ...` when applicable). Fix findings; re-run until clean.
+7. **Render + serve**: follow `references/viewer.md`; report the URL.
+
+## Dependency
+
+Node ≥ 20 with npm (`npx likec4`). State this upfront; without it, stop before step 5.
+````
+
+- [ ] **Step 2: Write `README.md`** — user-facing: what it produces (spine + companions list), the two modes, the one dependency, how to install from the marketplace, how to run (trigger phrases), what the viewer gives, and the honest-absence philosophy in two sentences.
+
+- [ ] **Step 3: Verify** — `grep -nE 'TODO|TBD'` clean; SKILL.md ≤200 lines.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add plugins/arch-docs/skills/arch-docs/SKILL.md plugins/arch-docs/skills/arch-docs/README.md
+git commit -m "feat: add arch-docs skill orchestration and readme"
+```
+
+---
+
+### Task 23: Repo infra — `bundle.sh` + root `README.md`
+
+**Files:**
+- Create: `bundle.sh` (repo root, executable)
+- Create: `README.md` (repo root)
+
+- [ ] **Step 1: Write `bundle.sh`**:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() { echo "usage: ./bundle.sh <plugin-name>"; exit 1; }
+[ $# -eq 1 ] || usage
+plugin="$1"
+src="plugins/$plugin"
+[ -d "$src" ] || { echo "error: $src not found"; exit 1; }
+
+mkdir -p build
+out="build/$plugin.zip"
+rm -f "$out"
+(cd plugins && zip -r "../$out" "$plugin" \
+  -x "*/node_modules/*" -x "*/.git/*" -x "*.zip")
+echo "built $out"
+unzip -l "$out" | head -20
+```
+
+- [ ] **Step 2: Write root `README.md`** — marketplace name, install snippet (`/plugin marketplace add` + repo URL, `/plugin install arch-docs@claude-rock`), plugin table (one row: arch-docs, description, version), repo conventions block (the `plugins/<plugin>/skills/<skill>/` tree with SKILL.md/README.md/assets/references/scripts), `./bundle.sh <plugin>` → `build/<plugin>.zip`.
+
+- [ ] **Step 3: Verify**
+
+```bash
+chmod +x bundle.sh && ./bundle.sh arch-docs
+```
+
+Expected: `build/arch-docs.zip` created; listing shows `arch-docs/skills/arch-docs/SKILL.md` and no `node_modules`.
+
+- [ ] **Step 4: Commit** (`build/` output is not committed unless the repo previously tracked zips — it did; include it)
+
+```bash
+git add bundle.sh README.md build/arch-docs.zip
+git commit -m "feat: add bundle script and marketplace readme"
+```
+
+---
+
+### Task 24: Acceptance — full suite, coverage, quality gates, dry runs
+
+**Files:** none created (fixes only, committed per fix).
+
+- [ ] **Step 1: Full test suite + coverage**
+
+Run: `node --test --experimental-test-coverage plugins/arch-docs/skills/arch-docs/scripts/test/`
+Expected: all green, line coverage ≥80% for `scripts/lib/*` and `serve.mjs`. Add tests where short.
+
+- [ ] **Step 2: Quality gates sweep**
+
+```bash
+awk 'END { if (NR > 200) print FILENAME ": " NR " lines" }' \
+  $(find plugins/arch-docs -name '*.mjs' -o -name '*.md' -o -name '*.html' -o -name '*.js' | grep -v test/fixtures)
+```
+
+Expected: no output. Manually spot-check the longest functions against the 20-line/3-param/2-nesting gates; split anything over.
+
+- [ ] **Step 3: Greenfield dry run** — in a scratch dir with only a one-paragraph idea file, invoke the skill end-to-end (interview will be answered by the operator). Acceptance checklist:
+  - ARCHITECTURE.md has all 16 headings; §3 renders the stated-absence line; N/A sections carry reasons
+  - frontmatter has 4 election records; un-elected ones have reasons
+  - every table has a `src` column; `validate.mjs` exits 0
+  - viewer serves on 4173 (or next free); LikeC4 views interactive; every diagram shows zoom/pan/expand/fullscreen controls; dark/light toggle works; deep link `#core-components` scrolls correctly; page works with network disabled (offline check)
+
+- [ ] **Step 4: Brownfield dry run** — run against a real small repo (e.g. this repo). Additional checks:
+  - §3 Project Structure generated, depth ≤2, boundary map matches `validate-tree`
+  - §6 rows traceable to clusters; `--mode brownfield` validation exits 0
+  - CONTEXT.md untouched in format if pre-existing
+
+- [ ] **Step 5: Fix-and-commit loop** — each defect found: failing test first where testable, fix, commit (`fix: ...`). When both dry runs pass, final commit:
+
+```bash
+git commit --allow-empty -m "chore: arch-docs v1.0.0 acceptance complete"
+```
+
+---
+
+## Self-review notes
+
+- **Spec coverage:** decisions 1–18 all land in tasks: mode detect + flow (T22), provenance (T6, T18, T20), one-home + spine (T20), elections incl. DOMAIN-OVERVIEW (T7, T20), mattpocock formats + multi-context scanning (T20), LikeC4 conventions + dynamic views + deployment (T8, T10, T21), fixed spine + N/A (T19), name/scaffold (T1), viewer stack + port + offline + fullscreen (T15–T17, T21), interview cap (T19), estimation honesty (T20), likec4-dsl consumption (T21), validator all 7 checks (T6, T7, T9, T10, T11, T12, T13), research workflow shape (T18), bundle/README/marketplace (T1, T23), TDD + gates (every task, T24).
+- **Type consistency:** `Finding = {check, message}` used by all validators; normalized model `{elements:[{id,kind,title}], deployed:[]}` produced by T8, consumed by T9/T10; table shape `{section, headers, rows}` produced by T3, consumed by T6/T9/T14; slot convention T16↔T17; `args`/return of T18 restated in T20.
+- **Known judgment call:** `likec4-extract` property paths must follow the real `export json` fixture captured in T8 Step 2 — the skeleton's key names are a starting point, the fixture is authoritative.

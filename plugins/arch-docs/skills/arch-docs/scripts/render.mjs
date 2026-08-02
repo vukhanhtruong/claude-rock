@@ -39,7 +39,8 @@ function renderNav(pages) {
 const args = parseArgs(process.argv.slice(2));
 const archMd = readFileSync(args.arch, 'utf8');
 const docPaths = [args.arch, ...args.docs];
-const pages = docPaths.map((p) => renderMarkdown(readFileSync(p, 'utf8')));
+const slugs = new Map();
+const pages = docPaths.map((p) => renderMarkdown(readFileSync(p, 'utf8'), slugs));
 
 const templateUrl = new URL('../assets/viewer-template.html', import.meta.url);
 const template = readFileSync(templateUrl, 'utf8');

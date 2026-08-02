@@ -22,6 +22,20 @@ test('strips frontmatter', () => {
   assert.doesNotMatch(html, /name: x/);
 });
 
+test('makes repeated heading ids unique within a document', () => {
+  const { html, headings } = renderMarkdown('## Consequences\n\n## Consequences');
+  assert.match(html, /<h2 id="consequences">/);
+  assert.match(html, /<h2 id="consequences-2">/);
+  assert.deepEqual(headings.map((h) => h.slug), ['consequences', 'consequences-2']);
+});
+
+test('keeps heading ids unique across docs sharing a slug registry', () => {
+  const seen = new Map();
+  renderMarkdown('## Considered Options', seen);
+  const { headings } = renderMarkdown('## Considered Options', seen);
+  assert.equal(headings[0].slug, 'considered-options-2');
+});
+
 test('renders absolute-URL links with the href intact', () => {
   const { html } = renderMarkdown('[Stripe](https://stripe.com/docs/api)');
   assert.match(html, /<a href="https:\/\/stripe\.com\/docs\/api">Stripe<\/a>/);

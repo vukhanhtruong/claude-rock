@@ -1,9 +1,9 @@
 import { slugify } from './validate-links.mjs';
 
-export function renderMarkdown(md) {
+export function renderMarkdown(md, slugs = new Map()) {
   const ctx = {
     lines: md.replace(/^---\n[\s\S]*?\n---\n?/, '').split('\n'),
-    i: 0, html: [], headings: [],
+    i: 0, html: [], headings: [], slugs,
   };
   while (ctx.i < ctx.lines.length) dispatch(ctx);
   return { html: ctx.html.join('\n'), headings: ctx.headings };
@@ -36,7 +36,10 @@ function renderHeading(ctx) {
   if (level === 1) {
     ctx.html.push(`<h1>${inline(text)}</h1>`);
   } else {
-    const slug = slugify(text);
+    const base = slugify(text);
+    const nth = (ctx.slugs.get(base) ?? 0) + 1;
+    ctx.slugs.set(base, nth);
+    const slug = nth === 1 ? base : `${base}-${nth}`;
     ctx.html.push(`<h${level} id="${slug}">${inline(text)}</h${level}>`);
     ctx.headings.push({ level, text, slug });
   }

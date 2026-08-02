@@ -223,8 +223,9 @@ only gaps the scan could not observe).
 - Mermaid rules (from visual-explainer, adopted wholesale): `theme: 'base'` only; ELK
   registered explicitly (silent dagre fallback otherwise); max 10–12 nodes per diagram,
   hybrid pattern above that; never native `C4Context`; never `color:` in `classDef`;
-  IBM Plex Sans + IBM Plex Mono; no violet-fuchsia accents; every diagram gets
-  zoom/pan/expand controls.
+  IBM Plex Sans + IBM Plex Mono; no violet-fuchsia accents.
+- Every diagram — LikeC4 views and mermaid alike — gets zoom, pan, expand, and
+  fullscreen controls.
 - v1 ships: deep links (per section + per view), dark/light toggle, responsive nav.
   Deferred with recorded reason: reach tracing (LikeC4 covers it natively for
   architecture views), semantic search (browser find suffices for one page).

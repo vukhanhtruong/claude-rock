@@ -15,7 +15,7 @@ test('render.mjs produces a self-contained index.html', () => {
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--docs', `${fixtures}docs/adr/0001-sample.md`,
     '--out', out,
-    '--likec4-bundle', stub('l.js', '/*likec4*/'),
+    '--likec4-bundle', stub('l.js', '/*likec4*/`@font-face{src:url(https://cdn.jsdelivr.net/f.woff2)format("woff2")}`'),
     '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
     '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
   ]);
@@ -24,6 +24,7 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /href="#core-components"/);
   assert.match(html, /\/\*likec4\*\//);
   assert.match(html, /\/\*mermaid\*\//);
+  assert.doesNotMatch(html, /url\(https?:/);
   assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
 });
 

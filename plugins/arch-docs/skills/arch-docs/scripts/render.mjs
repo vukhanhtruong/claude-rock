@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { renderMarkdown } from './lib/md-render.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
+import { stripRemoteAssets } from './lib/offline.mjs';
 
 function consumeDocs(argv, i, docs) {
   while (argv[i + 1] && !argv[i + 1].startsWith('--')) docs.push(argv[++i]);
@@ -50,8 +51,8 @@ const html = embed({
     TITLE: docTitle(archMd),
     NAV: renderNav(pages),
     DOC: pages.map((p) => p.html).join('\n'),
-    LIKEC4_BUNDLE: readFileSync(args['likec4-bundle'], 'utf8'),
-    MERMAID_BUNDLE: readFileSync(args['mermaid-bundle'], 'utf8'),
+    LIKEC4_BUNDLE: stripRemoteAssets(readFileSync(args['likec4-bundle'], 'utf8')),
+    MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),
     THEME: readFileSync(args.theme, 'utf8'),
   },
 });

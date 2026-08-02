@@ -1,0 +1,27 @@
+specification {
+  element person
+  element system
+  element container
+  deploymentNode node
+  tag external
+}
+model {
+  customer = person 'Customer'
+  shop = system 'Shop' {
+    web = container 'Web App'
+    api = container 'API'
+  }
+  stripe = system 'Stripe' {
+    #external
+  }
+  customer -> web 'uses'
+  web -> api 'calls'
+  api -> stripe 'charges'
+}
+deployment {
+  node prod 'Production' {
+  }
+}
+views {
+  view index { include * }
+}

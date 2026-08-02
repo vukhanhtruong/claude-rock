@@ -19,7 +19,7 @@ Minimal fixture repo for validator tests. See the [components](#core-components)
 
 | System | Method | src |
 |---|---|---|
-| Stripe | REST API for payment charges | researched [https://stripe.com/docs/api] |
+| Stripe | REST API for payment charges | researched [stripe docs] |
 
 ## Data Stores
 

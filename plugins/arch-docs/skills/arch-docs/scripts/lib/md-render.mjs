@@ -2,6 +2,7 @@ import { nextSlug } from './slug-registry.mjs';
 import { escapeHtml, inline } from './md-inline.mjs';
 import { isListItem, renderList } from './md-list.mjs';
 import { isDefinitionTable, renderDefinitions } from './md-defs.mjs';
+import { isWideTable, renderWideCards } from './md-wide.mjs';
 import { renderViewGroup } from './md-views.mjs';
 
 export { escapeHtml };
@@ -106,6 +107,7 @@ function renderTable(ctx) {
   while (j < ctx.lines.length && ctx.lines[j].startsWith('|')) { rows.push(cells(ctx.lines[j])); j += 1; }
   ctx.i = j;
   if (isDefinitionTable(headers, rows)) { ctx.html.push(renderDefinitions(rows)); return; }
+  if (isWideTable(headers, rows)) { ctx.html.push(renderWideCards(headers, rows)); return; }
   const head = `<tr>${headers.map((c) => `<th>${inline(c)}</th>`).join('')}</tr>`;
   const body = rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
   ctx.html.push(`<table>${head}${body}</table>`);

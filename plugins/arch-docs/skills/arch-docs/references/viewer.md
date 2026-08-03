@@ -66,6 +66,12 @@ Four steps, in order — each feeds the next:
    |---|---|---|
    | consecutive `likec4:view` markers | one tab group (`md-views.mjs`) | blank lines between them only — prose between makes them separate shells |
    | 2-column table, right column averaging >60 chars | definition card grid (`md-defs.mjs`) | `Term \| Definition` is a definition list; `Property \| Value` is data and stays a table |
+   | ≥5-column table with ≤3 rows | one record card per row (`md-wide.mjs`) | a table's shape claims "read across these rows"; §9's eight columns describe one integration, so there is nothing to read across and every cell wraps to four lines in a 1/8th column. Both conditions, not either — a wide table with many rows is a real comparison |
+
+   Every table is **full width**, capped at the column. Content width gave each
+   one its own, so a page of them read as a ragged right edge against fixed
+   prose; the cap still has to be there or a wide one pushes past the column
+   instead of wrapping its cells.
 
    `--docs` order is the reading order and the rail order; the renderer never
    sorts. The rail's section label comes from each document's parent directory

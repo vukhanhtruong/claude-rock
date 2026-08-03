@@ -324,18 +324,24 @@ test('nothing breaks out of the content column', () => {
   assert.doesNotMatch(tpl, /sizeTables|sizeCode/);
 });
 
-test('a table sizes to its content and stops at the column', () => {
+// Content-width made every narrow table a different width, so a page of them read
+// as a ragged right edge against a fixed prose column. One width for all of them.
+test('a table fills the column rather than hugging its content', () => {
   const rule = tpl.match(/\n\.table-wrap \{[^}]*\}/)[0];
-  assert.match(rule, /width:\s*max-content/);
-  assert.match(rule, /max-width:\s*100%/);
+  assert.match(rule, /width:\s*100%/);
+  assert.doesNotMatch(rule, /max-content/, 'content width is what made them ragged');
   assert.match(tpl, /\.table-scroll \{[^}]*overflow-x:\s*auto/);
 });
 
-// max-content never wraps. Uncapped, 15 of the 18 tables in a real set overran
-// the column and each grew its own sideways scrollbar inside a vertical read.
+// Full width is a floor as well as a ceiling, so the cap still has to be there:
+// without it a wide table pushes past the column instead of wrapping its cells,
+// and 15 of the 18 tables in a real set grew a sideways scrollbar inside a
+// vertical read.
 test('a table too wide for the column wraps rather than scrolling sideways', () => {
   const rule = tpl.match(/\ntable \{[\s\S]*?\}/)[0];
+  assert.match(rule, /width:\s*100%/);
   assert.match(rule, /max-width:\s*100%/);
+  assert.doesNotMatch(rule, /max-content/);
   const th = tpl.match(/\nth \{[\s\S]*?\}/)[0];
   assert.doesNotMatch(th, /white-space:\s*nowrap/, 'a nowrap header sets a floor the cap cannot beat');
 });

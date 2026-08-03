@@ -399,15 +399,16 @@ hr { border: none; height: 1px; background: var(--border); margin: 48px 0; }
 .table-wrap {
   margin: 22px 0; border: 1px solid var(--border); border-radius: 10px;
   overflow: hidden; background: var(--surface); box-shadow: var(--shadow);
-  width: max-content; max-width: 100%;
+  width: 100%;
 }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-/* max-content so a small table hugs its content, capped so a big one wraps its
-   cells instead of scrolling sideways. Without the cap max-content never wraps,
-   and 15 of the 18 tables in a real set overran the column and grew their own
-   horizontal scrollbar — a sideways scroll inside a vertical read. */
+/* One width for every table, because content width gave each one its own and a
+   page of them read as a ragged right edge against a fixed prose column. The cap
+   stays: full width is a floor too, and without a ceiling a wide table pushes
+   past the column instead of wrapping its cells — 15 of the 18 tables in a real
+   set grew their own sideways scrollbar inside a vertical read. */
 table {
-  border-collapse: collapse; width: max-content; max-width: 100%;
+  border-collapse: collapse; width: 100%; max-width: 100%;
   font-size: 13.5px; line-height: 1.55;
 }
 th {
@@ -454,6 +455,34 @@ li::marker { color: var(--text-faint); }
   margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-dim); text-wrap: pretty;
 }
 .def dd code { font-size: 12px; }
+
+/* A wide table with two or three rows (§9 External Integrations is eight columns
+   describing one integration) is a record, not a comparison, and md-wide.mjs
+   turns it sideways. One card per row: the first column names it, the rest are
+   label/value pairs stacked so a long value has the whole column to wrap in
+   instead of a 1/8th cell. Two columns of pairs above 640px, one below. */
+.rec-cards { display: grid; gap: 12px; margin: 22px 0; }
+.rec-card {
+  padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); box-shadow: var(--shadow);
+}
+.rec-card__name {
+  margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  letter-spacing: -.008em; color: var(--text);
+}
+.rec-card__fields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px 24px; margin: 0;
+}
+.rec-field dt {
+  margin-bottom: 3px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.rec-field dd {
+  margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); text-wrap: pretty;
+}
+.rec-field dd code { font-size: 12px; }
 
 /* A reference to a file the viewer does not contain. Rendered as text rather
    than a link that goes nowhere; mono marks it as a path without borrowing the

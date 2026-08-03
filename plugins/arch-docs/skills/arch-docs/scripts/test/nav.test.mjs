@@ -122,3 +122,32 @@ test('inline markdown never reaches the rail as literal syntax', () => {
   assert.doesNotMatch(nav, /`/);
   assert.doesNotMatch(nav, /\*\*/);
 });
+
+// A routed section is browsed from its index page, not from the rail: 15 record
+// rows in the sidebar is the wall the whole two-level design exists to remove.
+test('a routed section shows only its landing document in the rail', () => {
+  const nav = buildNav([
+    { ...page('ADR 1', 'doc-1', [h(2, 'a', 'a')], 'Decision Records'), path: '/r/adr/0001.md' },
+    { ...page('Records', 'doc-idx', [h(2, 'b', 'b')], 'Decision Records'), path: '/r/adr/index.md' },
+  ]);
+  assert.equal(count(nav, /class="nav-group"/g), 1);
+  assert.match(nav, /nav-group__title">Records</);
+  assert.doesNotMatch(nav, /ADR 1/);
+});
+
+test('a routed section still counts every document it holds', () => {
+  const nav = buildNav([
+    { ...page('ADR 1', 'doc-1', [], 'Decision Records'), path: '/r/adr/0001.md' },
+    { ...page('ADR 2', 'doc-2', [], 'Decision Records'), path: '/r/adr/0002.md' },
+    { ...page('Records', 'doc-idx', [], 'Decision Records'), path: '/r/adr/index.md' },
+  ]);
+  assert.match(nav, /nav-sec__count[^>]*>3</);
+});
+
+test('a section with no index page keeps a group per document', () => {
+  const nav = buildNav([
+    { ...page('One', 'doc-1', [], 'Architecture'), path: '/r/a.md' },
+    { ...page('Two', 'doc-2', [], 'Architecture'), path: '/r/b.md' },
+  ]);
+  assert.equal(count(nav, /class="nav-group"/g), 2);
+});

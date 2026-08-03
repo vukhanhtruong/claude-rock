@@ -56,12 +56,32 @@ Four steps, in order — each feeds the next:
    code/bold/link (`scripts/lib/md-inline.mjs`). Anything without a shape falls
    through to the paragraph collector, which joins consecutive lines — so an
    unsupported block does not fail loudly, it silently comes out as run-on
-   prose. Add the shape to `shapeOf` before adding the renderer.
+   prose. Add the shape to `shapeOf` before adding the renderer. Known gap:
+   `*italic*` is not in the subset and reaches the page as literal asterisks.
+
+   Two shapes are chosen by measurement rather than by syntax, because the same
+   markdown means different things at different sizes:
+
+   | Source | Rendered as | Rule |
+   |---|---|---|
+   | consecutive `likec4:view` markers | one tab group (`md-views.mjs`) | blank lines between them only — prose between makes them separate shells |
+   | 2-column table, right column averaging >60 chars | definition card grid (`md-defs.mjs`) | `Term \| Definition` is a definition list; `Property \| Value` is data and stays a table |
 
    `--docs` order is the reading order and the rail order; the renderer never
    sorts. The rail's section label comes from each document's parent directory
    (`docs/adr/` → Decision Records), so passing ADRs interleaved with
    companions splits them into repeated sections.
+
+   **Links between documents are rewritten** (`scripts/lib/doc-links.mjs`) in a
+   second pass, because a link's target id comes from the target's H1 and is only
+   known once every document has been rendered. A `.md` href resolving to a
+   document in the set becomes an in-page anchor; one resolving outside it is
+   unwrapped to a `.ext-ref` span. Both matter: the viewer is a single file, so
+   an untouched `.md` href is dead, and in a real set there are dozens of them.
+   Fragments on document links are dropped rather than resolved — heading slugs
+   are deduped across the whole set, so `#context` inside one ADR may have been
+   minted as `context-7`. Only `.md` is rewritten; a link to a `.c4` or other
+   source file is still dead.
 
 4. **Serve it.**
    `node scripts/serve.mjs viewer/` — a tiny static file server, no build
@@ -124,6 +144,32 @@ Only the first section and its first document open on load. Scroll spy opens
 whatever it lands on, at both levels; the filter force-opens hits and restores
 the reader's own open/closed layout from `data-was-open` when the box clears.
 
+### Routed sections
+
+A section that ships an `index.md` or `README.md` is **routed**
+(`scripts/lib/doc-sections.mjs`): the rail holds one row for the index, the index
+holds the list, and one record shows at a time. Shipping an index is the opt-in —
+there is no document-count threshold, because 15 records behind an index is a set
+you browse while 15 records with no index is a run you read straight through.
+The section holding the root architecture document never routes, or a 226-byte
+`docs/architecture/README.md` would win the landing slot and hide
+`ARCHITECTURE.md` behind a stub.
+
+Each record gets a bar with a back link, its position, and prev/next; the index
+gets a status roll-up and a search box. **The search is not a nicety.** Hiding
+14 of 15 records puts them out of reach of the browser's own find, which is the
+reason §3 records full-text search as unshipped. The records stay in the DOM, so
+the index reads the same characters Ctrl+F would have — and can name the record
+that matched instead of dropping the reader into an unlabelled slab. Statuses are
+read from each record's own `## Status` section, falling back to an inline
+`**Status:** …` label, and only the leading word is counted (a real status line
+carries qualifiers: `Accepted — partially supersedes ADR-0008`).
+
+Two consequences worth stating plainly: printing a routed section prints only the
+open record, and a deep link into a hidden record needs the router to reveal it
+before the scroll can land — the browser jumps to the fragment first, so the jump
+is re-run after routing.
+
 Deliberately **not** shipped, with reasons recorded here rather than left
 silent:
 
@@ -131,7 +177,7 @@ silent:
 |---|---|---|
 | Reach tracing | not shipped | LikeC4 covers this natively for its own architecture views — a second implementation would duplicate what LikeC4 already does |
 | Semantic search | not shipped | the rail filter matches heading substrings, which covers wayfinding; ranking by meaning would need an index the offline single-file viewer has nowhere to put |
-| Full-text body search | not shipped | the browser's built-in find (Ctrl/Cmd+F) already searches the whole page, because every document is in the one DOM |
+| Full-text body search | shipped for routed sections only | Ctrl/Cmd+F covers every document that is on screen, but a routed section hides all but one record, so its index carries its own search over the hidden bodies |
 
 The honest-absence rule (`interview.md` §"Honest absence") applies to the
 tool itself, not just to documentation facts: an unshipped feature is

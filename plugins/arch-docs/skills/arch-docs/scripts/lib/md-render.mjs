@@ -1,6 +1,8 @@
 import { nextSlug } from './slug-registry.mjs';
 import { escapeHtml, inline } from './md-inline.mjs';
 import { isListItem, renderList } from './md-list.mjs';
+import { isDefinitionTable, renderDefinitions } from './md-defs.mjs';
+import { renderViewGroup } from './md-views.mjs';
 
 export { escapeHtml };
 
@@ -81,23 +83,32 @@ function renderFence(ctx) {
   ctx.html.push(`<div class="diagram-shell"><div class="mermaid-canvas">${body}</div></div>`);
 }
 
+// Collects the whole run of markers, not one: blank lines between them are
+// separation in the source, not in the reader's head.
 function renderMarker(ctx) {
-  const [, id] = ctx.lines[ctx.i].trim().match(/^<!--\s*likec4:view\s+(\S+)\s*-->/);
-  ctx.html.push(`<div class="diagram-shell"><c4-view view-id="${id}"></c4-view></div>`);
-  ctx.i += 1;
+  const ids = [];
+  let j = ctx.i;
+  while (j < ctx.lines.length) {
+    const marker = ctx.lines[j].trim().match(/^<!--\s*likec4:view\s+(\S+)\s*-->/);
+    if (marker) ids.push(marker[1]);
+    else if (ctx.lines[j].trim()) break;
+    j += 1;
+  }
+  ctx.html.push(renderViewGroup(ids));
+  ctx.i = j;
 }
 
 function renderTable(ctx) {
   const cells = (line) => line.split('|').slice(1, -1).map((c) => c.trim());
-  const headRow = `<tr>${cells(ctx.lines[ctx.i]).map((c) => `<th>${inline(c)}</th>`).join('')}</tr>`;
+  const headers = cells(ctx.lines[ctx.i]);
   const rows = [];
   let j = ctx.i + 2;
-  while (j < ctx.lines.length && ctx.lines[j].startsWith('|')) {
-    rows.push(`<tr>${cells(ctx.lines[j]).map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`);
-    j += 1;
-  }
-  ctx.html.push(`<table>${headRow}${rows.join('')}</table>`);
+  while (j < ctx.lines.length && ctx.lines[j].startsWith('|')) { rows.push(cells(ctx.lines[j])); j += 1; }
   ctx.i = j;
+  if (isDefinitionTable(headers, rows)) { ctx.html.push(renderDefinitions(rows)); return; }
+  const head = `<tr>${headers.map((c) => `<th>${inline(c)}</th>`).join('')}</tr>`;
+  const body = rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
+  ctx.html.push(`<table>${head}${body}</table>`);
 }
 
 function renderParagraph(ctx) {

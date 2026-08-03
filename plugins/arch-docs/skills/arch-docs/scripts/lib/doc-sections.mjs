@@ -1,0 +1,51 @@
+import { basename } from 'node:path';
+import { escapeHtml } from './md-inline.mjs';
+
+const LANDING = ['index.md', 'readme.md'];
+
+// Buckets are consecutive runs, not a group-by: the caller's document order is
+// the reading order, and reordering to match a sort would break it.
+export function bucketPages(pages) {
+  const out = [];
+  for (const page of pages) {
+    const label = page.section || 'Documents';
+    const last = out[out.length - 1];
+    if (last && last.label === label) last.pages.push(page);
+    else out.push({ label, pages: [page] });
+  }
+  return out;
+}
+
+// A section routes only if its author shipped an index page — that is the
+// opt-in, and it needs no document-count threshold. Fifteen records behind an
+// index is a set you browse; fifteen records with no index is a run of
+// documents you read straight through, and hiding them would only lose you the
+// scroll.
+export function landingOf(bucket) {
+  // The section holding the root architecture document is the spine of the set:
+  // read, not browsed. Ungated, a 226-byte docs/architecture/README.md would win
+  // the landing slot and hide ARCHITECTURE.md itself behind a stub.
+  if (bucket.pages.some((p) => p.spine)) return undefined;
+  const rank = (page) => LANDING.indexOf(basename(page.path ?? '').toLowerCase());
+  return bucket.pages.filter((p) => rank(p) >= 0).sort((a, b) => rank(a) - rank(b))[0];
+}
+
+function pageEl(page) {
+  const title = escapeHtml(stripTitle(page.title));
+  return `<section class="page" id="page-${page.docId}" data-title="${title}">\n${page.html}\n</section>`;
+}
+
+function stripTitle(title) {
+  return (title ?? '').replace(/`([^`]+)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1');
+}
+
+function sectionEl(bucket) {
+  const landing = landingOf(bucket);
+  const routed = landing ? ` data-routed data-landing="page-${landing.docId}"` : '';
+  return `<div class="doc-section" data-section="${escapeHtml(bucket.label)}"${routed}>`
+    + `${bucket.pages.map(pageEl).join('\n')}</div>`;
+}
+
+export function buildDoc(pages) {
+  return bucketPages(pages).map(sectionEl).join('\n');
+}

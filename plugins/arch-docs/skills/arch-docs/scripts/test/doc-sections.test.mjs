@@ -1,0 +1,111 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { bucketPages, landingOf, buildDoc } from '../lib/doc-sections.mjs';
+
+const page = (docId, section, path, html = '<h1>x</h1>') => ({ docId, section, path, html });
+const count = (html, re) => [...html.matchAll(re)].length;
+
+test('pages bucket into consecutive runs, preserving the caller order', () => {
+  const buckets = bucketPages([
+    page('a', 'Architecture', '/r/ARCHITECTURE.md'),
+    page('b', 'Decision Records', '/r/docs/adr/0001.md'),
+    page('c', 'Decision Records', '/r/docs/adr/0002.md'),
+  ]);
+  assert.deepEqual(buckets.map((b) => b.label), ['Architecture', 'Decision Records']);
+  assert.deepEqual(buckets[1].pages.map((p) => p.docId), ['b', 'c']);
+});
+
+test('pages with no section land in one default bucket', () => {
+  const buckets = bucketPages([page('a', null, '/r/a.md'), page('b', null, '/r/b.md')]);
+  assert.equal(buckets.length, 1);
+  assert.equal(buckets[0].label, 'Documents');
+});
+
+// A section routes only if its author shipped an index page — that is the
+// opt-in. No document-count threshold: 15 records behind an index is a set you
+// browse, 15 records with no index is a run of documents you read.
+test('a section that ships an index.md has a landing page', () => {
+  const bucket = bucketPages([
+    page('r1', 'Decision Records', '/r/docs/adr/0001.md'),
+    page('idx', 'Decision Records', '/r/docs/adr/index.md'),
+  ])[0];
+  assert.equal(landingOf(bucket).docId, 'idx');
+});
+
+test('README.md is a landing page when there is no index.md', () => {
+  const bucket = bucketPages([
+    page('r1', 'Decision Records', '/r/docs/adr/0001.md'),
+    page('rm', 'Decision Records', '/r/docs/adr/README.md'),
+  ])[0];
+  assert.equal(landingOf(bucket).docId, 'rm');
+});
+
+test('index.md wins over README.md when a section ships both', () => {
+  const bucket = bucketPages([
+    page('rm', 'Decision Records', '/r/docs/adr/README.md'),
+    page('idx', 'Decision Records', '/r/docs/adr/index.md'),
+  ])[0];
+  assert.equal(landingOf(bucket).docId, 'idx');
+});
+
+test('a section with no index page has no landing page', () => {
+  const bucket = bucketPages([page('a', 'Architecture', '/r/ARCHITECTURE.md')])[0];
+  assert.equal(landingOf(bucket), undefined);
+});
+
+test('every page is wrapped in its own element, keyed by its document id', () => {
+  const html = buildDoc([page('a', 'Architecture', '/r/A.md', '<h1>A</h1>')]);
+  assert.match(html, /<section class="page" id="page-a"[^>]*>\s*<h1>A<\/h1>\s*<\/section>/);
+});
+
+test('a section with an index is marked routed and names its landing page', () => {
+  const html = buildDoc([
+    page('r1', 'Decision Records', '/r/docs/adr/0001.md'),
+    page('idx', 'Decision Records', '/r/docs/adr/index.md'),
+  ]);
+  assert.match(html, /data-section="Decision Records"/);
+  assert.match(html, /data-routed/);
+  assert.match(html, /data-landing="page-idx"/);
+});
+
+test('a section with no index is not routed', () => {
+  const html = buildDoc([page('a', 'Architecture', '/r/ARCHITECTURE.md')]);
+  assert.doesNotMatch(html, /data-routed/);
+  assert.doesNotMatch(html, /data-landing/);
+});
+
+test('each page in a routed section carries its own title for the record list', () => {
+  const html = buildDoc([
+    { ...page('r1', 'Decision Records', '/r/docs/adr/0001.md'), title: 'ADR-0001: Foundation' },
+    page('idx', 'Decision Records', '/r/docs/adr/index.md'),
+  ]);
+  assert.match(html, /data-title="ADR-0001: Foundation"/);
+});
+
+test('section labels and titles are escaped', () => {
+  const html = buildDoc([{ ...page('a', 'R&D', '/r/a.md'), title: 'A & B' }]);
+  assert.match(html, /data-section="R&amp;D"/);
+  assert.match(html, /data-title="A &amp; B"/);
+});
+
+test('one wrapper per section, one page element per document', () => {
+  const html = buildDoc([
+    page('a', 'Architecture', '/r/A.md'),
+    page('b', 'Decision Records', '/r/docs/adr/0001.md'),
+    page('c', 'Decision Records', '/r/docs/adr/index.md'),
+  ]);
+  assert.equal(count(html, /class="doc-section"/g), 2);
+  assert.equal(count(html, /class="page"/g), 3);
+});
+
+// The section holding the root architecture document is the spine of the set:
+// it is read, not browsed. Left ungated, a 226-byte docs/architecture/README.md
+// would win the landing slot and hide ARCHITECTURE.md behind a stub.
+test('the section holding the root document never routes', () => {
+  const bucket = bucketPages([
+    { ...page('arch', 'Architecture', '/r/ARCHITECTURE.md'), spine: true },
+    page('rm', 'Architecture', '/r/docs/architecture/README.md'),
+  ])[0];
+  assert.equal(landingOf(bucket), undefined);
+  assert.doesNotMatch(buildDoc(bucket.pages), /data-routed/);
+});

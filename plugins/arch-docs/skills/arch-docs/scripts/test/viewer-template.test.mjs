@@ -148,3 +148,116 @@ test('mermaid ships a dark palette and the viewer re-renders on theme change', (
   assert.match(tpl, /\.dark\b/);
   assert.match(tpl, /rerenderDiagrams\(\)/);
 });
+
+/* ---------- conditional table width ---------- */
+
+// Every table took the 1068px wide track, so a 3x15 index needing 523px was
+// stretched to double its content for zero gain. The wide track is now opt-in,
+// measured the same way code blocks are.
+test('a table sizes to its content instead of stretching to fill', () => {
+  const rule = tpl.match(/\ntable \{[^}]*\}/)[0];
+  assert.match(rule, /width:\s*max-content/);
+  assert.doesNotMatch(rule, /width:\s*100%/);
+});
+
+test('the wide track is opt-in for tables, not unconditional', () => {
+  const [, selector] = tpl.match(/\n([^\n{]*)\{[^}]*width:\s*var\(--wide\);/);
+  assert.doesNotMatch(selector, /\.table-wrap/, 'table-wrap must not take the track by default');
+  assert.match(tpl, /\.table-wrap\.is-wide \{[^}]*var\(--wide\)/);
+});
+
+test('table width is decided by measuring natural content width', () => {
+  assert.match(tpl, /sizeTables/);
+  assert.match(tpl, /max-content/);
+  assert.match(tpl, /classList\.toggle\('is-wide'/);
+});
+
+/* ---------- view tabs ---------- */
+
+test('view tab groups are styled and only the selected panel shows', () => {
+  assert.match(tpl, /\.view-tabs \{/);
+  assert.match(tpl, /\.view-tab\[aria-selected="true"\]/);
+  assert.match(tpl, /\.view-panel\[hidden\] \{[^}]*display:\s*none/);
+});
+
+test('clicking a view tab swaps the panel and moves selection', () => {
+  assert.match(tpl, /querySelectorAll\('\.view-tabs'\)/);
+  assert.match(tpl, /ArrowRight/, 'tablist must be keyboard navigable');
+});
+
+/* ---------- definition grids and dead references ---------- */
+
+test('definition grids lay out as a grid, not a stack of rows', () => {
+  const rule = tpl.match(/\n\.def-grid \{[^}]*\}/)[0];
+  assert.match(rule, /display:\s*grid/);
+  assert.match(rule, /repeat\(auto-fill/);
+});
+
+test('a definition term outranks its body without being a heading', () => {
+  assert.match(tpl, /\.def dt \{/);
+  assert.match(tpl, /\.def dd \{/);
+});
+
+// A reference the viewer does not contain is rendered as text, so it must not
+// borrow the link colour — that is the whole point of unwrapping it.
+test('an external reference is visually distinct from a live link', () => {
+  const rule = tpl.match(/\n\.ext-ref \{[^}]*\}/)[0];
+  assert.doesNotMatch(rule, /var\(--accent\)/);
+  assert.match(rule, /var\(--font-mono\)/);
+});
+
+/* ---------- routed sections ---------- */
+
+test('a routed section shows one page at a time', () => {
+  assert.match(tpl, /\.doc-section\[data-routed\] \.page\[hidden\] \{[^}]*display:\s*none/);
+  assert.match(tpl, /querySelectorAll\('\.doc-section\[data-routed\]'\)/);
+});
+
+test('the router reads and writes the hash so deep links survive', () => {
+  assert.match(tpl, /hashchange/);
+  assert.match(tpl, /location\.hash/);
+});
+
+test('a routed record gets a back link and prev/next between siblings', () => {
+  assert.match(tpl, /record-bar/);
+  assert.match(tpl, /data-prev/);
+  assert.match(tpl, /data-next/);
+});
+
+// Hiding 15 of 17 documents breaks Ctrl+F across them. The text is still in the
+// DOM, so the index searches it directly and names the record that matched.
+test('the index searches the bodies of the records it hides', () => {
+  assert.match(tpl, /record-search/);
+  assert.match(tpl, /record-hits/);
+});
+
+test('a deep link into a hidden record opens it before scrolling', () => {
+  assert.match(tpl, /routeTo/);
+  assert.match(tpl, /scrollIntoView|scrollTo/);
+});
+
+// "One index page with comprehensive information" — a list of titles is not
+// comprehensive. Each record states its own status under a Status heading, so
+// the index can total them without the renderer parsing anything.
+test('the index totals the statuses of the records it lists', () => {
+  assert.match(tpl, /record-summary/);
+  assert.match(tpl, /statusOf/);
+  assert.match(tpl, /'status'/);
+});
+
+test('the search box goes after the index prose, not between it and the title', () => {
+  assert.match(tpl, /tagName === 'P'/);
+});
+
+// The record bar sits above the record's title, so scrolling to the title
+// itself puts the bar off screen and the reader loses prev/next.
+test('landing on a record scrolls to the record, not past its bar', () => {
+  assert.match(tpl, /\.doc-section\[data-routed\] \.page \{[^}]*scroll-margin-top/);
+  assert.match(tpl, /classList\.contains\('doc-head'\)/);
+});
+
+// One record in a real set writes "**Status:** Accepted" as an inline label in
+// its header block instead of under a Status heading. Both conventions count.
+test('the status total reads an inline Status label as well as a heading', () => {
+  assert.match(tpl, /Status:\\s\*\(\[A-Za-z\]\+\)|Status:\\s\*/);
+});

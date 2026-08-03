@@ -270,8 +270,14 @@ body {
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
   background: linear-gradient(to right, var(--border-strong) 0%, var(--border) 45%, transparent 100%);
 }
-.doc-head:first-child { padding-top: 0; }
-.doc-head:first-child::after { display: none; }
+.doc-section:first-child .page:first-child .doc-head { padding-top: 0; }
+.doc-section:first-child .page:first-child .doc-head::after { display: none; }
+/* A routed record is shown on its own, so the band that separates one document
+   from the next in a scroll has nothing to separate it from — and "Document 07"
+   is the wrong count for it anyway. The record bar carries "7 of 15" instead. */
+.doc-section[data-routed] .doc-head { padding-top: 0; }
+.doc-section[data-routed] .doc-head::after,
+.doc-section[data-routed] .doc-head::before { display: none; }
 .doc-head + p { color: var(--text-dim); font-size: 17.5px; }
 
 .main h2 {
@@ -362,12 +368,24 @@ blockquote > :last-child { margin-bottom: 0; }
 hr { border: none; height: 1px; background: var(--border); margin: 48px 0; }
 
 /* ---------- tables ---------- */
+/* The card hugs its table. Every table used to take the 1068px wide track, so a
+   3x15 index whose content needs 523px was stretched to double that for no
+   gain. Script measures natural width and only tables that outgrow the prose
+   column get the track — and then only as wide as they actually are. */
 .table-wrap {
   margin: 22px 0; border: 1px solid var(--border); border-radius: 10px;
   overflow: hidden; background: var(--surface); box-shadow: var(--shadow);
+  width: max-content; max-width: 100%;
+}
+.table-wrap.is-wide {
+  /* The base rule's max-width would clamp the track straight back to the prose
+     column, so taking the track means dropping the cap too. */
+  max-width: none;
+  width: min(var(--tw), var(--wide));
+  margin-left: calc(min(0px, (var(--measure) - min(var(--tw), var(--wide))) / 2));
 }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.55; }
+table { border-collapse: collapse; width: max-content; font-size: 13.5px; line-height: 1.55; }
 th {
   position: sticky; top: 0; z-index: 1; text-align: left; white-space: nowrap;
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
@@ -390,14 +408,139 @@ li:last-child { margin-bottom: 0; }
 li > :is(ul, ol) { margin: 8px 0 0; }
 li::marker { color: var(--text-faint); }
 
+/* ---------- definition grids ---------- */
+/* A two-column table whose right column runs to prose is a definition list, and
+   19 rows of hairline dividers is the worst way to show one. Cards stay at the
+   prose measure: the win here is scanning, not height, and a third column would
+   cost the reading edge. */
+.def-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px; margin: 22px 0;
+}
+.def {
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); transition: border-color .15s, background .15s;
+}
+.def:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.def dt {
+  margin-bottom: 6px; font-family: var(--font-display); font-size: 15px;
+  font-weight: 600; letter-spacing: -.006em; color: var(--text); text-wrap: balance;
+}
+.def dd {
+  margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-dim); text-wrap: pretty;
+}
+.def dd code { font-size: 12px; }
+
+/* A reference to a file the viewer does not contain. Rendered as text rather
+   than a link that goes nowhere; mono marks it as a path without borrowing the
+   link colour and promising a destination. */
+.ext-ref {
+  font-family: var(--font-mono); font-size: .88em; color: var(--text-dim);
+  border-bottom: 1px dotted var(--border-strong);
+}
+
+/* ---------- view tabs ---------- */
+.view-tabs { margin: 26px 0; }
+.view-tabs__bar {
+  display: flex; gap: 2px; padding: 3px; margin-bottom: 10px; overflow-x: auto;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px;
+}
+/* 11px bar radius less its 3px padding gives 8px tabs — concentric, so the
+   selected chip nests instead of fighting the corner it sits in. */
+.view-tab {
+  position: relative; flex: 0 0 auto; height: 30px; padding: 0 13px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .04em; color: var(--text-dim); white-space: nowrap;
+  background: transparent; border: none; border-radius: 8px; cursor: pointer;
+  transition: color .15s, background .15s, scale .12s cubic-bezier(.2, 0, 0, 1);
+}
+/* 30px chip, 40px target. Extended vertically only, so neighbours 2px apart
+   never overlap. */
+.view-tab::after { content: ''; position: absolute; inset: -5px 0; }
+.view-tab:hover { color: var(--text); }
+.view-tab:active { scale: .96; }
+.view-tab[aria-selected="true"] {
+  color: var(--text); background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .07), 0 0 0 1px var(--border);
+}
+.view-panel[hidden] { display: none; }
+/* Vertical margins only: the shorthand would also reset the breakout's negative
+   left margin, pushing a 1068px diagram off the right edge of the viewport. */
+.view-tabs .diagram-shell { margin-top: 0; margin-bottom: 0; }
+
+/* ---------- routed sections ---------- */
+.doc-section[data-routed] .page[hidden] { display: none; }
+/* The record bar sits above the record's title, so the scroll target has to be
+   the record, not its heading, or prev/next lands off screen. */
+.doc-section[data-routed] .page { scroll-margin-top: calc(var(--topbar-h) + 20px); }
+.record-summary {
+  margin: 0 0 18px; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; color: var(--text-faint);
+}
+.record-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.record-chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 11px; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .11em;
+  color: var(--text-dim); text-decoration: none; cursor: pointer;
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  transition: color .15s, border-color .15s, background .15s,
+              scale .12s cubic-bezier(.2, 0, 0, 1);
+}
+.record-chip::after { content: ''; position: absolute; inset: -5px 0; }
+.record-chip:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.record-chip:active { scale: .96; }
+.record-chip[aria-disabled="true"] { opacity: .35; pointer-events: none; }
+.record-pos {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .11em;
+  font-variant-numeric: tabular-nums; color: var(--text-faint);
+}
+.record-steps { display: flex; gap: 6px; margin-left: auto; }
+
+/* Hiding the records takes them out of reach of the browser's own find, so the
+   index searches their text directly. They are still in the DOM — only hidden —
+   so this reads the same characters Ctrl+F would have, and can say which
+   record matched instead of dropping the reader into an unlabelled slab. */
+.record-search { margin: 0 0 14px; }
+.record-search input {
+  width: 100%; height: 40px; padding: 0 14px;
+  font-family: var(--font-body); font-size: 14px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.record-search input::placeholder { color: var(--text-faint); }
+.record-search input:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.record-hits { display: grid; gap: 6px; margin: 0 0 24px; }
+.record-hits:empty { margin: 0; }
+.record-hit {
+  display: block; padding: 11px 14px; text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+  transition: border-color .15s, background .15s;
+}
+.record-hit:hover { border-color: var(--accent-line); background: var(--surface-2); }
+.record-hit b {
+  display: block; margin-bottom: 3px; font-size: 14px; font-weight: 600; color: var(--text);
+}
+.record-hit span { font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
+.record-hit mark {
+  background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 2px;
+}
+
 /* ---------- diagrams ---------- */
 .diagram-shell {
   position: relative; margin: 26px 0; border: 1px solid var(--border); border-radius: 12px;
   background: var(--surface); box-shadow: var(--shadow);
 }
-/* Diagrams and dense reference tables outgrow the prose measure. Let them
-   break symmetrically out of the column instead of wrapping every cell. */
-.diagram-shell, .table-wrap {
+/* A diagram has no natural width to measure — it scales to whatever box it is
+   given — so it always takes the wide track. Tables opt in by measurement. */
+.diagram-shell {
   width: var(--wide);
   margin-left: calc(min(0px, (var(--measure) - var(--wide)) / 2));
 }
@@ -463,7 +606,9 @@ c4-view { display: block; width: 100%; height: 460px; }
   }
   .scrim.is-open { opacity: 1; pointer-events: auto; }
   .main { margin-left: 0; padding: calc(var(--topbar-h) + 26px) 18px 20vh; }
-  .diagram-shell, .table-wrap { width: 100%; margin-left: 0; }
+  /* .is-wide outranks .table-wrap on specificity, so it has to be named here
+     or a measured-wide table keeps its desktop track on a phone. */
+  .diagram-shell, .table-wrap, .table-wrap.is-wide { width: 100%; margin-left: 0; }
   .doc-head { font-size: clamp(26px, 7vw, 34px); }
   .main h2 { font-size: 21px; margin-top: 40px; }
   body { font-size: 16px; }
@@ -617,7 +762,47 @@ function sizeCode() {
   });
 }
 sizeCode();
-addEventListener('resize', sizeCode);
+
+/* ---- tables: the same rule, measured against the prose column ---- */
+var wraps = [].slice.call(document.querySelectorAll('.doc .table-wrap'));
+function sizeTables() {
+  var room = document.querySelector('.doc').clientWidth;
+  wraps.forEach(function (w) {
+    /* A hidden record measures 0, which would read as "fits". Leave it alone
+       until it is on screen; it was measured correctly before routing ran. */
+    if (w.offsetParent === null) return;
+    var table = w.querySelector('table');
+    var natural = Math.max(table.offsetWidth, table.scrollWidth);
+    w.style.setProperty('--tw', natural + 'px');
+    w.classList.toggle('is-wide', natural > room);
+  });
+}
+sizeTables();
+addEventListener('resize', function () { sizeCode(); sizeTables(); });
+
+/* ---- view tabs: one system at several zoom levels, one panel at a time ---- */
+document.querySelectorAll('.view-tabs').forEach(function (group) {
+  var tabs = [].slice.call(group.querySelectorAll('.view-tab'));
+  var panels = [].slice.call(group.querySelectorAll('.view-panel'));
+  function select(n, focus) {
+    tabs.forEach(function (t, i) {
+      t.setAttribute('aria-selected', String(i === n));
+      t.tabIndex = i === n ? 0 : -1;
+    });
+    panels.forEach(function (p, i) { p.hidden = i !== n; });
+    if (focus) tabs[n].focus();
+    dispatchEvent(new Event('resize'));
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { select(i, false); });
+    tab.addEventListener('keydown', function (e) {
+      var step = e.key === 'ArrowRight' ? 1 : (e.key === 'ArrowLeft' ? -1 : 0);
+      if (!step) return;
+      e.preventDefault();
+      select((i + step + tabs.length) % tabs.length, true);
+    });
+  });
+});
 
 /* ---- rail: filter ---- */
 var filter = document.getElementById('nav-filter');
@@ -739,6 +924,182 @@ targets.forEach(function (t) { spy.observe(t); });
 links.forEach(function (a) {
   a.addEventListener('click', function () { if (innerWidth <= 960) setDrawer(false); });
 });
+
+/* ---- routed sections ----
+   A section that ships an index page is browsed from it: the rail holds one
+   row, the index holds the list, and one record shows at a time. The records
+   stay in the DOM either way, which is what lets the index search their text
+   after hiding them from the browser's own find. */
+var routed = [].slice.call(document.querySelectorAll('.doc-section[data-routed]'));
+var bodyText = new Map();
+
+function pagesOf(sec) { return [].slice.call(sec.children); }
+
+function recordsOf(sec) {
+  var landing = document.getElementById(sec.dataset.landing);
+  return pagesOf(sec).filter(function (p) { return p !== landing; });
+}
+
+function chip(label, href, flag) {
+  var a = document.createElement('a');
+  a.className = 'record-chip';
+  a.textContent = label;
+  if (href) a.href = '#' + href;
+  else a.setAttribute('aria-disabled', 'true');
+  if (flag) a.setAttribute(flag, '');
+  return a;
+}
+
+function stepsEl(records, i) {
+  var steps = document.createElement('div');
+  steps.className = 'record-steps';
+  steps.appendChild(chip('‹ Prev', records[i - 1] && records[i - 1].id, 'data-prev'));
+  steps.appendChild(chip('Next ›', records[i + 1] && records[i + 1].id, 'data-next'));
+  return steps;
+}
+
+function barEl(records, i, landingId) {
+  var bar = document.createElement('div');
+  bar.className = 'record-bar';
+  bar.appendChild(chip('‹ All records', landingId, 'data-back'));
+  var pos = document.createElement('span');
+  pos.className = 'record-pos';
+  pos.textContent = (i + 1) + ' / ' + records.length;
+  bar.append(pos, stepsEl(records, i));
+  return bar;
+}
+
+function snippetEl(text, q) {
+  var at = text.toLowerCase().indexOf(q);
+  var body = document.createElement('span');
+  var mark = document.createElement('mark');
+  mark.textContent = text.slice(at, at + q.length);
+  body.append('…' + text.slice(Math.max(0, at - 55), at), mark,
+    text.slice(at + q.length, at + q.length + 95) + '…');
+  return body;
+}
+
+function hitEl(page, q) {
+  var a = document.createElement('a');
+  a.className = 'record-hit';
+  a.href = '#' + page.id;
+  var title = document.createElement('b');
+  title.textContent = page.dataset.title;
+  a.append(title, snippetEl(bodyText.get(page), q));
+  return a;
+}
+
+function searchEl(records, hits) {
+  var box = document.createElement('div');
+  box.className = 'record-search';
+  var input = document.createElement('input');
+  input.type = 'search';
+  input.setAttribute('aria-label', 'Search the full text of every record');
+  input.placeholder = 'Search all ' + records.length + ' records…';
+  box.appendChild(input);
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    hits.textContent = '';
+    if (q.length < 2) return;
+    records.forEach(function (p) {
+      if (bodyText.get(p).toLowerCase().indexOf(q) !== -1) hits.appendChild(hitEl(p, q));
+    });
+  });
+  return box;
+}
+
+/* Each record states its own status under a Status heading, so the index can
+   total them without the renderer having to parse anything. The deep-link
+   anchor prepends a '#' to every heading, hence the strip. */
+/* Only the leading word. A real status line carries its qualifiers with it —
+   "Accepted — partially supersedes ADR-0008 (the src/kit/ line only)" — and
+   tallying the whole string gives one bucket per record instead of a total. */
+function statusHeadOf(page) {
+  var head = [].slice.call(page.querySelectorAll('h2')).filter(function (h) {
+    return h.textContent.replace('#', '').trim().toLowerCase() === 'status';
+  })[0];
+  var body = head && head.nextElementSibling;
+  return body && body.tagName === 'P' ? body.textContent.trim() : '';
+}
+
+function statusOf(page) {
+  var text = statusHeadOf(page);
+  if (text) return (text.match(/^[A-Za-z]+/) || [''])[0].toLowerCase();
+  /* Not every record uses a Status heading: one writes "**Status:** Accepted" as
+     an inline label in its header block. Only the opening of the record is
+     searched, so a later mention of the word cannot be mistaken for the field. */
+  var label = page.textContent.slice(0, 700).match(/Status:\s*([A-Za-z]+)/);
+  return label ? label[1].toLowerCase() : '';
+}
+
+function summaryEl(records) {
+  var tally = new Map();
+  records.forEach(function (p) {
+    var status = statusOf(p) || 'unrecorded';
+    tally.set(status, (tally.get(status) || 0) + 1);
+  });
+  var parts = Array.from(tally).sort(function (a, b) { return b[1] - a[1]; });
+  var el = document.createElement('p');
+  el.className = 'record-summary';
+  el.textContent = records.length + ' records · ' + parts.map(function (e) {
+    return e[1] + ' ' + e[0];
+  }).join(' · ');
+  return el;
+}
+
+function equipSection(sec) {
+  var records = recordsOf(sec);
+  records.forEach(function (p) { bodyText.set(p, p.textContent.replace(/\s+/g, ' ')); });
+  records.forEach(function (p, i) { p.prepend(barEl(records, i, sec.dataset.landing)); });
+  var landing = document.getElementById(sec.dataset.landing);
+  var hits = document.createElement('div');
+  hits.className = 'record-hits';
+  /* The index's own opening paragraph explains what the records are, so it keeps
+     its place directly under the title; the controls go below it. */
+  var head = landing.querySelector('.doc-head');
+  var lead = head.nextElementSibling;
+  var at = lead && lead.tagName === 'P' ? lead : head;
+  at.after(hits);
+  at.after(searchEl(records, hits));
+  at.after(summaryEl(records));
+}
+
+function routeTo(sec, page) {
+  pagesOf(sec).forEach(function (p) { p.hidden = p !== page; });
+}
+
+function syncRoutes() {
+  var id = decodeURIComponent((location.hash || '').slice(1));
+  var el = id && document.getElementById(id);
+  var target = el && el.closest('.page');
+  routed.forEach(function (sec) {
+    var want = target && target.parentNode === sec
+      ? target : document.getElementById(sec.dataset.landing);
+    routeTo(sec, want);
+  });
+  return el;
+}
+
+/* The browser scrolls to a fragment before the router can reveal it, so a deep
+   link into a hidden record lands nowhere. Re-run the jump once it is shown. */
+function syncAndJump() {
+  var el = syncRoutes();
+  sizeTables();
+  if (!el) return;
+  /* A link to the record itself scrolls to the record, so its bar is on screen.
+     A link to a heading inside the record still lands on that heading. */
+  var page = el.closest('.page');
+  var inRouted = page && page.parentNode.dataset.routed !== undefined;
+  (inRouted && el.classList.contains('doc-head') ? page : el).scrollIntoView();
+}
+
+if (routed.length) {
+  routed.forEach(equipSection);
+  addEventListener('hashchange', syncAndJump);
+  syncRoutes();
+  if (location.hash) syncAndJump();
+  sizeTables();
+}
 
 /* ---- diagrams ---- */
 var mermaidEls = [];

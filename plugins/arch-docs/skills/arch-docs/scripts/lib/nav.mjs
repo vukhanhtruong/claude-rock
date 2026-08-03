@@ -1,4 +1,5 @@
 import { escapeHtml, stripInline } from './md-inline.mjs';
+import { bucketPages, landingOf } from './doc-sections.mjs';
 
 // The rail is two levels deep. One <details> per source document keeps the ~120
 // headings of a real set from reading as a wall of near-duplicate labels
@@ -32,9 +33,14 @@ function group(page, open) {
   ].join('');
 }
 
+// A routed section is browsed from its index page, so the rail shows that one
+// document and stops. Listing all 15 records here would rebuild the wall the
+// two-level rail exists to remove; the count still tells you how many there are.
 function section(bucket, index) {
   const label = escapeHtml(bucket.label);
-  const docs = bucket.pages.map((p, i) => group(p, index === 0 && i === 0)).join('');
+  const landing = landingOf(bucket);
+  const shown = landing ? [landing] : bucket.pages;
+  const docs = shown.map((p, i) => group(p, index === 0 && i === 0)).join('');
   return [
     `<details class="nav-sec"${index === 0 ? ' open' : ''}>`,
     `<summary class="nav-sec__head">${CHEVRON}`,
@@ -46,19 +52,6 @@ function section(bucket, index) {
   ].join('');
 }
 
-// Buckets are consecutive runs, not a group-by: the caller's document order is
-// the reading order, and reordering the rail to match a sort would break it.
-function bucket(pages) {
-  const out = [];
-  for (const page of pages) {
-    const label = page.section || 'Documents';
-    const last = out[out.length - 1];
-    if (last && last.label === label) last.pages.push(page);
-    else out.push({ label, pages: [page] });
-  }
-  return out;
-}
-
 export function buildNav(pages) {
-  return bucket(pages).map(section).join('\n');
+  return bucketPages(pages).map(section).join('\n');
 }

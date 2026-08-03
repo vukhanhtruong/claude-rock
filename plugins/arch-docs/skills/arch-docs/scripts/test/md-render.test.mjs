@@ -125,3 +125,55 @@ test('a paragraph is not swallowed into a list that follows it', () => {
   const { html } = renderMarkdown('Lead in:\n- item');
   assert.match(html, /<p>Lead in:<\/p>\n<ul><li>item<\/li><\/ul>/);
 });
+
+// A two-column table whose right column runs to prose is a definition list
+// wearing a table costume: 19 rows of hairline dividers where a card grid reads
+// in one pass. Two columns of short values is real data and stays a table.
+const defTable = (n, len) => ['| Term | Definition |', '|---|---|']
+  .concat(Array.from({ length: n }, (_, i) => `| T${i} | ${'x'.repeat(len)} |`))
+  .join('\n');
+
+test('a two-column table of prose becomes a definition grid', () => {
+  const { html } = renderMarkdown(defTable(3, 90));
+  assert.match(html, /<dl class="def-grid">/);
+  assert.equal([...html.matchAll(/<dt>/g)].length, 3);
+  assert.match(html, /<dt>T0<\/dt><dd>x{90}<\/dd>/);
+  assert.doesNotMatch(html, /<table>/);
+});
+
+test('a two-column table of short values stays a table', () => {
+  const { html } = renderMarkdown(defTable(3, 12));
+  assert.match(html, /<table>/);
+  assert.doesNotMatch(html, /def-grid/);
+});
+
+test('a three-column table is always a table, however long its cells', () => {
+  const md = '| A | B | C |\n|---|---|---|\n| a | ' + 'x'.repeat(200) + ' | c |';
+  const { html } = renderMarkdown(md);
+  assert.match(html, /<table>/);
+  assert.doesNotMatch(html, /def-grid/);
+});
+
+test('definition cells keep their inline markup', () => {
+  const md = '| Term | Definition |\n|---|---|\n| **T** | `code` ' + 'y'.repeat(80) + ' |';
+  const { html } = renderMarkdown(md);
+  assert.match(html, /<dt><strong>T<\/strong><\/dt>/);
+  assert.match(html, /<dd><code>code<\/code>/);
+});
+
+// Four consecutive view markers are four zoom levels on one system — 1900px of
+// stacked scroll where the reader cannot compare them. Markers with prose in
+// between are separate scenarios and must stay separate.
+test('consecutive view markers collapse into one tab group', () => {
+  const md = '<!-- likec4:view index -->\n\n<!-- likec4:view containers -->';
+  const { html } = renderMarkdown(md);
+  assert.match(html, /class="view-tabs"/);
+  assert.equal([...html.matchAll(/<c4-view /g)].length, 2);
+});
+
+test('view markers separated by prose stay separate diagram shells', () => {
+  const md = '<!-- likec4:view a -->\n\nSome prose.\n\n<!-- likec4:view b -->';
+  const { html } = renderMarkdown(md);
+  assert.doesNotMatch(html, /view-tabs/);
+  assert.equal([...html.matchAll(/diagram-shell/g)].length, 2);
+});

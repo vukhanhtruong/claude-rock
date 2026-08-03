@@ -1,7 +1,9 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { renderMarkdown } from './lib/md-render.mjs';
 import { buildNav } from './lib/nav.mjs';
+import { rewriteDocLinks } from './lib/doc-links.mjs';
+import { buildDoc } from './lib/doc-sections.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
@@ -51,7 +53,14 @@ const docSlugs = new Map();
 const pages = docPaths.map((p, i) => ({
   ...renderMarkdown(readFileSync(p, 'utf8'), slugs, docSlugs),
   section: sectionOf(p, i),
+  path: resolve(p),
+  spine: i === 0,
 }));
+
+// Second pass, because a link's target id is only known once every document has
+// been rendered: the id comes from the target's H1, not from its filename.
+const idByPath = new Map(pages.map((p) => [p.path, p.docId]));
+const linked = pages.map((p) => ({ ...p, html: rewriteDocLinks(p.html, p.path, idByPath) }));
 
 const templateUrl = new URL('../assets/viewer-template.html', import.meta.url);
 const template = readFileSync(templateUrl, 'utf8');
@@ -59,8 +68,8 @@ const html = embed({
   template,
   slots: {
     TITLE: docTitle(archMd),
-    NAV: buildNav(pages),
-    DOC: pages.map((p) => p.html).join('\n'),
+    NAV: buildNav(linked),
+    DOC: buildDoc(linked),
     LIKEC4_BUNDLE: stripRemoteAssets(readFileSync(args['likec4-bundle'], 'utf8')),
     MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),
     THEME: readFileSync(args.theme, 'utf8'),

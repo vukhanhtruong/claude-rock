@@ -1,0 +1,73 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, lstatSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const BIN = fileURLToPath(new URL('../bin/agents-rock.mjs', import.meta.url));
+
+function run(args, cwd) {
+  return spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: 'utf8' });
+}
+
+function tmpProject(t) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agents-rock-cli-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+test('installs arch-docs for both agents via flags', (t) => {
+  const cwd = tmpProject(t);
+  const res = run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs/SKILL.md')));
+  assert.ok(lstatSync(path.join(cwd, '.claude/skills/arch-docs')).isSymbolicLink());
+  assert.ok(lstatSync(path.join(cwd, '.codex/skills/arch-docs')).isSymbolicLink());
+  assert.match(res.stdout, /arch-docs/);
+});
+
+test('uninstall for one agent keeps canonical, for all removes it', (t) => {
+  const cwd = tmpProject(t);
+  run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
+  let res = run(['uninstall', '-p', 'arch-docs', '-a', 'codex'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(!existsSync(path.join(cwd, '.codex/skills/arch-docs')));
+  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs')));
+  res = run(['uninstall', '-p', 'arch-docs'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(!existsSync(path.join(cwd, '.claude/skills/arch-docs')));
+  assert.ok(!existsSync(path.join(cwd, '.agents/skills/arch-docs')));
+});
+
+test('unknown plugin errors with valid names listed', (t) => {
+  const cwd = tmpProject(t);
+  const res = run(['-p', 'nope', '-a', 'claude'], cwd);
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /arch-docs/);
+});
+
+test('missing flags in non-TTY errors instead of hanging', (t) => {
+  const cwd = tmpProject(t);
+  const res = run([], cwd);
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /TTY/);
+});
+
+test('collision without force exits 1 and reports skip', (t) => {
+  const cwd = tmpProject(t);
+  run(['-p', 'arch-docs', '-a', 'claude'], cwd);
+  rmSync(path.join(cwd, '.claude/skills/arch-docs'));
+  const mk = spawnSync('mkdir', ['-p', path.join(cwd, '.claude/skills/arch-docs')]);
+  assert.equal(mk.status, 0);
+  const res = run(['-p', 'arch-docs', '-a', 'claude'], cwd);
+  assert.equal(res.status, 1);
+  assert.match(res.stdout, /force/);
+});
+
+test('--help and --version exit 0', (t) => {
+  const cwd = tmpProject(t);
+  assert.match(run(['--help'], cwd).stdout, /Usage: agents-rock/);
+  assert.match(run(['--version'], cwd).stdout, /\d+\.\d+\.\d+/);
+});

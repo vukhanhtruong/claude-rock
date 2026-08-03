@@ -628,6 +628,27 @@ li::marker { color: var(--text-faint); }
 .diagram-shell.is-mermaid .diagram-canvas { width: 100%; }
 .diagram-shell.is-mermaid .mermaid-canvas { display: flex; justify-content: center; }
 .diagram-shell.is-c4 .diagram-viewport { padding: 0; }
+
+/* A relation label is a word on a line, not a component. Mermaid draws it as an
+   opaque chip and locks its text to primaryTextColor — the light ink solid teal
+   fills need — so every chip it can paint has to be dark to stay legible, which
+   on a cream page is a dark blob. No theme variable can say "no chip".
+   Mermaid's SVG is in the page's own DOM, unlike LikeC4's shadow root, so the
+   viewer takes the label back: the page surface behind it (which masks the line
+   the label sits on — transparent would let it strike through the text) and the
+   page's own ink in front. Both already flip with the theme, so there is no
+   per-mode hex left to state. `!important` because mermaid injects its own
+   rules into the SVG and wins on specificity otherwise.
+
+   All three layers, because mermaid paints the chip on a different one per
+   diagram type: the ER label colours the wrapping div, the flowchart label the
+   innermost paragraph. Miss one and that diagram type keeps its blob. */
+.diagram-canvas .labelBkg,
+.diagram-canvas span.edgeLabel,
+.diagram-canvas span.edgeLabel p {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+}
 c4-view { display: block; width: 100%; height: 460px; }
 .diagram-shell.is-c4:fullscreen c4-view,
 .diagram-shell.is-c4.is-expanded c4-view { height: 100%; }

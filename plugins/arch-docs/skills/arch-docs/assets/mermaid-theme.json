@@ -11,15 +11,13 @@
       "canvas": "#ffffff",
       "groupFill": "#dae8e7",
       "groupStroke": "#719591",
-      "groupText": "#19524e",
-      "relationLabelBg": "#69696b"
+      "groupText": "#19524e"
     },
     "dark": {
       "canvas": "#121a19",
       "groupFill": "#102523",
       "groupStroke": "#0c342f",
-      "groupText": "#93cbc5",
-      "relationLabelBg": "#16181a"
+      "groupText": "#93cbc5"
     }
   },
   "themeVariables": {
@@ -41,14 +39,12 @@
     "textColor": "#1c1b18",
     "clusterBkg": "#dae8e7",
     "clusterBorder": "#719591",
-    "titleColor": "#19524e",
-    "edgeLabelBackground": "#69696b"
+    "titleColor": "#19524e"
   },
   "dark": {
     "textColor": "#e9e7e1",
     "clusterBkg": "#102523",
     "clusterBorder": "#0c342f",
-    "titleColor": "#93cbc5",
-    "edgeLabelBackground": "#16181a"
+    "titleColor": "#93cbc5"
   }
 }

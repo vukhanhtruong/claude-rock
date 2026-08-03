@@ -160,7 +160,6 @@ Security DFD) follows all of these, no exceptions:
   | compound group fill | `clusterBkg` | `#dae8e7` | `#102523` |
   | compound group stroke | `clusterBorder` | `#719591` | `#0c342f` |
   | compound group title | `titleColor` | `#19524e` | `#93cbc5` |
-  | relation label chip | `edgeLabelBackground` | `#69696b` | `#16181a` |
 
   Which variable paints which part was also found by rendering with marker
   colours, because mermaid's fallback chain is not what it looks like. In the
@@ -176,17 +175,31 @@ Security DFD) follows all of these, no exceptions:
   `relationLabelColor` and `textColor` paint **nothing** here — they are fallbacks
   for keys now set explicitly, or for diagram types this subset does not use.
   Setting them looks like it works and changes nothing.
-- **`tertiaryColor` is the ER relationship chip only**, and it cannot reach AA.
-  Mermaid paints that box at 0.5 alpha and labels it with `primaryTextColor` — the
-  same light colour entity names use. Found by rendering with marker colours:
-  `#000000` paints as `~#808080` over a light canvas, so the chip can never be
-  darker than mid-grey and **3:1 is this pairing's ceiling** (`#18191b` reaches
-  3.07:1 and paints `#8b8c8d`, one step lighter than LikeC4's `#69696b`; a teal
-  tertiary lands at 1.9:1 and the labels are genuinely unreadable). It stays
-  shared across modes because the 0.5 alpha does the flipping for it: the same
-  hex paints `#8b8c8d` on a light canvas and `#151a1a` on a dark one, and that
-  dark value *is* LikeC4's. A test asserts every other pairing at AA and this
-  one at 3:1.
+- **A relation label is a word on a line, and the viewer paints it, not mermaid.**
+  Mermaid always draws a chip and locks its text to `primaryTextColor` — the light
+  ink solid teal fills need — so every chip it can paint has to be dark to stay
+  legible, which on a cream page is a dark blob. No theme variable can say "no
+  chip". Mermaid's SVG is in the page's own DOM, unlike LikeC4's shadow root, so
+  the viewer overrides it directly: `var(--surface)` behind, `var(--text)` in
+  front, both already flipping with the theme.
+
+  Surface rather than `transparent` because the label sits *on* the relation line
+  — transparent lets the line strike through the text. And **all three layers**,
+  because mermaid colours a different one per diagram type:
+
+  | layer | painted in |
+  |---|---|
+  | `div.labelBkg` | ER relationship label |
+  | `span.edgeLabel` | both |
+  | `span.edgeLabel p` | flowchart edge label |
+
+  Miss one and that diagram type keeps its blob. `!important` is required —
+  mermaid injects its own rules into the SVG. This is why `edgeLabelBackground`
+  is **absent** from the palette rather than tuned: a value there would be
+  overridden and only look authoritative.
+- **`tertiaryColor` stays shared** across modes. Its only remaining consumer is
+  the fallback layer for diagram types this subset does not use; the ER label box
+  it used to paint (at 0.5 alpha) is now the viewer's.
 - The `likec4` block is the palette **for both renderers**, consumed at different
   times — the part to keep straight:
 

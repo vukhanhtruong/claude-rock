@@ -195,7 +195,7 @@ test('every chrome value is stated for both modes, never only one', () => {
   const l = Object.keys(theme.light).sort();
   const d = Object.keys(theme.dark).sort();
   assert.deepEqual(l, d, 'light and dark must state the same keys');
-  assert.ok(l.length >= 5, 'the mode blocks look empty');
+  assert.ok(l.length >= 4, 'the mode blocks look empty');
   for (const key of l) {
     assert.equal(theme.themeVariables[key], undefined,
       `${key} is per-mode, so a shared value for it only looks authoritative`);
@@ -214,7 +214,6 @@ test('mermaid chrome matches the hexes LikeC4 paints in the same mode', () => {
     clusterBkg: 'groupFill',
     clusterBorder: 'groupStroke',
     titleColor: 'groupText',
-    edgeLabelBackground: 'relationLabelBg',
   };
   for (const mode of ['light', 'dark']) {
     for (const [mermaidVar, likec4Role] of Object.entries(map)) {
@@ -248,7 +247,6 @@ test('every diagram text pairing clears the WCAG AA ratio', () => {
   for (const mode of ['light', 'dark']) {
     const m = theme[mode];
     pairs.push([`${mode} DFD boundary title on its panel`, m.clusterBkg, m.titleColor]);
-    pairs.push([`${mode} flowchart edge label`, m.edgeLabelBackground, v.primaryTextColor]);
   }
   for (const [what, bg, fg] of pairs) {
     const ratio = contrast(bg, fg);
@@ -256,22 +254,28 @@ test('every diagram text pairing clears the WCAG AA ratio', () => {
   }
 });
 
-// The one pairing that cannot reach AA. Mermaid draws an ER relationship label
-// ("owns", "has") with primaryTextColor — the same light colour entity names
-// use on a solid fill — over tertiaryColor mixed about halfway to white. Found
-// by rendering with marker colours: #000000 paints as ~#808080, so the chip can
-// never be darker than mid-grey and 3:1 is this pairing's ceiling. A teal
-// tertiary lands at 1.9:1 and the labels are genuinely unreadable, so the bound
-// still catches the regression that matters.
-const mixWhite = (h) => '#' + [1, 3, 5]
-  .map((i) => Math.round((parseInt(h.slice(i, i + 2), 16) + 255) / 2).toString(16).padStart(2, '0'))
-  .join('');
-
-test('the ER relationship label reaches the best ratio mermaid allows it', () => {
-  const v = theme.themeVariables;
-  const painted = mixWhite(v.tertiaryColor);
-  const ratio = contrast(painted, v.primaryTextColor);
-  assert.ok(ratio >= 3, `chip paints as ${painted}: only ${ratio.toFixed(2)}:1`);
+// A relation label ("owns", "HTTPS + session cookie") is a word on a line, not a
+// component, and no mermaid variable can say that: the label text is locked to
+// primaryTextColor — the light ink solid teal fills need — so any chip mermaid
+// paints has to be dark to stay legible, which on a cream page is a dark blob.
+// Mermaid's SVG is in the page's own DOM, not a shadow root, so the viewer takes
+// the label back instead: page surface behind it, page ink in front, both already
+// flipping with the theme. That leaves no per-mode hex to state, which is why
+// edgeLabelBackground is gone from the palette rather than tuned.
+test('the viewer, not mermaid, paints the relation label', () => {
+  const rule = tpl.match(/\n\.diagram-canvas \.labelBkg,[\s\S]*?\n\}/)[0];
+  assert.match(rule, /background-color:\s*var\(--surface\)\s*!important/);
+  assert.match(rule, /color:\s*var\(--text\)\s*!important/);
+  // Per diagram type mermaid colours a different layer: the ER label its
+  // wrapping div, the flowchart label the innermost <p>. Missing one leaves that
+  // diagram type with a chip nothing else has.
+  for (const layer of [/\.labelBkg/, /span\.edgeLabel,/, /span\.edgeLabel p/]) {
+    assert.match(rule, layer, 'a label layer mermaid paints is not covered');
+  }
+  for (const block of ['themeVariables', 'light', 'dark']) {
+    assert.equal(theme[block].edgeLabelBackground, undefined,
+      `edgeLabelBackground in ${block} is overridden by the viewer, so it only misleads`);
+  }
 });
 
 // No fill may be semi-transparent any more. An 8-digit hex was how the old

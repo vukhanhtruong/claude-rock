@@ -1229,6 +1229,7 @@ function showPage(page) {
   /* A <c4-view> revealed from display:none has never had a box to fit itself
      into, and the webcomponent only refits on resize. */
   dispatchEvent(new Event('resize'));
+  if (window.pinEdgeChips) setTimeout(window.pinEdgeChips, 300);
 }
 
 /* The browser scrolls to a fragment before the router can reveal it, so a deep
@@ -1384,10 +1385,55 @@ document.querySelectorAll('.diagram-shell').forEach(wireDiagram);
    first fit is measured against a box of zero — the view then renders at its
    natural layout size and runs off the right edge of a 689px column. Nudging it
    once the element is defined is what makes it fit the column it landed in. */
+/* Same treatment as the mermaid relation label, for the renderer whose DOM the
+   page cannot select. LikeC4 draws div.likec4-edge-label with a translucent dark
+   background in both modes, so §10 kept a chip that §12 had lost. Its shadow root
+   is open, so a style element pushed inside reaches it — and because custom
+   properties inherit across the shadow boundary, var(--surface) resolves against
+   the host and flips with the toggle on its own.
+
+   Every nested root, because the label is not in the one c4-view opens: that root
+   holds a div which opens another. Injecting once at the top silently styles
+   nothing. Styling a root before its labels exist is fine — CSS is not applied
+   once. */
+/* transparent, where the mermaid rule needs var(--surface): LikeC4 breaks its
+   edge line around the label, so nothing has to be masked, and an opaque chip
+   would read as a white blob wherever the label sits over a compound panel.
+   Mermaid routes the line straight through its label and needs the mask. */
+var CHIP_CSS = '.likec4-edge-label{background:transparent !important;'
+  + 'color:var(--text) !important;}';
+
+function stripEdgeChips(view) {
+  var walk = function (root) {
+    if (!root) return;
+    if (!root.archDocsChip) {
+      root.archDocsChip = 1;
+      var style = document.createElement('style');
+      style.textContent = CHIP_CSS;
+      root.appendChild(style);
+    }
+    /* Descend every time, not only on first sight: the inner root is opened by a
+       div this root creates later, so the walk that styles the outer one always
+       runs too early to see it. */
+    root.querySelectorAll('*').forEach(function (el) { walk(el.shadowRoot); });
+  };
+  walk(view.shadowRoot);
+}
+
+/* A shadow root cannot be observed into existence — MutationObserver does not
+   cross the boundary and there is no event for "root opened". So this re-walks on
+   a short ladder, which is idempotent, and again whenever the router reveals a
+   page, since a hidden view defers its render until it has a box. */
+function pinEdgeChips() {
+  document.querySelectorAll('c4-view').forEach(stripEdgeChips);
+}
+window.pinEdgeChips = pinEdgeChips;
+
 if (window.customElements) {
   customElements.whenDefined('c4-view').then(function () {
     requestAnimationFrame(function () { dispatchEvent(new Event('resize')); });
   });
+  [0, 200, 600, 1500, 3000].forEach(function (t) { setTimeout(pinEdgeChips, t); });
 }
 </script>
 </body>

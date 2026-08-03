@@ -278,6 +278,31 @@ test('the viewer, not mermaid, paints the relation label', () => {
   }
 });
 
+// The same label, the other renderer. LikeC4 draws its relation label as
+// div.likec4-edge-label inside a nested — but open — shadow root, so page CSS
+// cannot select it and the chip survived while every mermaid label lost one:
+// §10 stayed a dark blob on a cream page next to a §12 that did not. A style
+// element pushed into the shadow root reaches it, and because custom properties
+// inherit across the shadow boundary the same var() flips with the toggle
+// without re-injecting anything.
+test('the relation label loses its chip in LikeC4 too, not just mermaid', () => {
+  const css = tpl.match(/var CHIP_CSS =[\s\S]*?;\n/)[0];
+  assert.match(css, /\.likec4-edge-label/);
+  assert.match(css, /color:var\(--text\) !important/);
+  // transparent, not var(--surface) like the mermaid rule: LikeC4 breaks its edge
+  // line around the label, so an opaque chip is a white blob over a compound
+  // panel and masks nothing that needed masking.
+  assert.match(css, /background:transparent !important/);
+
+  const fn = tpl.match(/function stripEdgeChips[\s\S]*?\n\}\n/)[0];
+  // Nested roots: the label is not in the root c4-view opens, and the inner one
+  // is opened later, so descending only once silently reaches nothing.
+  assert.match(fn, /walk\(el\.shadowRoot\)/);
+  assert.match(tpl, /\[0, 200, 600, 1500, 3000\][\s\S]*?pinEdgeChips/,
+    'a shadow root cannot be observed into existence, so the walk has to retry');
+  assert.match(tpl, /pinEdgeChips/, 'the helper is never called');
+});
+
 // No fill may be semi-transparent any more. An 8-digit hex was how the old
 // tinted fills were built, and it is exactly what LikeC4 cannot reproduce.
 test('no fill is semi-transparent, because LikeC4 has no way to match one', () => {

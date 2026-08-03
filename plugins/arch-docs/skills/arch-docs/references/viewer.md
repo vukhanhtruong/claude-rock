@@ -197,6 +197,19 @@ Security DFD) follows all of these, no exceptions:
   mermaid injects its own rules into the SVG. This is why `edgeLabelBackground`
   is **absent** from the palette rather than tuned: a value there would be
   overridden and only look authoritative.
+- **LikeC4's relation label needs the same treatment, through its shadow root.**
+  It draws `div.likec4-edge-label` with a translucent dark background in *both*
+  modes (`--xy-edge-label-background-color`, re-declared on
+  `.likec4-edge-label-container` — so setting the variable on the host does not
+  reach it). Left alone, §10 keeps a dark chip while §12 has lost one. The root is
+  **open**, so `stripEdgeChips()` pushes a `<style>` inside, and because custom
+  properties inherit across the boundary `var(--text)` flips with the toggle on
+  its own. Two traps:
+
+  | trap | why |
+  |---|---|
+  | `background: transparent`, not `var(--surface)` | LikeC4 breaks its edge line around the label, so nothing needs masking and an opaque chip is a white blob over a compound panel. Mermaid routes the line *through* its label and does need the mask. |
+  | walk **every** nested root, and retry | the label is not in the root `c4-view` opens — a div in that root opens another, later. A shadow root cannot be observed into existence (MutationObserver does not cross the boundary), so the walk runs on a `[0, 200, 600, 1500, 3000]`ms ladder and again when the router reveals a page. |
 - **`tertiaryColor` stays shared** across modes. Its only remaining consumer is
   the fallback layer for diagram types this subset does not use; the ER label box
   it used to paint (at 0.5 alpha) is now the viewer's.

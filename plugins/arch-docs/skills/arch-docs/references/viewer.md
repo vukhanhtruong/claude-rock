@@ -378,7 +378,20 @@ section `data-drawer`, and `routeMap` still gives every record its route.
 | prev/next inside the drawer | walks the records without leaving the drawer |
 | `‹ All records` | opens the index in the drawer, whose 15 links each swap the record in place |
 
-Three things that are easy to get wrong:
+The bar names the record (`ADR-0002`) and shows its status; it used to carry the
+whole 90-char heading in 10.5px uppercase letter-spaced mono, which is an eyebrow
+treatment applied to a paragraph — and the record's own H1 is two lines below it.
+The full title stays as the dialog's `aria-label`.
+
+**Focus is moved and given back.** `role="dialog" aria-modal="true"` was claiming
+containment that nothing enforced: a keyboard reader opened a record and their next
+Tab walked the page behind the scrim. `openDrawer` remembers `document.activeElement`,
+focuses the close button, and sets `.inert` on `.main`, the rail and the topbar —
+one property instead of a hand-rolled tab trap, and it removes them from the
+accessibility tree at the same time. `closeDrawer` returns focus to the row that
+opened it.
+
+Four things that are easy to get wrong:
 
 - **The record is moved, not cloned.** A clone duplicates every heading id in it,
   and from then on `getElementById` resolves to whichever copy comes first — so
@@ -392,6 +405,36 @@ Three things that are easy to get wrong:
   `#doc-adr-0002-multi-tenancy` while the panel says ADR 0002, and neither is what
   somebody would paste. The listener is on `document`, not `.doc`, because an open
   record is no longer inside `.doc` and one record links to another.
+- **`inert` has to come off on close.** It is set on three elements and cleared in
+  `closeDrawer`, which runs on every path out — leaving it on makes the whole page
+  unfocusable with no visible cause.
+
+**The status pill encodes which status it is.** It used to paint Accepted, Proposed
+and Superseded identically (`--text-faint` on `--surface-3`), so the two records
+still open in a set of fifteen looked like the thirteen that were settled —
+`statusOf()` already extracted the leading word and nothing read it.
+
+| status | treatment | why |
+|---|---|---|
+| accepted | quiet grey | most records are settled; colouring the majority says nothing |
+| proposed, draft | `--state-open` ochre | still to decide — the one thing that wants attention |
+| rejected | `--state-stop` brick | decided against |
+| superseded, deprecated | grey, `line-through` | not severity — "this is no longer the answer", which a line says and a third hue does not |
+| unrecorded | dashed outline, no fill | nothing was recorded; a filled pill would claim a value |
+
+`--state-*` is its own scale in both themes, deliberately **not** the accent: teal
+already means link, brand and diagram element everywhere else, so a status wearing
+it says nothing. Both hues are warm, so they sit with the neutrals rather than
+arriving from a UI kit.
+
+**A provenance marker is not code.** `observed`, `stated`, `researched` and
+`proposed` are a closed vocabulary (`validate-provenance.mjs`), written in
+backticks, and they came out as `<code>` — the same accent-teal chip as `org_id`
+and `docker-compose.yml`. So the accent meant two unrelated things and the most
+repeated element in the set read as a snippet. `md-inline.mjs` now emits
+`<span class="prov" data-prov="…">` for exact members only: `observed_at` is a
+column name and `Observed` is not in the vocabulary. The treatment is an outlined
+small-caps footnote — beside the sentence, not competing with it.
 
 **The index does not trust the author's own list.** `docs/adr/README.md` in the
 EOS set indexes four records by filenames the repository never had — behind a

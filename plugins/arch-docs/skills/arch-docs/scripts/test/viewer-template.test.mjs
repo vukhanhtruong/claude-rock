@@ -627,7 +627,7 @@ test('opening a record puts its own route in the hash', () => {
 test('escape, the scrim and the close button all leave by the same path', () => {
   assert.match(tpl, /key === 'Escape' && openRecord\) leaveRecord\(\)/);
   assert.match(tpl, /drawerScrim\.addEventListener\('click', leaveRecord\)/);
-  assert.match(tpl, /'drawer-close'\)\.addEventListener\('click', leaveRecord\)/);
+  assert.match(tpl, /drawerClose\.addEventListener\('click', leaveRecord\)/);
   // Closing goes through the hash, so Back does the same thing by the ordinary
   // route and the panel can never disagree with the address bar.
   const leave = tpl.match(/function leaveRecord[\s\S]*?\n\}/)[0];
@@ -659,4 +659,79 @@ test('closing a record leaves the host page where the reader left it', () => {
   // showPage assigns activePage, so the comparison has to happen before it.
   assert.ok(nav.indexOf('var moved') < nav.indexOf('showPage(page)'),
     'moved must be computed before showPage overwrites activePage');
+});
+
+/* ---------- state, focus, and the drawer's own label ---------- */
+
+// The pill painted Accepted, Proposed and Superseded identically — text-faint on
+// surface-3 — so the two records still up for decision in a set of fifteen looked
+// exactly like the thirteen that were settled. statusOf() already extracts the
+// leading word; nothing was reading it.
+test('a status pill encodes which status it is', () => {
+  assert.match(tpl, /\.record-row__s\[data-status="proposed"\]/);
+  assert.match(tpl, /\.record-row__s\[data-status="superseded"\]/);
+  assert.match(tpl, /\.record-row__s\[data-status="unrecorded"\]/);
+  // Semantic colour is its own scale, not the teal accent: the accent already
+  // means "link or brand" everywhere else in the page.
+  assert.match(tpl, /--state-open:/);
+  assert.match(tpl, /--state-stop:/);
+  assert.doesNotMatch(tpl, /data-status="proposed"\] \{[^}]*var\(--accent\)/);
+  // Both themes, or the ochre that reads on cream disappears on near-black.
+  assert.ok(tpl.match(/--state-open:/g).length >= 2, 'state colours need a dark set too');
+});
+
+test('a superseded record is struck through, not merely recoloured', () => {
+  const rule = tpl.match(/\.record-row__s\[data-status="superseded"\][^{]*\{[^}]*\}/)[0];
+  assert.match(rule, /line-through/);
+});
+
+// An absent status is not a status. An outline says "nothing recorded here" where
+// a filled pill would claim a value the record never gave.
+test('an unrecorded status reads as absence', () => {
+  const rule = tpl.match(/\.record-row__s\[data-status="unrecorded"\][^{]*\{[^}]*\}/)[0];
+  assert.match(rule, /dashed/);
+  assert.match(rule, /background:\s*none|background:\s*transparent/);
+});
+
+test('the pill carries the status it is painted from', () => {
+  assert.match(tpl, /status\.dataset\.status = /);
+});
+
+// role="dialog" aria-modal="true" with focus left outside it: a keyboard reader
+// opened a record and their next Tab walked the page behind the scrim. `inert`
+// does the containment the manual trap would, and takes the page out of the
+// accessibility tree at the same time.
+test('the drawer takes focus and gives it back', () => {
+  const open = tpl.match(/function openDrawer[\s\S]*?\n\}/)[0];
+  assert.match(open, /document\.activeElement/, 'nothing remembers where focus came from');
+  assert.match(open, /\.focus\(\)/);
+  const close = tpl.match(/function closeDrawer[\s\S]*?\n\}/)[0];
+  assert.match(close, /\.focus\(\)/, 'focus has to return to the row that opened it');
+});
+
+test('the page behind the drawer is inert while it is open', () => {
+  assert.match(tpl, /function setBehindInert/);
+  assert.match(tpl, /\.inert = /);
+});
+
+// A 90-char ADR title in 10.5px uppercase letter-spaced mono is an eyebrow
+// treatment applied to a paragraph. The H1 two lines below already says it.
+test('the drawer bar names the record rather than repeating its title', () => {
+  assert.match(tpl, /function recordLabel/);
+  const fn = tpl.match(/function recordLabel[\s\S]*?\n\}/)[0];
+  assert.match(fn, /split\(':'\)/);
+  // The full title is still the dialog's accessible name.
+  assert.match(tpl, /drawerEl\.setAttribute\('aria-label'/);
+});
+
+test('the drawer bar shows the record status beside its name', () => {
+  assert.match(tpl, /id="drawer-status"/);
+});
+
+// The four provenance words are a closed vocabulary and now render as their own
+// element; they need a treatment that is not the code chip they used to borrow.
+test('a provenance marker is styled as evidence, not as code', () => {
+  assert.match(tpl, /\.prov \{/);
+  const rule = tpl.match(/\.prov \{[^}]*\}/)[0];
+  assert.doesNotMatch(rule, /var\(--accent-soft\)/, 'that is the code chip it was mistaken for');
 });

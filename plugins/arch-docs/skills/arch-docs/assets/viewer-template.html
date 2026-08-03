@@ -64,13 +64,16 @@
      readable, narrow enough that the column keeps its full measure at 1440px —
      which is why the pin is withdrawn below 1200px rather than shrunk. */
   --pin-w: 380px;
-  /* The second track, and the reason the first one is allowed to be 96ch. The
-     comment above records that the measure was widened from 74ch because every
-     table and diagram had to live inside it — which charged a block's
-     requirement to the reader of a sentence. Blocks keep the width they were
-     given; running prose is capped back to 72ch, and the two only ever differ
-     where a paragraph would otherwise run the full width of a table. */
-  --prose: min(72ch, 100%);
+  /* One track, not two. A second `--prose` cap at 72ch was tried and reverted.
+     The number is right in isolation — measured on a real set, 96ch renders
+     ~108 characters a line against the 66-75 the convention asks for — but this
+     document is not isolated prose. Every h2 carries a full-width rule and the
+     sections are dense with full-width tables, so capping only the paragraphs
+     left the text ending ~240px short of the rule above it and the table below
+     it, and pushed the trailing provenance marker onto a line of its own. It
+     reads as one column or it does not read as a column. To bring the line
+     length down, `--measure` itself has to come down and the tables need
+     somewhere else to go. */
 }
 /* Dark palette is applied by both the media query and the explicit attribute so
    the toggle wins in either direction. */
@@ -377,14 +380,6 @@ body {
   margin-left: var(--rail-w); padding: calc(var(--topbar-h) + 40px) 40px 25vh;
 }
 .doc { max-width: var(--measure); margin: 0 auto; }
-/* The cap goes on the paragraph, not on .doc. .doc is what gives every block its
-   shared left edge, so narrowing it would take the table and the diagram down
-   with the prose — which is the layout this column replaced. No auto margin
-   either: a centred 72ch paragraph starts 12ch right of the 96ch table above it,
-   and a ragged left edge is what the single column exists to end. h2 keeps the
-   full width because its rule is the section break; h3 and below are titles for
-   the prose under them and belong on its axis. */
-.main :is(p, ul, ol, blockquote, h3, h4, h5, h6) { max-width: var(--prose); }
 .main :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 .diagram-shell, .table-wrap { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 

@@ -105,37 +105,26 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
     assert.match(used, /IBM Plex Sans/, `body resolved to ${used}`);
   });
 
-  // The change this suite was written to check: --prose caps running text while
-  // blocks keep --measure. Comparing computed boxes is the only way to know the
-  // narrower rule actually wins rather than merely being declared.
-  test('prose is narrower than the blocks beside it', async () => {
-    const box = await page.eval(`(() => {
-      const vis = (s) => [...document.querySelectorAll(s)].find((e) => e.offsetParent);
-      return { p: vis('.main p').getBoundingClientRect().width,
-               table: vis('.table-wrap').getBoundingClientRect().width };
-    })()`);
-    assert.ok(box.p < box.table, `prose ${box.p} is not narrower than table ${box.table}`);
-    assert.ok(box.table - box.p > 40, `${box.table - box.p}px apart is not a measure split`);
-  });
-
-  // The narrowed paragraph must not centre itself, or every block above it starts
-  // to its left — the ragged edge the single column exists to remove. Checked
-  // across all four kinds of running text, not just `p`: `.main p` happens to
-  // re-declare its margins after the cap, so a stray `auto` there would be
-  // overridden anyway, and a test that only looks at `p` is reading the one
-  // element that cannot show the fault.
-  test('every kind of prose shares the block left edge', async () => {
+  // One column, both edges. A `--prose` track capping paragraphs to 72ch was
+  // tried and reverted: it left the text ending ~240px short of the h2 rule above
+  // it and the table below it. Right edges are what the split broke, so both are
+  // measured, and across every kind of running text rather than `p` alone.
+  test('prose and blocks share both edges', async () => {
     const drift = await page.eval(`(() => {
       const vis = (s) => [...document.querySelectorAll(s)].find((e) => e.offsetParent);
-      const edge = vis('.table-wrap').getBoundingClientRect().left;
-      return ['.main p', '.main ul', '.main h3', '.main li']
+      const block = vis('.table-wrap').getBoundingClientRect();
+      return ['.main p', '.main ul', '.main h2', '.main h3']
         .map((s) => [s, vis(s)]).filter(([, e]) => e)
-        .map(([s, e]) => [s, Math.round(e.getBoundingClientRect().left - edge)]);
+        .map(([s, e]) => {
+          const r = e.getBoundingClientRect();
+          return [s, Math.round(r.left - block.left), Math.round(r.right - block.right)];
+        });
     })()`);
     assert.ok(drift.length >= 2, `only ${drift.length} kinds of prose on the page to compare`);
-    for (const [sel, px] of drift) {
-      // A list indents its markers; anything beyond that is the box moving.
-      assert.ok(Math.abs(px) < 40, `${sel} starts ${px}px off the block edge`);
+    for (const [sel, left, right] of drift) {
+      // A list indents its markers; nothing else may move on either side.
+      assert.ok(Math.abs(left) < 40, `${sel} starts ${left}px off the block edge`);
+      assert.ok(Math.abs(right) < 2, `${sel} ends ${right}px short of the block edge`);
     }
   });
 
@@ -280,9 +269,8 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
   //     so the page was still at the top when the anchor was read;
   //   - the router applies a frame after the click, so the long document was
   //     never the one on screen;
-  //   - at 1440px the prose is already at its 72ch cap and still fits the column
-  //     the pin leaves behind, so nothing reflows and nothing can move. The
-  //     window is narrowed to a width where the column is what binds.
+  //   - the window has to be narrow enough that the column is what binds, or the
+  //     reserved gutter comes out of slack and nothing reflows at all.
   //
   // KNOWN LIMIT — this asserts the outcome but does not discriminate the code
   // that produces it. Deleting `keepingPlace` leaves this green, because on a

@@ -439,43 +439,19 @@ test('the wider column is not the old prose measure', () => {
   assert.ok(width >= 90, `${width}ch is still the narrow column`);
 });
 
-// One number used to serve both, and the comment on it says which one paid: the
-// measure was widened from 74ch because every table and diagram had to fit
-// inside it. That is a block's requirement charged to the reader of a sentence.
-// Two tracks — blocks keep the width they were given, running prose gets back
-// the width the line-length evidence actually supports.
-test('running prose is set narrower than the blocks it sits between', () => {
-  const prose = Number(tpl.match(/--prose:\s*min\((\d+)ch/)[1]);
-  const measure = Number(tpl.match(/--measure:\s*min\((\d+)ch/)[1]);
-  assert.ok(prose < measure, `${prose}ch is not narrower than the ${measure}ch column`);
-  assert.ok(prose >= 65 && prose <= 80, `${prose}ch is outside the readable band`);
-});
-
-// The cap belongs on the paragraph, not on .doc: .doc is what gives every block
-// its shared left edge, and narrowing it would take the table and the diagram
-// down with the prose.
-test('the narrower track caps the prose without moving the column', () => {
-  assert.match(tpl, /\.doc \{[^}]*max-width:\s*var\(--measure\)/, '.doc still owns the column');
-  const rule = tpl.match(/\.main :is\(p, ul, ol, blockquote[^)]*\) \{[^}]*\}/)[0];
-  assert.match(rule, /max-width:\s*var\(--prose\)/);
-});
-
-// A narrowed paragraph that centres itself leaves the block above it starting
-// 12ch to the left — the ragged left edge the single column was built to end.
-test('the narrowed prose keeps the column left edge', () => {
-  const rule = tpl.match(/\.main :is\(p, ul, ol, blockquote[^)]*\) \{[^}]*\}/)[0];
-  assert.doesNotMatch(rule, /margin[^;]*auto/, 'centring re-creates the ragged left edge');
-});
-
-// Blocks are the reason the column is 96ch. Capping any of them to the prose
-// track hands back the width and re-opens the sideways scroll inside 15 of the
-// 18 tables in a real set.
-test('no block is capped to the prose track', () => {
-  for (const sel of ['.table-wrap', '.diagram-shell', '.def-grid', '.rec-cards', 'pre']) {
-    const rule = tpl.match(new RegExp(`\\n\\${sel} \\{[^}]*\\}`))
-      || tpl.match(new RegExp(`\\n${sel} \\{[^}]*\\}`));
-    assert.doesNotMatch(rule[0], /var\(--prose\)/, `${sel} gave back the width it was widened for`);
-  }
+// A second `--prose` track capping paragraphs to 72ch was tried and reverted.
+// The number is defensible on its own — 96ch renders ~108 characters a line on a
+// real set, against the 66-75 the typographic convention asks for — but every h2
+// here carries a full-width rule and the sections are dense with full-width
+// tables. Capping only the paragraphs left the text ending ~240px short of both,
+// and pushed trailing provenance markers onto their own line. Bringing the line
+// length down means bringing `--measure` down and giving the tables somewhere
+// else to go; it is not a thing paragraphs can be given on their own.
+test('the column is one track, so prose and blocks share both edges', () => {
+  assert.doesNotMatch(tpl, /--prose:/, 'a second width track is back');
+  assert.match(tpl, /\.doc \{[^}]*max-width:\s*var\(--measure\)/, '.doc owns the column');
+  assert.doesNotMatch(tpl, /\.main :is\(p[^)]*\) \{[^}]*max-width/,
+    'running prose is capped separately from the blocks it sits between');
 });
 
 test('the top bar shows the progress of the open section, not of the whole set', () => {

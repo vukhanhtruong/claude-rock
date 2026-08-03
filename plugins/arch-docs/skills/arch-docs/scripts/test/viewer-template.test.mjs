@@ -136,6 +136,36 @@ test('mermaid theme json parses and bans color in classDefs', () => {
   assert.doesNotMatch(JSON.stringify(theme), /"color"/);
 });
 
+// The toggle re-rendered mermaid and left LikeC4 in whichever mode it booted
+// in, so dark mode showed a light diagram on a dark page. The webcomponent
+// reads a color-scheme attribute; the viewer never set it.
+test('the theme toggle reaches LikeC4, not just mermaid', () => {
+  assert.match(tpl, /setAttribute\('color-scheme'/);
+  assert.match(tpl, /querySelectorAll\('c4-view'\)/);
+  // Both renderers move on one call, or they drift apart again the next time
+  // somebody adds a third thing to the toggle.
+  const toggle = tpl.match(/theme-toggle'\)\.addEventListener[\s\S]*?\n\}\);/)[0];
+  assert.match(toggle, /syncDiagramTheme|applyTheme/);
+});
+
+// One file is the palette for both renderers: mermaid reads it at runtime,
+// LikeC4 bakes it in at generate time. Leaving them in two places is how the
+// diagrams drifted to teal and blue in the first place.
+test('the theme file carries the LikeC4 palette alongside the mermaid one', () => {
+  const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
+  assert.ok(theme.likec4, 'no likec4 palette');
+  assert.match(theme.likec4.brand, /^#[0-9a-f]{6}$/, 'brand is not a hex');
+  assert.match(theme.likec4.muted, /^#[0-9a-f]{6}$/, 'muted is not a hex');
+  // One hex per colour, not a light/dark pair. LikeC4 derives stroke, both
+  // contrast shades and the whole dark rendering from the single value
+  // (#0f766e -> stroke #00524b), so a second hex here would have no consumer.
+  assert.equal(theme.likec4.light, undefined, 'likec4 takes one hex, not a mode pair');
+  // The same hexes mermaid draws its borders with, or the two diagram systems
+  // are only nearly the same colour, which reads as a mistake rather than a set.
+  assert.ok(theme.themeVariables.primaryBorderColor.startsWith(theme.likec4.brand));
+  assert.ok(theme.themeVariables.secondaryBorderColor.startsWith(theme.likec4.muted));
+});
+
 test('mermaid ships a dark palette and the viewer re-renders on theme change', () => {
   const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
   // Diagram text is baked in at render time, so one fixed palette leaves labels

@@ -747,8 +747,21 @@ function initMermaid() {
     layout: 'elk',
   });
 }
+/* LikeC4 renders its own SVG in a shadow root and takes light/dark from a
+   color-scheme attribute — outer CSS custom properties reach the host and stop
+   there, which is why the fill hue has to come from the model instead. Without
+   this the toggle re-rendered mermaid and left every diagram in the mode it
+   booted in: a light diagram sitting on a dark page. */
+function syncDiagramTheme() {
+  var mode = isDark() ? 'dark' : 'light';
+  document.querySelectorAll('c4-view').forEach(function (v) {
+    v.setAttribute('color-scheme', mode);
+  });
+}
+
 mermaid.registerLayoutLoaders(elkLayouts);
 initMermaid();
+syncDiagramTheme();
 
 var sidebar = document.getElementById('sidebar');
 var scrim = document.getElementById('scrim');
@@ -758,8 +771,11 @@ document.getElementById('theme-toggle').addEventListener('click', function () {
   var next = isDark() ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
   localStorage.setItem('arch-docs-theme', next);
+  /* One call per renderer, in one place. Split across two handlers is how the
+     two diagram systems drifted out of step to begin with. */
   initMermaid();
   rerenderDiagrams();
+  syncDiagramTheme();
 });
 
 function setDrawer(open) {

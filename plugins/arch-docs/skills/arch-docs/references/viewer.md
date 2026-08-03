@@ -126,6 +126,27 @@ Security DFD) follows all of these, no exceptions:
   unreadable in the other mode — the fills are semi-transparent, and dark text
   over a dark-tinted fill disappears. The theme toggle therefore re-runs
   `mermaid.initialize` and re-renders every diagram from its stashed source.
+- The same file carries a third block, `likec4` (`brand` + `muted`), so **one
+  file is the palette for both renderers** — `brand` is the hex mermaid draws
+  `primaryBorderColor` with. One hex per colour, because LikeC4 derives its own
+  stroke, contrast shades and dark rendering from it. The two renderers consume
+  the file at different times, which is the part to keep straight:
+
+  | | Hue | Light/dark |
+  |---|---|---|
+  | mermaid | read from the file at render time | re-render on toggle |
+  | LikeC4 | baked into the bundle by `gen webcomponent` from the model's `specification` (`likec4.md` §2) | `color-scheme` attribute, set on toggle |
+
+  So editing the file changes mermaid on the next render and LikeC4 only after
+  the model's `specification` is updated to match and the bundle regenerated.
+  A viewer-side CSS override is not an option: `--likec4-palette-fill` set on
+  `c4-view` reaches the host and is re-declared closer to the node inside the
+  shadow root, so the nodes keep whatever the bundle baked in.
+- **Both renderers move on one toggle handler.** `syncDiagramTheme()` sets
+  `color-scheme` on every `<c4-view>`; without it the toggle re-rendered mermaid
+  and left every LikeC4 view in the mode it booted in — a light diagram on a
+  dark page. Splitting the two across separate handlers is how they drifted
+  apart in the first place.
 - The renderer strips mermaid's intrinsic `width`/`height` off the SVG and
   scales it to the container via its `viewBox`. Mermaid otherwise pins a
   diagram to its natural size (~300px for the §8 ER), which is an unreadable

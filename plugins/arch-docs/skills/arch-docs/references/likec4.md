@@ -45,6 +45,39 @@ skill does not know: arch-docs' own naming and structure conventions.
   }
   ```
 
+- **Declare the palette in `specification { }`.** LikeC4's default element
+  colour is blue (`#3b82f6`), and the viewer's own accent — and every mermaid
+  diagram beside it — is teal. Left alone, the two diagram systems on one page
+  read as two different products. The hexes are **not** free choice: they come
+  from `assets/mermaid-theme.json`'s `likec4` block, which is the single palette
+  both renderers are cut from — `brand` is the hex mermaid draws
+  `primaryBorderColor` with, `muted` is `secondaryBorderColor`.
+
+  ```
+  specification {
+    color brand #0f766e
+    color muted #475569
+
+    element person    { style { color brand } }
+    element system    { style { color brand } }
+    element container { style { color brand } }
+    element component { style { color brand } }
+    deploymentNode node { style { color muted } }
+    tag external
+  }
+  ```
+
+  One hex per colour is all there is to give. LikeC4 derives stroke, both
+  contrast shades, the relationship line and label colours, **and the entire
+  dark rendering** from that single value (`#0f766e` → stroke `#00524b`,
+  hiContrast `#c7ffff`). There is no light/dark pair to specify.
+
+  **This bakes in at generate time**, not at view time. A viewer-side CSS
+  override does not work: `--likec4-palette-fill` set on `c4-view` reaches the
+  host and is then re-declared closer to the node inside the shadow root, so
+  the nodes keep the default. Changing the palette means editing the
+  specification and re-running `gen webcomponent`.
+
 - **Every container must appear in an `instanceOf`** somewhere under
   `deployment { }`. A logical container with no deployment-node instance is
   a validator failure (`scripts/lib/validate-deployment.mjs`: "container

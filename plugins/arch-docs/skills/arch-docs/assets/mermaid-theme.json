@@ -1,4 +1,5 @@
 {
+  "likec4": { "brand": "#0f766e", "muted": "#475569" },
   "themeVariables": {
     "fontFamily": "'IBM Plex Sans', system-ui, sans-serif",
     "fontSize": "16px",

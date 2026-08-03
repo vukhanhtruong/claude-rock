@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isWideTable, renderWideCards } from '../lib/md-wide.mjs';
+import { isWideTable, isCrampedTable, renderWideCards } from '../lib/md-wide.mjs';
 
 // §9 External Integrations is eight columns describing one integration. As a
 // table that is a single row whose every cell wraps to four lines under a header
@@ -64,4 +64,13 @@ test('a row shorter than its header skips the missing fields', () => {
   const html = renderWideCards(['Name', 'A', 'B'], [['x', 'only-a']]);
   assert.match(html, /<dt>A<\/dt>/);
   assert.doesNotMatch(html, /<dt>B<\/dt>/);
+});
+
+// A wide table that keeps enough rows to stay a table still has to fit: §6 is
+// eight columns of eight components, ~110px per column at the standard scale.
+// The class is what earns it a tighter one.
+test('a table wide enough to cramp its columns is marked for a tighter scale', () => {
+  assert.equal(isCrampedTable(['a', 'b', 'c', 'd', 'e', 'f', 'g']), true);
+  assert.equal(isCrampedTable(['a', 'b', 'c', 'd', 'e', 'f']), false);
+  assert.equal(isCrampedTable(['ADR', 'Title', 'Status']), false);
 });

@@ -2,8 +2,9 @@ import { nextSlug } from './slug-registry.mjs';
 import { escapeHtml, inline } from './md-inline.mjs';
 import { isListItem, renderList } from './md-list.mjs';
 import { isDefinitionTable, renderDefinitions } from './md-defs.mjs';
-import { isWideTable, renderWideCards } from './md-wide.mjs';
-import { renderViewGroup } from './md-views.mjs';
+import { isWideTable, isCrampedTable, renderWideCards } from './md-wide.mjs';
+import { renderViewGroup, renderFlowTabs } from './md-views.mjs';
+import { readFlowGroup } from './md-flows.mjs';
 
 export { escapeHtml };
 
@@ -110,10 +111,20 @@ function renderTable(ctx) {
   if (isWideTable(headers, rows)) { ctx.html.push(renderWideCards(headers, rows)); return; }
   const head = `<tr>${headers.map((c) => `<th>${inline(c)}</th>`).join('')}</tr>`;
   const body = rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
-  ctx.html.push(`<table>${head}${body}</table>`);
+  const cls = isCrampedTable(headers) ? ' class="table--wide"' : '';
+  ctx.html.push(`<table${cls}>${head}${body}</table>`);
 }
 
+// Checked before the paragraph collector, because a flow starts as one: several
+// prose-then-marker units in a row are §7's three scenarios, and stacked they are
+// the scroll tabs exist to remove.
 function renderParagraph(ctx) {
+  const group = readFlowGroup(ctx.lines, ctx.i);
+  if (group) {
+    ctx.html.push(renderFlowTabs(group.units));
+    ctx.i = group.next;
+    return;
+  }
   const collected = [];
   let j = ctx.i;
   while (j < ctx.lines.length && shapeOf(ctx.lines, j) === 'paragraph') {

@@ -15,6 +15,16 @@ export function isWideTable(headers, rows) {
   return headers.length >= WIDE_COLS && rows.length <= FEW_ROWS;
 }
 
+// A wide table with enough rows is a real comparison and stays a table — but seven
+// columns in an 891px measure is ~110px each, narrower than the words going into
+// them. Tighter type buys the columns real width; breaking the words instead
+// ("TypeScri pt") reads worse than the sideways scroll it removes.
+const CRAMPED_COLS = 7;
+
+export function isCrampedTable(headers) {
+  return headers.length >= CRAMPED_COLS;
+}
+
 // The first column is the record's name, so it heads the card instead of becoming
 // a field of it — "Integration: Google OAuth" is one field too many. A row shorter
 // than its header skips the rest rather than emitting empty <dd>s, which read as

@@ -344,6 +344,15 @@ test('a table too wide for the column wraps rather than scrolling sideways', () 
   assert.doesNotMatch(rule, /max-content/);
   const th = tpl.match(/\nth \{[\s\S]*?\}/)[0];
   assert.doesNotMatch(th, /white-space:\s*nowrap/, 'a nowrap header sets a floor the cap cannot beat');
+  const td = tpl.match(/\ntd \{[\s\S]*?\}/)[0];
+  // Seven columns in an 891px measure is ~110px each, narrower than the words in
+  // them. `overflow-wrap: anywhere` does remove the resulting scroll — it is the
+  // only value min-content sizing reads — but it breaks every cell mid-word, and
+  // a table nobody can read is worse than one that scrolls. A tighter scale buys
+  // the columns real width instead.
+  assert.doesNotMatch(td, /overflow-wrap:\s*anywhere/, 'anywhere breaks cells mid-word');
+  assert.match(tpl, /\.table--wide \{[^}]*font-size:\s*12px/);
+  assert.match(tpl, /\.table--wide :is\(th, td\) \{[^}]*padding/);
 });
 
 // LikeC4 fits a view once, at boot, against whatever box it has then. The

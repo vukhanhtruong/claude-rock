@@ -422,6 +422,14 @@ td {
   padding: 11px 15px; border-bottom: 1px solid var(--border); vertical-align: top;
   font-variant-numeric: tabular-nums;
 }
+/* Seven or more columns in an 891px measure is ~110px each, which is narrower
+   than the words going into it. Tried `overflow-wrap: anywhere` first — it does
+   remove the sideways scroll, because it is the only value min-content sizing
+   reads, but it breaks every cell mid-word ("TypeScri pt", "obs erv ed") and a
+   table nobody can read is worse than one that scrolls. A tighter scale buys the
+   columns real width instead, and md-render.mjs marks the table that needs it. */
+.table--wide { font-size: 12px; }
+.table--wide :is(th, td) { padding: 9px 11px; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr { transition: background .13s; }
 tbody tr:hover { background: var(--surface-2); }

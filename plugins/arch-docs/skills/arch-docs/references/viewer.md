@@ -64,7 +64,8 @@ Four steps, in order — each feeds the next:
 
    | Source | Rendered as | Rule |
    |---|---|---|
-   | consecutive `likec4:view` markers | one tab group (`md-views.mjs`) | blank lines between them only — prose between makes them separate shells |
+   | consecutive `likec4:view` markers | one tab group (`md-views.mjs`) | blank lines between them only; the tab is labelled with the view id |
+   | 2+ runs of `**Lead-in.** prose` then one marker | one tab group, prose inside each panel (`md-flows.mjs` + `renderFlowTabs`) | §7's three flows. The prose is why they were not already a group, so it travels into the panel with its own diagram instead of being stranded above the tab bar. The bold lead-in is the tab label, and is stripped from the panel so it is not said twice. A marker with no prose in front stays `md-views`' business, or one source grows two renderings |
    | 2-column table, right column averaging >60 chars | definition card grid (`md-defs.mjs`) | `Term \| Definition` is a definition list; `Property \| Value` is data and stays a table |
    | ≥5-column table with ≤3 rows | one record card per row (`md-wide.mjs`) | a table's shape claims "read across these rows"; §9's eight columns describe one integration, so there is nothing to read across and every cell wraps to four lines in a 1/8th column. Both conditions, not either — a wide table with many rows is a real comparison |
 
@@ -72,6 +73,14 @@ Four steps, in order — each feeds the next:
    one its own, so a page of them read as a ragged right edge against fixed
    prose; the cap still has to be there or a wide one pushes past the column
    instead of wrapping its cells.
+
+   A table of **7+ columns** additionally gets `.table--wide` (12px, tighter
+   padding), because ~110px per column is narrower than the words going into it.
+   `overflow-wrap: anywhere` was tried first and rejected: it is the only value
+   min-content sizing reads, so it does remove the sideways scroll, but it breaks
+   every cell mid-word (`TypeScri pt`, `obs erv ed`) — a table nobody can read is
+   worse than one that scrolls. With the tighter scale, all nine tables in the real
+   set are 891px and none scrolls sideways.
 
    `--docs` order is the reading order and the rail order; the renderer never
    sorts. The rail's section label comes from each document's parent directory

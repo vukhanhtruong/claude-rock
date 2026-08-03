@@ -151,3 +151,13 @@ test('a section with no index page keeps a group per document', () => {
   ]);
   assert.equal(count(nav, /class="nav-group"/g), 2);
 });
+
+// The rail is the only way to change section, so every row has to name the
+// route it opens — otherwise its head is a details toggle over documents that
+// are not in the layout.
+test('a rail section names the route it opens', () => {
+  const nav = buildNav([
+    { ...page('One', 'doc-1', [], 'Decision Records'), path: '/r/adr/0001.md' },
+  ]);
+  assert.match(nav, /class="nav-sec"[^>]*data-route="decision-records"/);
+});

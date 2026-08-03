@@ -1,5 +1,5 @@
 import { escapeHtml, stripInline } from './md-inline.mjs';
-import { bucketPages, landingOf } from './doc-sections.mjs';
+import { bucketPages, landingOf, slugOf } from './doc-sections.mjs';
 
 // The rail is two levels deep. One <details> per source document keeps the ~120
 // headings of a real set from reading as a wall of near-duplicate labels
@@ -42,7 +42,7 @@ function section(bucket, index) {
   const shown = landing ? [landing] : bucket.pages;
   const docs = shown.map((p, i) => group(p, index === 0 && i === 0)).join('');
   return [
-    `<details class="nav-sec"${index === 0 ? ' open' : ''}>`,
+    `<details class="nav-sec" data-route="${slugOf(bucket.label)}"${index === 0 ? ' open' : ''}>`,
     `<summary class="nav-sec__head">${CHEVRON}`,
     `<span class="nav-sec__title">${label}</span>`,
     `<span class="nav-sec__count">${bucket.pages.length}</span>`,

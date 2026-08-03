@@ -39,10 +39,19 @@ function stripTitle(title) {
   return (title ?? '').replace(/`([^`]+)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1');
 }
 
+// Each section is its own page, so it needs an address. Derived from the label
+// rather than a counter: #/decision-records reads as a place and survives a
+// reordered --docs list, #/section-2 does neither.
+export function slugOf(label) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 function sectionEl(bucket) {
   const landing = landingOf(bucket);
   const routed = landing ? ` data-routed data-landing="page-${landing.docId}"` : '';
-  return `<div class="doc-section" data-section="${escapeHtml(bucket.label)}"${routed}>`
+  const slug = slugOf(bucket.label);
+  return `<div class="doc-section" id="sec-${slug}" data-slug="${slug}"`
+    + ` data-section="${escapeHtml(bucket.label)}"${routed}>`
     + `${bucket.pages.map(pageEl).join('\n')}</div>`;
 }
 

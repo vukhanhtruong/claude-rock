@@ -155,9 +155,62 @@ Only the first section and its first document open on load. Scroll spy opens
 whatever it lands on, at both levels; the filter force-opens hits and restores
 the reader's own open/closed layout from `data-was-open` when the box clears.
 
+### One column
+
+Every block is the width of the reading measure or narrower — prose, tables,
+code, diagrams, tab panels. Nothing breaks out.
+
+Diagrams and wide tables used to take a 1080px track centred on the 689px prose
+axis, which put their left edge ~190px outside the paragraph above them: the
+reader re-found the margin on every block, and a 3x15 index needing 523px was
+stretched to double its content for nothing. Three consequences worth stating:
+
+- `table` is `width: max-content; max-width: 100%` — a small table hugs its
+  content, a big one wraps its cells. Uncapped `max-content` never wraps, and 15
+  of the 18 tables in a real set overran the column and grew their own sideways
+  scrollbar. `th` cannot be `nowrap`: a header that refuses to wrap sets a floor
+  the cap cannot beat.
+- Three tables in that set (7–8 columns) still cannot fit and scroll inside
+  their card. That is the floor of the design, not a bug to chase — the
+  alternatives are wider prose for every document or restructuring the table.
+- A `<c4-view>` is fitted to its box **once**, when the element boots, and only
+  refits on resize. The router reveals a section before the element is upgraded,
+  so that first fit measures a box of zero and the view renders at its natural
+  size, off the right edge of a 689px column. The template nudges it with a
+  synthetic `resize` on `customElements.whenDefined('c4-view')`.
+
+Scrollbars are styled once, globally (`scrollbar-width: thin` plus the
+`::-webkit-scrollbar` rules), because a dozen scroll containers each showing a
+15px platform slab is heavier than every hairline border in the page. The page
+itself carries `overflow-x: clip` on `body` — set there rather than on `html` so
+it propagates to the viewport without making `body` a clipping context, which
+would trap the `position: fixed` expanded diagram.
+
+### Section routes
+
+Each section is its own page (`#/architecture`, `#/decision-records`), with one
+section in the layout at a time and its own reading progress on the top bar. A
+21-document scroll is not a page: the whole-set progress line barely moved while
+the reader worked through one document, and "Document 05" as the first thing
+under a section heading counts documents the reader cannot see (`counter-reset`
+moved onto `.doc-section`).
+
+Two hash forms, because every anchor the renderer writes is a bare element id
+and rewriting them all would be the same work twice:
+
+| Hash | Meaning |
+|---|---|
+| `#/decision-records` | the section, at its top |
+| `#page-doc-adr-0004`, `#12-security` | an element — the router opens whichever section contains it |
+
+The rail is the only way to change section, so its section heads route instead of
+toggling: `preventDefault` stops the `<summary>` toggle and the router owns which
+row is open. The section on screen cannot be collapsed, because collapsing its
+row would leave no way back into the documents being read.
+
 ### Routed sections
 
-A section that ships an `index.md` or `README.md` is **routed**
+Within a section, a shipped `index.md` or `README.md` makes it **routed**
 (`scripts/lib/doc-sections.mjs`): the rail holds one row for the index, the index
 holds the list, and one record shows at a time. Shipping an index is the opt-in —
 there is no document-count threshold, because 15 records behind an index is a set
@@ -176,10 +229,10 @@ read from each record's own `## Status` section, falling back to an inline
 `**Status:** …` label, and only the leading word is counted (a real status line
 carries qualifiers: `Accepted — partially supersedes ADR-0008`).
 
-Two consequences worth stating plainly: printing a routed section prints only the
-open record, and a deep link into a hidden record needs the router to reveal it
-before the scroll can land — the browser jumps to the fragment first, so the jump
-is re-run after routing.
+Two consequences worth stating plainly: printing prints only the section on
+screen (and only the open record inside a routed one), and a deep link into a
+hidden section or record needs the router to reveal it before the scroll can land
+— the browser jumps to the fragment first, so the jump is re-run after routing.
 
 Deliberately **not** shipped, with reasons recorded here rather than left
 silent:

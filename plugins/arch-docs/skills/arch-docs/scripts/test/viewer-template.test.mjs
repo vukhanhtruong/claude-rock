@@ -100,11 +100,12 @@ test('headings balance their line breaks', () => {
   assert.match(tpl, /\.main :is\(h2, h3\) \{[^}]*text-wrap: balance/);
 });
 
-test('a code block too wide for the prose column breaks out of it', () => {
-  // Prose sits at ~74ch of 16.5px sans; code renders at 12.8px mono. Trees and
-  // config blocks overrun that column and would scroll inside a narrow box.
-  assert.match(tpl, /scrollWidth > /);
-  assert.match(tpl, /pre\.is-wide/);
+test('a code block too wide for the column scrolls inside it', () => {
+  // It used to break out to a 1080px track. A block wider than the prose above
+  // it moves the left edge, and the reader re-finds it on every one.
+  const pre = tpl.match(/\npre \{[\s\S]*?\}/)[0];
+  assert.match(pre, /overflow:\s*auto/);
+  assert.match(pre, /max-height:/);
 });
 
 test('inline code inside a heading drops the chip it wears in prose', () => {
@@ -149,27 +150,129 @@ test('mermaid ships a dark palette and the viewer re-renders on theme change', (
   assert.match(tpl, /rerenderDiagrams\(\)/);
 });
 
-/* ---------- conditional table width ---------- */
+/* ---------- one column ---------- */
 
-// Every table took the 1068px wide track, so a 3x15 index needing 523px was
-// stretched to double its content for zero gain. The wide track is now opt-in,
-// measured the same way code blocks are.
-test('a table sizes to its content instead of stretching to fill', () => {
-  const rule = tpl.match(/\ntable \{[^}]*\}/)[0];
+// Diagrams and wide tables took a 1080px track centred on a 689px prose column,
+// so every one of them started ~190px to the left of the paragraph above it.
+// One column for everything: a block may be narrower than the measure, never
+// wider, and every block shares the same left edge.
+test('nothing breaks out of the content column', () => {
+  assert.doesNotMatch(tpl, /var\(--wide\)/);
+  assert.doesNotMatch(tpl, /--measure-wide/);
+  assert.doesNotMatch(tpl, /is-wide/);
+  assert.doesNotMatch(tpl, /sizeTables|sizeCode/);
+});
+
+test('a table sizes to its content and stops at the column', () => {
+  const rule = tpl.match(/\n\.table-wrap \{[^}]*\}/)[0];
   assert.match(rule, /width:\s*max-content/);
-  assert.doesNotMatch(rule, /width:\s*100%/);
+  assert.match(rule, /max-width:\s*100%/);
+  assert.match(tpl, /\.table-scroll \{[^}]*overflow-x:\s*auto/);
 });
 
-test('the wide track is opt-in for tables, not unconditional', () => {
-  const [, selector] = tpl.match(/\n([^\n{]*)\{[^}]*width:\s*var\(--wide\);/);
-  assert.doesNotMatch(selector, /\.table-wrap/, 'table-wrap must not take the track by default');
-  assert.match(tpl, /\.table-wrap\.is-wide \{[^}]*var\(--wide\)/);
+// max-content never wraps. Uncapped, 15 of the 18 tables in a real set overran
+// the column and each grew its own sideways scrollbar inside a vertical read.
+test('a table too wide for the column wraps rather than scrolling sideways', () => {
+  const rule = tpl.match(/\ntable \{[\s\S]*?\}/)[0];
+  assert.match(rule, /max-width:\s*100%/);
+  const th = tpl.match(/\nth \{[\s\S]*?\}/)[0];
+  assert.doesNotMatch(th, /white-space:\s*nowrap/, 'a nowrap header sets a floor the cap cannot beat');
 });
 
-test('table width is decided by measuring natural content width', () => {
-  assert.match(tpl, /sizeTables/);
-  assert.match(tpl, /max-content/);
-  assert.match(tpl, /classList\.toggle\('is-wide'/);
+// LikeC4 fits a view once, at boot, against whatever box it has then. The
+// router reveals a section before the element is upgraded, so that box is zero
+// and the view renders at its natural size — off the edge of a 689px column.
+test('a diagram is refit once its webcomponent boots', () => {
+  assert.match(tpl, /whenDefined\('c4-view'\)/);
+  assert.match(tpl, /new Event\('resize'\)/);
+});
+
+test('a diagram is the width of the column, not of the viewport', () => {
+  const rule = tpl.match(/\n\.diagram-shell \{[\s\S]*?\}/)[0];
+  assert.doesNotMatch(rule, /margin-left/);
+  assert.doesNotMatch(rule, /width:/);
+});
+
+/* ---------- scrollbars ---------- */
+
+// The platform default is a ~15px grey slab. Inside a code block or a table
+// card that is an object wider than the hairline border around it, and there
+// are a dozen of them in a real set.
+test('every scroll container in the page gets the same thin scrollbar', () => {
+  assert.match(tpl, /scrollbar-width:\s*thin/);
+  assert.match(tpl, /scrollbar-color:/);
+  const bar = tpl.match(/\n::-webkit-scrollbar \{[^}]*\}/)[0];
+  assert.match(bar, /width:\s*\d+px/);
+  assert.match(bar, /height:\s*\d+px/, 'a horizontal bar needs a height, not a width');
+  assert.match(tpl, /::-webkit-scrollbar-thumb \{[^}]*border-radius/);
+});
+
+test('the rail does not carry a second, different scrollbar', () => {
+  assert.doesNotMatch(tpl, /\.rail-scroll::-webkit-scrollbar/);
+});
+
+test('the page itself never scrolls sideways', () => {
+  assert.match(tpl, /\nbody \{[\s\S]*?overflow-x:\s*clip/);
+});
+
+// overflow-x: auto computes the other axis from visible to auto, so the tab bar
+// grew a vertical scrollbar for the 5px its tabs' hit areas stuck out of it.
+test('the view tab bar cannot grow a scrollbar across its short axis', () => {
+  const bar = tpl.match(/\.view-tabs__bar \{[\s\S]*?\}/)[0];
+  assert.match(bar, /overflow-y:\s*hidden/);
+});
+
+test('a tab hit area fits inside the bar that holds it', () => {
+  const pad = Number(tpl.match(/\.view-tabs__bar \{[\s\S]*?padding:\s*(\d+)px/)[1]);
+  const reach = Number(tpl.match(/\.view-tab::after \{[^}]*inset:\s*-(\d+)px/)[1]);
+  assert.equal(reach, pad, 'a hit area larger than the padding overflows the bar');
+});
+
+/* ---------- section routes ---------- */
+
+// A 21-document scroll is not a page. Each section is its own page, addressed
+// by its own route, with its own progress — Architecture at #/architecture is
+// four documents, not four documents plus seventeen records below them.
+test('one section is in the layout at a time, addressed by its own route', () => {
+  assert.match(tpl, /\.doc-section\[hidden\] \{[^}]*display:\s*none/);
+  assert.match(tpl, /dataset\.slug/);
+  assert.match(tpl, /'#\/'/);
+});
+
+test('a bare element id still resolves to the section that holds it', () => {
+  // Every in-page anchor the renderer writes is a bare id, and so is every rail
+  // link. Routing must not require rewriting them.
+  assert.match(tpl, /closest\('\.doc-section'\)/);
+});
+
+test('the top bar shows the progress of the open section, not of the whole set', () => {
+  const js = tpl.match(/---- reading progress ----[\s\S]*?passive: true \}\)/)[0];
+  assert.doesNotMatch(js, /document\.body\.scrollHeight/);
+  assert.match(js, /getBoundingClientRect/);
+  assert.match(tpl, /id="route-pos"/);
+  assert.match(tpl, /\.route-pos \{[^}]*tabular-nums/);
+});
+
+// A section shorter than the viewport has nothing to scroll, and "100%" on a
+// page the reader has not touched reads as a bug rather than as a fact.
+test('the readout is blank when the whole section already fits on screen', () => {
+  assert.match(tpl, /routePos\.textContent = span > 0 \?/);
+});
+
+test('the progress line sits on the top bar rather than above it', () => {
+  assert.match(tpl, /#progress \{[^}]*top:\s*calc\(var\(--topbar-h\)/);
+});
+
+test('the document band counts from one inside each section', () => {
+  // Sections are pages now, so "Document 05" as the first thing on a page is a
+  // count of documents the reader cannot see.
+  assert.match(tpl, /\.doc-section \{[^}]*counter-reset:\s*doc/);
+  assert.match(tpl, /\.doc-section \.page:first-child \.doc-head \{/);
+});
+
+test('the rail routes to a section instead of toggling content off screen', () => {
+  assert.match(tpl, /data-route/);
+  assert.match(tpl, /nav-sec__head'\)/);
 });
 
 /* ---------- view tabs ---------- */

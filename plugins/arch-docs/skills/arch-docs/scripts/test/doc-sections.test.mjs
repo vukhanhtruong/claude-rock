@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bucketPages, landingOf, buildDoc } from '../lib/doc-sections.mjs';
+import { bucketPages, landingOf, buildDoc, slugOf } from '../lib/doc-sections.mjs';
 
 const page = (docId, section, path, html = '<h1>x</h1>') => ({ docId, section, path, html });
 const count = (html, re) => [...html.matchAll(re)].length;
@@ -108,4 +108,23 @@ test('the section holding the root document never routes', () => {
   ])[0];
   assert.equal(landingOf(bucket), undefined);
   assert.doesNotMatch(buildDoc(bucket.pages), /data-routed/);
+});
+
+// Each section is its own page now, so it needs an address. The slug is derived
+// from the label rather than a counter: #/decision-records survives a reordered
+// --docs list and reads as a place, #/section-2 does neither.
+test('a section carries a slug and an id so it can be routed to', () => {
+  const html = buildDoc([page('a', 'Decision Records', '/r/docs/adr/0001.md')]);
+  assert.match(html, /id="sec-decision-records"/);
+  assert.match(html, /data-slug="decision-records"/);
+});
+
+test('a slug is reduced to what a url fragment can carry', () => {
+  const html = buildDoc([page('a', 'C4 / Model & Views', '/r/a.md')]);
+  assert.match(html, /data-slug="c4-model-views"/);
+});
+
+test('slugOf is exported so the rail names the same routes the document does', () => {
+  assert.equal(slugOf('Decision Records'), 'decision-records');
+  assert.equal(slugOf('R&D  Notes'), 'r-d-notes');
 });

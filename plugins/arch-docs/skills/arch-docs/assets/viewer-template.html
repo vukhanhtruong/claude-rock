@@ -21,8 +21,11 @@
   --accent: #0f766e; --accent-soft: rgba(15, 118, 110, .09); --accent-line: rgba(15, 118, 110, .35);
   --shadow: 0 1px 2px rgba(28, 27, 24, .04), 0 8px 24px -12px rgba(28, 27, 24, .12);
 
-  --rail-w: 292px; --topbar-h: 52px; --measure: 74ch; --measure-wide: 1080px;
-  --wide: min(var(--measure-wide), calc(100vw - var(--rail-w) - 80px));
+  /* One column, one width. A diagram or a wide table used to take a 1080px
+     track centred on the prose axis, which put its left edge ~190px outside
+     the paragraph above it — the reader re-found the margin on every block.
+     A block may now be narrower than the measure; none may be wider. */
+  --rail-w: 292px; --topbar-h: 52px; --measure: 74ch;
 }
 /* Dark palette is applied by both the media query and the explicit attribute so
    the toggle wins in either direction. */
@@ -49,9 +52,31 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--font-body); font-size: 16.5px; line-height: 1.7;
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-  overflow-wrap: break-word; counter-reset: doc;
+  overflow-wrap: break-word;
+  /* Belt to the braces of the single column: nothing is laid out wider than the
+     measure, so a sideways page scroll can only ever be a bug. Set on body
+     rather than html so it propagates to the viewport without making body a
+     clipping context — an expanded diagram is position: fixed inside it. */
+  overflow-x: clip;
 }
 ::selection { background: var(--accent-soft); }
+
+/* One scrollbar treatment for every scroll container: the rail, a code block, a
+   wide table, a tab strip. The platform default is a ~15px grey slab, which
+   inside a table card is an object heavier than the hairline around it — and a
+   real set has a dozen of them. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+/* The transparent border plus content-box clip insets the thumb inside its
+   gutter, so it reads as a 5px pill floating in the padding rather than a bar
+   welded to the edge of the box. */
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong); background-clip: content-box;
+  border: 2px solid transparent; border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* Micro-label: the recurring texture for every piece of metadata. */
 .eyebrow {
@@ -60,9 +85,16 @@ body {
 }
 
 /* ---------- reading progress ---------- */
+/* Sits on the bottom edge of the top bar rather than above it: the bar it
+   belongs to is the one showing which section you are in, and the number
+   beside it. Across the whole 21-document set the line barely moved. */
+/* Scaled from a full-width track rather than sized by percentage: the line is
+   inset by the rail, and a percentage width would resolve against the viewport
+   and run off the right edge at 100%. */
 #progress {
-  position: fixed; top: 0; left: 0; height: 2px; width: 0;
-  background: var(--accent); z-index: 60; transition: width .1s linear;
+  position: fixed; top: calc(var(--topbar-h) - 2px); left: var(--rail-w); right: 0;
+  height: 2px; z-index: 60; background: var(--accent);
+  transform-origin: left; scale: 0 1; transition: scale .1s linear;
 }
 
 /* ---------- top bar ---------- */
@@ -80,6 +112,14 @@ body {
 }
 .crumb b { color: var(--text); font-weight: 600; }
 .crumb span { color: var(--text-faint); padding: 0 6px; }
+/* Tabular figures and a fixed box: this number changes on every scroll event,
+   and proportional digits would shove the theme toggle sideways as it counts. */
+.route-pos {
+  flex-shrink: 0; min-width: 40px; text-align: right;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .12em;
+  font-variant-numeric: tabular-nums; color: var(--text-faint);
+}
 
 .icon-btn {
   position: relative;
@@ -149,10 +189,6 @@ body {
 #nav-filter:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .rail-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 40px; }
-.rail-scroll::-webkit-scrollbar { width: 8px; }
-.rail-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px;
-  border: 2px solid var(--surface-2); }
-.rail-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .nav-chevron {
   width: 11px; height: 11px; flex-shrink: 0; color: var(--text-faint);
@@ -270,8 +306,14 @@ body {
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
   background: linear-gradient(to right, var(--border-strong) 0%, var(--border) 45%, transparent 100%);
 }
-.doc-section:first-child .page:first-child .doc-head { padding-top: 0; }
-.doc-section:first-child .page:first-child .doc-head::after { display: none; }
+/* ---------- section routes ---------- */
+/* One section in the layout at a time. Every section is its own page, so its
+   first document sits at the top of that page — not below a hairline separating
+   it from a section the reader cannot see. */
+.doc-section[hidden] { display: none; }
+.doc-section { counter-reset: doc; }
+.doc-section .page:first-child .doc-head { padding-top: 0; }
+.doc-section .page:first-child .doc-head::after { display: none; }
 /* A routed record is shown on its own, so the band that separates one document
    from the next in a scroll has nothing to separate it from — and "Document 07"
    is the wrong count for it anyway. The record bar carries "7 of 15" instead. */
@@ -349,15 +391,6 @@ pre {
   padding: 16px 18px; margin: 24px 0; max-height: 30rem; overflow: auto;
   white-space: pre; box-shadow: var(--shadow);
 }
-/* Prose is measured for 16.5px sans; code renders at 12.8px mono, so a tree or
-   a config block overruns the column. Only the blocks that actually overflow
-   take the wide track — a two-line snippet stretched to 1080px reads as a
-   mistake. The class is set from JS, which is the only place the real
-   scrollWidth is known. */
-pre.is-wide {
-  width: var(--wide);
-  margin-left: calc(min(0px, (var(--measure) - var(--wide)) / 2));
-}
 pre code { white-space: inherit; }
 pre code { background: none; padding: 0; font-size: inherit; }
 blockquote {
@@ -368,26 +401,25 @@ blockquote > :last-child { margin-bottom: 0; }
 hr { border: none; height: 1px; background: var(--border); margin: 48px 0; }
 
 /* ---------- tables ---------- */
-/* The card hugs its table. Every table used to take the 1068px wide track, so a
-   3x15 index whose content needs 523px was stretched to double that for no
-   gain. Script measures natural width and only tables that outgrow the prose
-   column get the track — and then only as wide as they actually are. */
+/* The card hugs its table up to the column and no further: a 3x15 index needing
+   523px stays 523px wide, and a 15-column risk register stops at the measure
+   and scrolls inside itself. */
 .table-wrap {
   margin: 22px 0; border: 1px solid var(--border); border-radius: 10px;
   overflow: hidden; background: var(--surface); box-shadow: var(--shadow);
   width: max-content; max-width: 100%;
 }
-.table-wrap.is-wide {
-  /* The base rule's max-width would clamp the track straight back to the prose
-     column, so taking the track means dropping the cap too. */
-  max-width: none;
-  width: min(var(--tw), var(--wide));
-  margin-left: calc(min(0px, (var(--measure) - min(var(--tw), var(--wide))) / 2));
-}
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table { border-collapse: collapse; width: max-content; font-size: 13.5px; line-height: 1.55; }
+/* max-content so a small table hugs its content, capped so a big one wraps its
+   cells instead of scrolling sideways. Without the cap max-content never wraps,
+   and 15 of the 18 tables in a real set overran the column and grew their own
+   horizontal scrollbar — a sideways scroll inside a vertical read. */
+table {
+  border-collapse: collapse; width: max-content; max-width: 100%;
+  font-size: 13.5px; line-height: 1.55;
+}
 th {
-  position: sticky; top: 0; z-index: 1; text-align: left; white-space: nowrap;
+  position: sticky; top: 0; z-index: 1; text-align: left;
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .13em; color: var(--text-dim);
   background: var(--surface-2); padding: 11px 15px;
@@ -441,11 +473,15 @@ li::marker { color: var(--text-faint); }
 
 /* ---------- view tabs ---------- */
 .view-tabs { margin: 26px 0; }
+/* overflow-y: hidden is not decoration. overflow-x: auto computes the other
+   axis from visible to auto, so the bar grew a vertical scrollbar — arrows and
+   all — for the 5px its tabs' hit areas stuck out of a 3px padding. */
 .view-tabs__bar {
-  display: flex; gap: 2px; padding: 3px; margin-bottom: 10px; overflow-x: auto;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px;
+  display: flex; gap: 2px; padding: 5px; margin-bottom: 10px;
+  overflow-x: auto; overflow-y: hidden;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 13px;
 }
-/* 11px bar radius less its 3px padding gives 8px tabs — concentric, so the
+/* 13px bar radius less its 5px padding gives 8px tabs — concentric, so the
    selected chip nests instead of fighting the corner it sits in. */
 .view-tab {
   position: relative; flex: 0 0 auto; height: 30px; padding: 0 13px;
@@ -538,12 +574,6 @@ li::marker { color: var(--text-faint); }
   position: relative; margin: 26px 0; border: 1px solid var(--border); border-radius: 12px;
   background: var(--surface); box-shadow: var(--shadow);
 }
-/* A diagram has no natural width to measure — it scales to whatever box it is
-   given — so it always takes the wide track. Tables opt in by measurement. */
-.diagram-shell {
-  width: var(--wide);
-  margin-left: calc(min(0px, (var(--measure) - var(--wide)) / 2));
-}
 .diagram-shell:fullscreen { width: 100vw; height: 100vh; margin: 0; border: none;
   border-radius: 0; background: var(--bg); }
 .diagram-toolbar {
@@ -593,6 +623,8 @@ c4-view { display: block; width: 100%; height: 460px; }
 @media (max-width: 960px) {
   :root { --rail-w: 300px; --measure: 100%; }
   .topbar { left: 0; padding: 0 14px; }
+  #progress { left: 0; }
+  .route-pos { min-width: 0; letter-spacing: .06em; }
   #nav-toggle { display: inline-flex; }
   .sidebar {
     transform: translateX(-100%); transition: transform .26s cubic-bezier(.4, 0, .2, 1);
@@ -606,9 +638,6 @@ c4-view { display: block; width: 100%; height: 460px; }
   }
   .scrim.is-open { opacity: 1; pointer-events: auto; }
   .main { margin-left: 0; padding: calc(var(--topbar-h) + 26px) 18px 20vh; }
-  /* .is-wide outranks .table-wrap on specificity, so it has to be named here
-     or a measured-wide table keeps its desktop track on a phone. */
-  .diagram-shell, .table-wrap, .table-wrap.is-wide { width: 100%; margin-left: 0; }
   .doc-head { font-size: clamp(26px, 7vw, 34px); }
   .main h2 { font-size: 21px; margin-top: 40px; }
   body { font-size: 16px; }
@@ -641,6 +670,8 @@ c4-view { display: block; width: 100%; height: 460px; }
     <svg viewBox="0 0 20 20"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
   </button>
   <div class="crumb" id="crumb"></div>
+  <span class="route-pos" id="route-pos" aria-live="off"
+        title="How far through this section you have read"></span>
   <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark and light theme">
     <svg class="i-sun" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.6"/><path d="M10 1.6v2M10 16.4v2M3.1 3.1l1.4 1.4M15.5 15.5l1.4 1.4M1.6 10h2M16.4 10h2M3.1 16.9l1.4-1.4M15.5 4.5l1.4-1.4"/></svg>
     <svg class="i-moon" viewBox="0 0 20 20"><path d="M17.3 11.1A7.6 7.6 0 0 1 8.9 2.7a7.6 7.6 0 1 0 8.4 8.4z"/></svg>
@@ -725,12 +756,26 @@ navToggle.addEventListener('click', function () { setDrawer(!sidebar.classList.c
 scrim.addEventListener('click', function () { setDrawer(false); });
 addEventListener('keydown', function (e) { if (e.key === 'Escape') setDrawer(false); });
 
-/* ---- reading progress ---- */
+/* ---- reading progress ----
+   Scoped to the open section, not to the whole set. Against 21 documents the
+   line barely left the left edge while the reader worked through one of them,
+   which is the unit they are actually reading. */
 var progress = document.getElementById('progress');
-addEventListener('scroll', function () {
-  var max = document.body.scrollHeight - innerHeight;
-  progress.style.width = (max > 0 ? (scrollY / max) * 100 : 0) + '%';
-}, { passive: true });
+var routePos = document.getElementById('route-pos');
+var activeSec = null;
+
+function tick() {
+  if (!activeSec) return;
+  var box = activeSec.getBoundingClientRect();
+  var span = box.height - innerHeight;
+  var done = span > 0 ? Math.min(1, Math.max(0, -box.top / span)) : 1;
+  progress.style.scale = done + ' 1';
+  /* A section shorter than the viewport has nothing to scroll, and "100%" on a
+     page the reader has not touched yet reads as a bug. The full line already
+     says the whole section is on screen. */
+  routePos.textContent = span > 0 ? Math.round(done * 100) + '%' : '';
+}
+addEventListener('scroll', tick, { passive: true });
 
 /* ---- deep-link anchors on every section heading ---- */
 document.querySelectorAll('.doc h2[id], .doc h3[id]').forEach(function (h) {
@@ -752,33 +797,6 @@ document.querySelectorAll('.doc table').forEach(function (t) {
   wrap.appendChild(scroll);
   scroll.appendChild(t);
 });
-
-/* ---- code blocks: only the ones that overflow take the wide track ---- */
-var pres = [].slice.call(document.querySelectorAll('.doc pre'));
-function sizeCode() {
-  pres.forEach(function (p) {
-    p.classList.remove('is-wide');
-    if (p.scrollWidth > p.clientWidth) p.classList.add('is-wide');
-  });
-}
-sizeCode();
-
-/* ---- tables: the same rule, measured against the prose column ---- */
-var wraps = [].slice.call(document.querySelectorAll('.doc .table-wrap'));
-function sizeTables() {
-  var room = document.querySelector('.doc').clientWidth;
-  wraps.forEach(function (w) {
-    /* A hidden record measures 0, which would read as "fits". Leave it alone
-       until it is on screen; it was measured correctly before routing ran. */
-    if (w.offsetParent === null) return;
-    var table = w.querySelector('table');
-    var natural = Math.max(table.offsetWidth, table.scrollWidth);
-    w.style.setProperty('--tw', natural + 'px');
-    w.classList.toggle('is-wide', natural > room);
-  });
-}
-sizeTables();
-addEventListener('resize', function () { sizeCode(); sizeTables(); });
 
 /* ---- view tabs: one system at several zoom levels, one panel at a time ---- */
 document.querySelectorAll('.view-tabs').forEach(function (group) {
@@ -1068,8 +1086,7 @@ function routeTo(sec, page) {
   pagesOf(sec).forEach(function (p) { p.hidden = p !== page; });
 }
 
-function syncRoutes() {
-  var id = decodeURIComponent((location.hash || '').slice(1));
+function syncRoutes(id) {
   var el = id && document.getElementById(id);
   var target = el && el.closest('.page');
   routed.forEach(function (sec) {
@@ -1080,26 +1097,71 @@ function syncRoutes() {
   return el;
 }
 
+/* ---- section routes ----
+   A 21-document scroll is not a page. Each section is its own page with its own
+   route and its own progress: #/architecture is four documents, not four
+   documents with seventeen records stacked underneath them.
+
+   Two hash forms, because every anchor the renderer writes is a bare element id
+   and rewriting them all would be the same work twice. A leading slash names a
+   section; anything else is an id, and the router opens whichever section
+   contains it. */
+var docSections = [].slice.call(document.querySelectorAll('.doc-section'));
+var bySlug = {};
+docSections.forEach(function (s) { bySlug[s.dataset.slug] = s; });
+
+function routeParts() {
+  var raw = decodeURIComponent((location.hash || '').slice(1));
+  return raw.charAt(0) === '/' ? { slug: raw.slice(1), id: '' } : { slug: '', id: raw };
+}
+
+function sectionFor(parts) {
+  var el = parts.id && document.getElementById(parts.id);
+  return (el && el.closest('.doc-section')) || bySlug[parts.slug] || docSections[0];
+}
+
+function showSection(sec) {
+  docSections.forEach(function (s) { s.hidden = s !== sec; });
+  /* The rail is the only way to change section, so the router owns which row is
+     open. A row expanded over documents that are not in the layout is a lie. */
+  sections.forEach(function (n) { n.open = n.dataset.route === sec.dataset.slug; });
+  activeSec = sec;
+  /* A <c4-view> revealed from display:none has never had a box to fit itself
+     into, and the webcomponent only refits on resize. */
+  dispatchEvent(new Event('resize'));
+}
+
 /* The browser scrolls to a fragment before the router can reveal it, so a deep
-   link into a hidden record lands nowhere. Re-run the jump once it is shown. */
-function syncAndJump() {
-  var el = syncRoutes();
-  sizeTables();
-  if (!el) return;
-  /* A link to the record itself scrolls to the record, so its bar is on screen.
-     A link to a heading inside the record still lands on that heading. */
+   link into a hidden section or record lands nowhere. Re-run the jump after. */
+function navigate(jump) {
+  var parts = routeParts();
+  showSection(sectionFor(parts));
+  var el = syncRoutes(parts.id);
+  tick();
+  if (!jump) return;
+  if (!el) { scrollTo(0, 0); return; }
+  /* A link to a record scrolls to the record so its prev/next bar stays on
+     screen. A link to a heading inside it still lands on that heading. */
   var page = el.closest('.page');
   var inRouted = page && page.parentNode.dataset.routed !== undefined;
   (inRouted && el.classList.contains('doc-head') ? page : el).scrollIntoView();
 }
 
-if (routed.length) {
-  routed.forEach(equipSection);
-  addEventListener('hashchange', syncAndJump);
-  syncRoutes();
-  if (location.hash) syncAndJump();
-  sizeTables();
-}
+sections.forEach(function (n) {
+  n.querySelector('.nav-sec__head').addEventListener('click', function (e) {
+    /* preventDefault also stops <summary> toggling, which is the point: the
+       section on screen cannot be collapsed, because collapsing its row would
+       leave the reader no way back into the documents they are looking at. */
+    e.preventDefault();
+    if (innerWidth <= 960) setDrawer(false);
+    if (routeParts().slug !== n.dataset.route) location.hash = '#/' + n.dataset.route;
+  });
+});
+
+routed.forEach(equipSection);
+addEventListener('hashchange', function () { navigate(true); });
+addEventListener('resize', tick);
+navigate(Boolean(location.hash));
 
 /* ---- diagrams ---- */
 var mermaidEls = [];
@@ -1198,6 +1260,17 @@ function wireDiagram(shell) {
 }
 
 document.querySelectorAll('.diagram-shell').forEach(wireDiagram);
+
+/* LikeC4 fits a view to its box when the element boots, and only refits on
+   resize. The router reveals a section before <c4-view> is upgraded, so that
+   first fit is measured against a box of zero — the view then renders at its
+   natural layout size and runs off the right edge of a 689px column. Nudging it
+   once the element is defined is what makes it fit the column it landed in. */
+if (window.customElements) {
+  customElements.whenDefined('c4-view').then(function () {
+    requestAnimationFrame(function () { dispatchEvent(new Event('resize')); });
+  });
+}
 </script>
 </body>
 </html>

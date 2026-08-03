@@ -25,7 +25,12 @@
      track centred on the prose axis, which put its left edge ~190px outside
      the paragraph above it — the reader re-found the margin on every block.
      A block may now be narrower than the measure; none may be wider. */
-  --rail-w: 292px; --topbar-h: 52px; --measure: 74ch;
+  --rail-w: 292px; --topbar-h: 52px;
+  /* 96ch, capped by the room the rail leaves. 74ch is the classic prose measure
+     and it was too tight once every table and diagram had to live inside it —
+     three of eighteen tables still cannot fit and scroll in their card. Widen
+     this one value to trade reading comfort for table room. */
+  --measure: min(96ch, calc(100vw - var(--rail-w) - 80px));
 }
 /* Dark palette is applied by both the media query and the explicit attribute so
    the toggle wins in either direction. */
@@ -287,40 +292,23 @@ body {
 .main :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 .diagram-shell, .table-wrap { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 
-/* Document band: each source file announces itself so a 17-document scroll
-   stays navigable. The number is a pure-CSS counter. */
+/* The document title. It used to carry a "Document 07" eyebrow and a hairline
+   above it, both of which separated one document from the next in a single
+   scroll. With one document on screen there is nothing above to separate it
+   from, and a CSS counter cannot count pages that are not in the layout — it
+   read "Document 01" on every one. The page bar carries "7 / 15" instead. */
 .doc-head {
-  counter-increment: doc; position: relative;
-  margin: 0 0 28px; padding-top: 34px;
+  position: relative; margin: 0 0 28px;
   font-family: var(--font-display); font-weight: 600;
   font-size: clamp(30px, 3.4vw, 43px); line-height: 1.12; letter-spacing: -.022em;
   text-wrap: balance;
 }
-.doc-head::before {
-  content: 'Document ' counter(doc, decimal-leading-zero);
-  display: block; margin-bottom: 14px;
-  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .2em; color: var(--accent);
-}
-.doc-head::after {
-  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
-  background: linear-gradient(to right, var(--border-strong) 0%, var(--border) 45%, transparent 100%);
-}
-/* ---------- section routes ---------- */
-/* One section in the layout at a time. Every section is its own page, so its
-   first document sits at the top of that page — not below a hairline separating
-   it from a section the reader cannot see. */
-.doc-section[hidden] { display: none; }
-.doc-section { counter-reset: doc; }
-.doc-section .page:first-child .doc-head { padding-top: 0; }
-.doc-section .page:first-child .doc-head::after { display: none; }
-/* A routed record is shown on its own, so the band that separates one document
-   from the next in a scroll has nothing to separate it from — and "Document 07"
-   is the wrong count for it anyway. The record bar carries "7 of 15" instead. */
-.doc-section[data-routed] .doc-head { padding-top: 0; }
-.doc-section[data-routed] .doc-head::after,
-.doc-section[data-routed] .doc-head::before { display: none; }
 .doc-head + p { color: var(--text-dim); font-size: 17.5px; }
+
+/* ---------- page routes ---------- */
+/* One document in the layout at a time, addressed by its own route. Sections
+   are the grouping the rail shows; the page is what the reader opens. */
+.doc-section[hidden], .page[hidden] { display: none; }
 
 .main h2 {
   margin: 58px 0 18px; font-family: var(--font-display); font-weight: 600;
@@ -350,6 +338,10 @@ body {
   text-underline-offset: .18em; transition: text-decoration-color .15s;
 }
 .main a:hover { text-decoration-color: var(--accent); }
+/* Block links — index rows, search hits, page-bar chips — are surfaces, not
+   words in a sentence. `.main a` outranks a bare class, so they have to be named
+   against it or every one of them grows a prose underline. */
+.main :is(.record-row, .record-hit, .page-chip) { text-decoration: none; }
 
 /* Landing from a deep link in a 21-document page gives no sense of arrival.
    The mark fades but the rule stays until the reader moves on. */
@@ -504,21 +496,14 @@ li::marker { color: var(--text-faint); }
    left margin, pushing a 1068px diagram off the right edge of the viewport. */
 .view-tabs .diagram-shell { margin-top: 0; margin-bottom: 0; }
 
-/* ---------- routed sections ---------- */
-.doc-section[data-routed] .page[hidden] { display: none; }
-/* The record bar sits above the record's title, so the scroll target has to be
-   the record, not its heading, or prev/next lands off screen. */
-.doc-section[data-routed] .page { scroll-margin-top: calc(var(--topbar-h) + 20px); }
-.record-summary {
-  margin: 0 0 18px; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-  letter-spacing: .1em; text-transform: uppercase;
-  font-variant-numeric: tabular-nums; color: var(--text-faint);
-}
-.record-bar {
+/* The page bar sits above the document's title, so the scroll target has to be
+   the page, not its heading, or prev/next lands off screen. */
+.page { scroll-margin-top: calc(var(--topbar-h) + 20px); }
+.page-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
 }
-.record-chip {
+.page-chip {
   position: relative; display: inline-flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 11px; flex-shrink: 0;
   font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
@@ -528,15 +513,44 @@ li::marker { color: var(--text-faint); }
   transition: color .15s, border-color .15s, background .15s,
               scale .12s cubic-bezier(.2, 0, 0, 1);
 }
-.record-chip::after { content: ''; position: absolute; inset: -5px 0; }
-.record-chip:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
-.record-chip:active { scale: .96; }
-.record-chip[aria-disabled="true"] { opacity: .35; pointer-events: none; }
-.record-pos {
+.page-chip::after { content: ''; position: absolute; inset: -5px 0; }
+.page-chip:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.page-chip:active { scale: .96; }
+.page-chip[aria-disabled="true"] { opacity: .35; pointer-events: none; }
+.page-pos {
   font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .11em;
   font-variant-numeric: tabular-nums; color: var(--text-faint);
 }
-.record-steps { display: flex; gap: 6px; margin-left: auto; }
+.page-steps { display: flex; gap: 6px; margin-left: auto; }
+
+/* ---------- index pages ---------- */
+.record-summary {
+  margin: 0 0 18px; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; color: var(--text-faint);
+}
+/* The generated list, shown only when the author's own index does not link every
+   record. Rows rather than cards: this is an index of 15 things, and the reader
+   is scanning one column of titles for a name they already half-remember. */
+.record-list { display: grid; gap: 4px; margin: 0 0 28px; }
+.record-list > .eyebrow { margin-bottom: 4px; }
+.record-row {
+  display: grid; grid-template-columns: 2.4em 1fr auto; align-items: baseline; gap: 12px;
+  padding: 10px 13px; text-decoration: none; color: inherit;
+  border: 1px solid transparent; border-radius: 9px;
+  transition: border-color .15s, background .15s;
+}
+.record-row:hover { border-color: var(--border); background: var(--surface); }
+.record-row__n {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text-faint);
+}
+.record-row b { font-size: 14.5px; font-weight: 600; color: var(--text); text-wrap: pretty; }
+.record-row__s {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--text-faint);
+  background: var(--surface-3); border-radius: 20px; padding: 3px 8px; white-space: nowrap;
+}
 
 /* Hiding the records takes them out of reach of the browser's own find, so the
    index searches their text directly. They are still in the DOM — only hidden —
@@ -619,7 +633,8 @@ c4-view { display: block; width: 100%; height: 460px; }
 .diagram-shell.is-c4.is-expanded c4-view { height: 100%; }
 
 /* ---------- responsive ---------- */
-@media (max-width: 1180px) { :root { --measure: 68ch; } }
+/* No narrow-desktop breakpoint: --measure's own calc already gives up width to
+   the rail before the 96ch cap ever binds. */
 @media (max-width: 960px) {
   :root { --rail-w: 300px; --measure: 100%; }
   .topbar { left: 0; padding: 0 14px; }
@@ -757,16 +772,16 @@ scrim.addEventListener('click', function () { setDrawer(false); });
 addEventListener('keydown', function (e) { if (e.key === 'Escape') setDrawer(false); });
 
 /* ---- reading progress ----
-   Scoped to the open section, not to the whole set. Against 21 documents the
+   Scoped to the open document, not to the whole set. Against 21 documents the
    line barely left the left edge while the reader worked through one of them,
    which is the unit they are actually reading. */
 var progress = document.getElementById('progress');
 var routePos = document.getElementById('route-pos');
-var activeSec = null;
+var activePage = null;
 
 function tick() {
-  if (!activeSec) return;
-  var box = activeSec.getBoundingClientRect();
+  if (!activePage) return;
+  var box = activePage.getBoundingClientRect();
   var span = box.height - innerHeight;
   var done = span > 0 ? Math.min(1, Math.max(0, -box.top / span)) : 1;
   progress.style.scale = done + ' 1';
@@ -943,11 +958,12 @@ links.forEach(function (a) {
   a.addEventListener('click', function () { if (innerWidth <= 960) setDrawer(false); });
 });
 
-/* ---- routed sections ----
-   A section that ships an index page is browsed from it: the rail holds one
-   row, the index holds the list, and one record shows at a time. The records
-   stay in the DOM either way, which is what lets the index search their text
-   after hiding them from the browser's own find. */
+/* ---- page bars ----
+   Every document gets a bar: where it sits in its section, and prev/next across
+   the section's other documents. A document inside a section that ships an index
+   also gets a link back to it. The pages stay in the DOM whether shown or not,
+   which is what lets an index search their text after hiding them from the
+   browser's own find. */
 var routed = [].slice.call(document.querySelectorAll('.doc-section[data-routed]'));
 var bodyText = new Map();
 
@@ -960,7 +976,7 @@ function recordsOf(sec) {
 
 function chip(label, href, flag) {
   var a = document.createElement('a');
-  a.className = 'record-chip';
+  a.className = 'page-chip';
   a.textContent = label;
   if (href) a.href = '#' + href;
   else a.setAttribute('aria-disabled', 'true');
@@ -968,22 +984,22 @@ function chip(label, href, flag) {
   return a;
 }
 
-function stepsEl(records, i) {
+function stepsEl(siblings, i) {
   var steps = document.createElement('div');
-  steps.className = 'record-steps';
-  steps.appendChild(chip('‹ Prev', records[i - 1] && records[i - 1].id, 'data-prev'));
-  steps.appendChild(chip('Next ›', records[i + 1] && records[i + 1].id, 'data-next'));
+  steps.className = 'page-steps';
+  steps.appendChild(chip('‹ Prev', siblings[i - 1] && siblings[i - 1].id, 'data-prev'));
+  steps.appendChild(chip('Next ›', siblings[i + 1] && siblings[i + 1].id, 'data-next'));
   return steps;
 }
 
-function barEl(records, i, landingId) {
+function barEl(siblings, i, landingId) {
   var bar = document.createElement('div');
-  bar.className = 'record-bar';
-  bar.appendChild(chip('‹ All records', landingId, 'data-back'));
+  bar.className = 'page-bar';
+  if (landingId) bar.appendChild(chip('‹ All records', landingId, 'data-back'));
   var pos = document.createElement('span');
-  pos.className = 'record-pos';
-  pos.textContent = (i + 1) + ' / ' + records.length;
-  bar.append(pos, stepsEl(records, i));
+  pos.className = 'page-pos';
+  pos.textContent = (i + 1) + ' / ' + siblings.length;
+  bar.append(pos, stepsEl(siblings, i));
   return bar;
 }
 
@@ -1065,10 +1081,56 @@ function summaryEl(records) {
   return el;
 }
 
+/* The author's own index is prose, and prose goes stale. This set's
+   docs/adr/README.md lists four records by filenames the repository never had —
+   behind an index-routed section that hides the other eleven completely. So the
+   links are counted, and the list is generated only when they fall short. */
+function linksAll(landing, records) {
+  var seen = {};
+  var found = 0;
+  landing.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    /* Resolved through the element, not string-matched: a rewritten link points
+       at the target's H1 id, which is the page id without its page- prefix. */
+    var el = document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+    var page = el && el.closest('.page');
+    if (page && !seen[page.id] && records.indexOf(page) !== -1) {
+      seen[page.id] = 1;
+      found += 1;
+    }
+  });
+  return found >= records.length;
+}
+
+function rowEl(page, i) {
+  var a = document.createElement('a');
+  a.className = 'record-row';
+  a.href = '#' + page.id;
+  var n = document.createElement('span');
+  n.className = 'record-row__n';
+  n.textContent = i + 1;
+  var title = document.createElement('b');
+  title.textContent = page.dataset.title;
+  var status = document.createElement('span');
+  status.className = 'record-row__s';
+  status.textContent = statusOf(page) || 'unrecorded';
+  a.append(n, title, status);
+  return a;
+}
+
+function listEl(records) {
+  var list = document.createElement('div');
+  list.className = 'record-list';
+  var label = document.createElement('div');
+  label.className = 'eyebrow';
+  label.textContent = 'Every record';
+  list.appendChild(label);
+  records.forEach(function (p, i) { list.appendChild(rowEl(p, i)); });
+  return list;
+}
+
 function equipSection(sec) {
   var records = recordsOf(sec);
   records.forEach(function (p) { bodyText.set(p, p.textContent.replace(/\s+/g, ' ')); });
-  records.forEach(function (p, i) { p.prepend(barEl(records, i, sec.dataset.landing)); });
   var landing = document.getElementById(sec.dataset.landing);
   var hits = document.createElement('div');
   hits.className = 'record-hits';
@@ -1077,88 +1139,100 @@ function equipSection(sec) {
   var head = landing.querySelector('.doc-head');
   var lead = head.nextElementSibling;
   var at = lead && lead.tagName === 'P' ? lead : head;
+  if (!linksAll(landing, records)) at.after(listEl(records));
   at.after(hits);
   at.after(searchEl(records, hits));
   at.after(summaryEl(records));
 }
 
-function routeTo(sec, page) {
-  pagesOf(sec).forEach(function (p) { p.hidden = p !== page; });
-}
-
-function syncRoutes(id) {
-  var el = id && document.getElementById(id);
-  var target = el && el.closest('.page');
-  routed.forEach(function (sec) {
-    var want = target && target.parentNode === sec
-      ? target : document.getElementById(sec.dataset.landing);
-    routeTo(sec, want);
-  });
-  return el;
-}
-
-/* ---- section routes ----
-   A 21-document scroll is not a page. Each section is its own page with its own
-   route and its own progress: #/architecture is four documents, not four
-   documents with seventeen records stacked underneath them.
+/* ---- page routes ----
+   A 21-document scroll is not a page. Every document is its own page with its
+   own route and its own progress. Sections are the grouping the rail shows;
+   prev/next walks the section, and a section that ships an index is browsed
+   from it.
 
    Two hash forms, because every anchor the renderer writes is a bare element id
    and rewriting them all would be the same work twice. A leading slash names a
-   section; anything else is an id, and the router opens whichever section
-   contains it. */
+   route; anything else is an id, and the router opens whichever page holds it. */
 var docSections = [].slice.call(document.querySelectorAll('.doc-section'));
-var bySlug = {};
-docSections.forEach(function (s) { bySlug[s.dataset.slug] = s; });
+var docPages = [].slice.call(document.querySelectorAll('.page[data-route]'));
+var byRoute = {};
+docPages.forEach(function (p) { byRoute[p.dataset.route] = p; });
 
 function routeParts() {
   var raw = decodeURIComponent((location.hash || '').slice(1));
   return raw.charAt(0) === '/' ? { slug: raw.slice(1), id: '' } : { slug: '', id: raw };
 }
 
-function sectionFor(parts) {
-  var el = parts.id && document.getElementById(parts.id);
-  return (el && el.closest('.doc-section')) || bySlug[parts.slug] || docSections[0];
+function landingFor(sec) {
+  return sec.dataset.landing ? document.getElementById(sec.dataset.landing) : pagesOf(sec)[0];
 }
 
-function showSection(sec) {
+function pageFor(parts) {
+  var el = parts.id && document.getElementById(parts.id);
+  return (el && el.closest('.page')) || byRoute[parts.slug] || landingFor(docSections[0]);
+}
+
+function showPage(page) {
+  var sec = page.parentNode;
   docSections.forEach(function (s) { s.hidden = s !== sec; });
-  /* The rail is the only way to change section, so the router owns which row is
-     open. A row expanded over documents that are not in the layout is a lie. */
-  sections.forEach(function (n) { n.open = n.dataset.route === sec.dataset.slug; });
-  activeSec = sec;
+  docPages.forEach(function (p) { p.hidden = p !== page; });
+  /* The rail is the only way to change document, so the router owns which rows
+     are open. A row expanded over a page that is not in the layout is a lie. */
+  sections.forEach(function (n) { n.open = n.dataset.sec === sec.dataset.slug; });
+  groups.forEach(function (g) { g.open = g.dataset.route === page.dataset.route; });
+  activePage = page;
   /* A <c4-view> revealed from display:none has never had a box to fit itself
      into, and the webcomponent only refits on resize. */
   dispatchEvent(new Event('resize'));
 }
 
 /* The browser scrolls to a fragment before the router can reveal it, so a deep
-   link into a hidden section or record lands nowhere. Re-run the jump after. */
+   link into a hidden page lands nowhere. Re-run the jump once it is shown. */
 function navigate(jump) {
   var parts = routeParts();
-  showSection(sectionFor(parts));
-  var el = syncRoutes(parts.id);
+  var page = pageFor(parts);
+  showPage(page);
   tick();
   if (!jump) return;
+  var el = parts.id && document.getElementById(parts.id);
   if (!el) { scrollTo(0, 0); return; }
-  /* A link to a record scrolls to the record so its prev/next bar stays on
+  /* A link to a document scrolls to the page so its prev/next bar stays on
      screen. A link to a heading inside it still lands on that heading. */
-  var page = el.closest('.page');
-  var inRouted = page && page.parentNode.dataset.routed !== undefined;
-  (inRouted && el.classList.contains('doc-head') ? page : el).scrollIntoView();
+  (el.classList.contains('doc-head') ? page : el).scrollIntoView();
 }
 
-sections.forEach(function (n) {
-  n.querySelector('.nav-sec__head').addEventListener('click', function (e) {
-    /* preventDefault also stops <summary> toggling, which is the point: the
-       section on screen cannot be collapsed, because collapsing its row would
-       leave the reader no way back into the documents they are looking at. */
-    e.preventDefault();
-    if (innerWidth <= 960) setDrawer(false);
-    if (routeParts().slug !== n.dataset.route) location.hash = '#/' + n.dataset.route;
-  });
-});
+function goTo(route) {
+  if (innerWidth <= 960) setDrawer(false);
+  if (routeParts().slug !== route) location.hash = '#/' + route;
+}
 
+/* preventDefault also stops <summary> toggling, which is the point: the row for
+   the page on screen cannot be collapsed, because collapsing it would leave the
+   reader no way back into the document they are looking at. */
+function wireRow(row, head) {
+  row.querySelector(head).addEventListener('click', function (e) {
+    e.preventDefault();
+    goTo(row.dataset.route);
+  });
+}
+
+sections.forEach(function (n) { wireRow(n, '.nav-sec__head'); });
+groups.forEach(function (g) { if (g.dataset.route) wireRow(g, '.nav-group__head'); });
+
+/* Index pages first: the generated list reads each record's status out of its
+   text, and the search stashes that text. A bar prepended before either would
+   put "‹ ALL RECORDS 3 / 15 ‹ PREV NEXT ›" at the head of every record — inside
+   the 700 characters the status is looked for, and inside every search hit. */
 routed.forEach(equipSection);
+
+docSections.forEach(function (sec) {
+  /* An index is not part of its own walk: it is the thing prev/next comes back
+     to, so the records number 1..15 rather than the index numbering itself 1. */
+  var landing = sec.dataset.landing;
+  var walk = landing ? recordsOf(sec) : pagesOf(sec);
+  walk.forEach(function (p, i) { p.prepend(barEl(walk, i, landing || '')); });
+});
 addEventListener('hashchange', function () { navigate(true); });
 addEventListener('resize', tick);
 navigate(Boolean(location.hash));

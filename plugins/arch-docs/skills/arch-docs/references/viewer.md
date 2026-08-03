@@ -170,9 +170,17 @@ stretched to double its content for nothing. Three consequences worth stating:
   of the 18 tables in a real set overran the column and grew their own sideways
   scrollbar. `th` cannot be `nowrap`: a header that refuses to wrap sets a floor
   the cap cannot beat.
-- Three tables in that set (7–8 columns) still cannot fit and scroll inside
-  their card. That is the floor of the design, not a bug to chase — the
-  alternatives are wider prose for every document or restructuring the table.
+- Two tables in that set (7–8 columns) still cannot fit and scroll inside their
+  card. That is the floor of the design, not a bug to chase — the alternatives
+  are wider prose for every document or restructuring the table.
+- The measure is `min(96ch, calc(100vw - var(--rail-w) - 80px))`, not the classic
+  74ch: once every table and diagram had to live inside the column, 74ch (689px)
+  left 15 of 18 tables scrolling sideways. Widen this one value to trade reading
+  comfort for table room. There is no narrow-desktop breakpoint — the `calc`
+  gives up width to the rail before the cap ever binds.
+- Block links (index rows, search hits, page-bar chips) must be named against
+  `.main a`, which is (0,1,1) and beats a bare class. Otherwise each one grows
+  the prose underline meant for links inside a sentence.
 - A `<c4-view>` is fitted to its box **once**, when the element boots, and only
   refits on resize. The router reveals a section before the element is upgraded,
   so that first fit measures a box of zero and the view renders at its natural
@@ -186,27 +194,38 @@ itself carries `overflow-x: clip` on `body` — set there rather than on `html` 
 it propagates to the viewport without making `body` a clipping context, which
 would trap the `position: fixed` expanded diagram.
 
-### Section routes
+### Page routes
 
-Each section is its own page (`#/architecture`, `#/decision-records`), with one
-section in the layout at a time and its own reading progress on the top bar. A
-21-document scroll is not a page: the whole-set progress line barely moved while
-the reader worked through one document, and "Document 05" as the first thing
-under a section heading counts documents the reader cannot see (`counter-reset`
-moved onto `.doc-section`).
+**Every document is its own page** with its own route and its own reading
+progress on the top bar (`scripts/lib/doc-routes.mjs`). A 21-document scroll is
+not a page: the whole-set progress line barely moved while the reader worked
+through one document.
 
-Two hash forms, because every anchor the renderer writes is a bare element id
-and rewriting them all would be the same work twice:
+Route slugs come from the **source filename**, not the H1 — a title gets
+reworded, a filename is what every other document already links to. A section's
+index page takes the section slug instead, so `#/decision-records` lands on the
+list rather than on a file called `index`. Collisions get the same `-2` suffix
+the heading-id registry uses (`slug-registry.mjs`).
 
 | Hash | Meaning |
 |---|---|
-| `#/decision-records` | the section, at its top |
-| `#page-doc-adr-0004`, `#12-security` | an element — the router opens whichever section contains it |
+| `#/threat-model`, `#/0004-module-layout-vertical-slices-tenant-mixin` | that document |
+| `#/decision-records` | the section's index page |
+| `#page-doc-adr-0004`, `#12-security` | an element — the router opens whichever page contains it |
 
-The rail is the only way to change section, so its section heads route instead of
-toggling: `preventDefault` stops the `<summary>` toggle and the router owns which
-row is open. The section on screen cannot be collapsed, because collapsing its
-row would leave no way back into the documents being read.
+The second form is why nothing else had to change: every anchor the renderer
+already writes is a bare element id, and so is every rail link.
+
+`routeMap` is built once in `render.mjs` and passed to **both** `buildDoc` and
+`buildNav`, so the body and the rail cannot disagree about which slug opens which
+page. Both rail levels route on click: `preventDefault` stops the `<summary>`
+toggle and the router owns which rows are open. A row cannot be collapsed over
+the page on screen, because that would leave no way back into it.
+
+The `Document 07` eyebrow and its hairline are gone. Both existed to separate one
+document from the next in a single scroll, and a CSS counter cannot count pages
+that are not in the layout — it read `Document 01` on every one. Each page's bar
+carries `3 / 15` and prev/next across its section instead.
 
 ### Routed sections
 
@@ -219,8 +238,19 @@ The section holding the root architecture document never routes, or a 226-byte
 `docs/architecture/README.md` would win the landing slot and hide
 `ARCHITECTURE.md` behind a stub.
 
-Each record gets a bar with a back link, its position, and prev/next; the index
-gets a status roll-up and a search box. **The search is not a nicety.** Hiding
+A record's bar gains a link back to the index; the index gets a status roll-up
+and a search box.
+
+**The index does not trust the author's own list.** `docs/adr/README.md` in the
+EOS set indexes four records by filenames the repository never had — behind a
+routed section that hid the other eleven completely, with one working link on the
+page. So the index's links are resolved and counted against the records the
+section actually holds, and when they fall short the viewer appends a generated
+`Every record` list: position, title, status, one row each, all linked. When the
+author's index does link every record (`docs/adr/index.md` does) nothing is
+added.
+
+**The search is not a nicety either.** Hiding
 14 of 15 records puts them out of reach of the browser's own find, which is the
 reason §3 records full-text search as unshipped. The records stay in the DOM, so
 the index reads the same characters Ctrl+F would have — and can name the record

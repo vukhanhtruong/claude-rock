@@ -30,9 +30,11 @@ export function landingOf(bucket) {
   return bucket.pages.filter((p) => rank(p) >= 0).sort((a, b) => rank(a) - rank(b))[0];
 }
 
-function pageEl(page) {
+function pageEl(page, route) {
   const title = escapeHtml(stripTitle(page.title));
-  return `<section class="page" id="page-${page.docId}" data-title="${title}">\n${page.html}\n</section>`;
+  const at = route ? ` data-route="${route}"` : '';
+  return `<section class="page" id="page-${page.docId}"${at} data-title="${title}">`
+    + `\n${page.html}\n</section>`;
 }
 
 function stripTitle(title) {
@@ -46,15 +48,17 @@ export function slugOf(label) {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function sectionEl(bucket) {
+function sectionEl(bucket, routes) {
   const landing = landingOf(bucket);
   const routed = landing ? ` data-routed data-landing="page-${landing.docId}"` : '';
   const slug = slugOf(bucket.label);
+  const inner = bucket.pages.map((p) => pageEl(p, routes.get(p.docId))).join('\n');
   return `<div class="doc-section" id="sec-${slug}" data-slug="${slug}"`
-    + ` data-section="${escapeHtml(bucket.label)}"${routed}>`
-    + `${bucket.pages.map(pageEl).join('\n')}</div>`;
+    + ` data-section="${escapeHtml(bucket.label)}"${routed}>${inner}</div>`;
 }
 
-export function buildDoc(pages) {
-  return bucketPages(pages).map(sectionEl).join('\n');
+// routes default to empty so a caller that has not built them still renders a
+// readable document — it just has no addresses.
+export function buildDoc(pages, routes = new Map()) {
+  return bucketPages(pages).map((b) => sectionEl(b, routes)).join('\n');
 }

@@ -228,21 +228,26 @@ test('a tab hit area fits inside the bar that holds it', () => {
   assert.equal(reach, pad, 'a hit area larger than the padding overflows the bar');
 });
 
-/* ---------- section routes ---------- */
+/* ---------- page routes ---------- */
 
-// A 21-document scroll is not a page. Each section is its own page, addressed
-// by its own route, with its own progress — Architecture at #/architecture is
-// four documents, not four documents plus seventeen records below them.
-test('one section is in the layout at a time, addressed by its own route', () => {
-  assert.match(tpl, /\.doc-section\[hidden\] \{[^}]*display:\s*none/);
-  assert.match(tpl, /dataset\.slug/);
+// A 21-document scroll is not a page. Every document is its own page with its
+// own route and its own progress: #/threat-model is the threat model, not an
+// offset into a scroll that also holds twenty other documents.
+test('one page is in the layout at a time, addressed by its own route', () => {
+  assert.match(tpl, /\.page\[hidden\] \{[^}]*display:\s*none/);
+  assert.match(tpl, /querySelectorAll\('\.page\[data-route\]'\)/);
   assert.match(tpl, /'#\/'/);
 });
 
-test('a bare element id still resolves to the section that holds it', () => {
+test('a bare element id still resolves to the page that holds it', () => {
   // Every in-page anchor the renderer writes is a bare id, and so is every rail
   // link. Routing must not require rewriting them.
-  assert.match(tpl, /closest\('\.doc-section'\)/);
+  assert.match(tpl, /closest\('\.page'\)/);
+});
+
+test('the wider column is not the old prose measure', () => {
+  const width = Number(tpl.match(/--measure:\s*min\((\d+)ch/)[1]);
+  assert.ok(width >= 90, `${width}ch is still the narrow column`);
 });
 
 test('the top bar shows the progress of the open section, not of the whole set', () => {
@@ -263,16 +268,33 @@ test('the progress line sits on the top bar rather than above it', () => {
   assert.match(tpl, /#progress \{[^}]*top:\s*calc\(var\(--topbar-h\)/);
 });
 
-test('the document band counts from one inside each section', () => {
-  // Sections are pages now, so "Document 05" as the first thing on a page is a
-  // count of documents the reader cannot see.
-  assert.match(tpl, /\.doc-section \{[^}]*counter-reset:\s*doc/);
-  assert.match(tpl, /\.doc-section \.page:first-child \.doc-head \{/);
+// A CSS counter cannot count pages that are not in the layout: with one
+// document on screen the band read "Document 01" on every one of them. The bar
+// carries "2 / 5", which is the thing the number was standing in for.
+test('the document band is gone and the bar carries the position', () => {
+  assert.doesNotMatch(tpl, /counter-increment/);
+  assert.doesNotMatch(tpl, /counter\(doc/);
+  assert.match(tpl, /\.page-pos \{[^}]*tabular-nums/);
 });
 
-test('the rail routes to a section instead of toggling content off screen', () => {
+// `.main a` is (0,1,1) and beats a bare class, so a row, a hit and a chip all
+// grew the prose underline meant for links inside a sentence.
+test('block links are not underlined like words in a sentence', () => {
+  const rule = tpl.match(/\.main :is\([^)]*\.record-row[^)]*\) \{[^}]*\}/)[0];
+  assert.match(rule, /\.page-chip/);
+  assert.match(rule, /text-decoration:\s*none/);
+});
+
+test('every page gets a position and prev/next across its own section', () => {
+  assert.match(tpl, /page-bar/);
+  assert.match(tpl, /data-prev/);
+  assert.match(tpl, /data-next/);
+});
+
+test('the rail routes from both levels instead of only toggling', () => {
   assert.match(tpl, /data-route/);
   assert.match(tpl, /nav-sec__head'\)/);
+  assert.match(tpl, /nav-group__head'\)/);
 });
 
 /* ---------- view tabs ---------- */
@@ -311,9 +333,9 @@ test('an external reference is visually distinct from a live link', () => {
 
 /* ---------- routed sections ---------- */
 
-test('a routed section shows one page at a time', () => {
-  assert.match(tpl, /\.doc-section\[data-routed\] \.page\[hidden\] \{[^}]*display:\s*none/);
+test('a section with an index is browsed from it', () => {
   assert.match(tpl, /querySelectorAll\('\.doc-section\[data-routed\]'\)/);
+  assert.match(tpl, /dataset\.landing/);
 });
 
 test('the router reads and writes the hash so deep links survive', () => {
@@ -321,10 +343,17 @@ test('the router reads and writes the hash so deep links survive', () => {
   assert.match(tpl, /location\.hash/);
 });
 
-test('a routed record gets a back link and prev/next between siblings', () => {
-  assert.match(tpl, /record-bar/);
-  assert.match(tpl, /data-prev/);
-  assert.match(tpl, /data-next/);
+test('a record inside an indexed section also gets a link back to the index', () => {
+  assert.match(tpl, /data-back/);
+  assert.match(tpl, /'\u2039 All records'/);
+});
+
+// The author's own index is prose and goes stale. This set's docs/adr/README.md
+// lists four records by filenames the repository never had; behind a routed
+// section that hid the other eleven completely. So it is counted, not assumed.
+test('the index lists every record when the author list does not', () => {
+  assert.match(tpl, /record-list/);
+  assert.match(tpl, /linksAll/);
 });
 
 // Hiding 15 of 17 documents breaks Ctrl+F across them. The text is still in the
@@ -335,7 +364,7 @@ test('the index searches the bodies of the records it hides', () => {
 });
 
 test('a deep link into a hidden record opens it before scrolling', () => {
-  assert.match(tpl, /routeTo/);
+  assert.match(tpl, /showPage/);
   assert.match(tpl, /scrollIntoView|scrollTo/);
 });
 
@@ -354,8 +383,8 @@ test('the search box goes after the index prose, not between it and the title', 
 
 // The record bar sits above the record's title, so scrolling to the title
 // itself puts the bar off screen and the reader loses prev/next.
-test('landing on a record scrolls to the record, not past its bar', () => {
-  assert.match(tpl, /\.doc-section\[data-routed\] \.page \{[^}]*scroll-margin-top/);
+test('landing on a page scrolls to the page, not past its bar', () => {
+  assert.match(tpl, /\.page \{[^}]*scroll-margin-top/);
   assert.match(tpl, /classList\.contains\('doc-head'\)/);
 });
 

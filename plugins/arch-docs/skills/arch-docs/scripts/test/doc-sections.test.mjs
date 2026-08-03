@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bucketPages, landingOf, buildDoc, slugOf } from '../lib/doc-sections.mjs';
+import { routeMap } from '../lib/doc-routes.mjs';
 
 const page = (docId, section, path, html = '<h1>x</h1>') => ({ docId, section, path, html });
 const count = (html, re) => [...html.matchAll(re)].length;
@@ -127,4 +128,18 @@ test('a slug is reduced to what a url fragment can carry', () => {
 test('slugOf is exported so the rail names the same routes the document does', () => {
   assert.equal(slugOf('Decision Records'), 'decision-records');
   assert.equal(slugOf('R&D  Notes'), 'r-d-notes');
+});
+
+// Routes are per document now: the section is the grouping, the page is what
+// opens. The map comes from the caller so the nav and the body cannot disagree.
+test('every page carries the route that opens it', () => {
+  const pages = [page('a', 'Architecture', '/r/ARCHITECTURE.md')];
+  const html = buildDoc(pages, routeMap(pages));
+  assert.match(html, /<section class="page" id="page-a" data-route="architecture"/);
+});
+
+test('a page with no route in the map is still rendered', () => {
+  const html = buildDoc([page('a', 'Architecture', '/r/A.md')], new Map());
+  assert.match(html, /id="page-a"/);
+  assert.doesNotMatch(html, /data-route=/);
 });

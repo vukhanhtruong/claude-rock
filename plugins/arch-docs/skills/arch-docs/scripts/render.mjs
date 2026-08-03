@@ -4,6 +4,7 @@ import { renderMarkdown } from './lib/md-render.mjs';
 import { buildNav } from './lib/nav.mjs';
 import { rewriteDocLinks } from './lib/doc-links.mjs';
 import { buildDoc } from './lib/doc-sections.mjs';
+import { routeMap } from './lib/doc-routes.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
@@ -61,6 +62,7 @@ const pages = docPaths.map((p, i) => ({
 // been rendered: the id comes from the target's H1, not from its filename.
 const idByPath = new Map(pages.map((p) => [p.path, p.docId]));
 const linked = pages.map((p) => ({ ...p, html: rewriteDocLinks(p.html, p.path, idByPath) }));
+const routes = routeMap(linked);
 
 const templateUrl = new URL('../assets/viewer-template.html', import.meta.url);
 const template = readFileSync(templateUrl, 'utf8');
@@ -68,8 +70,8 @@ const html = embed({
   template,
   slots: {
     TITLE: docTitle(archMd),
-    NAV: buildNav(linked),
-    DOC: buildDoc(linked),
+    NAV: buildNav(linked, routes),
+    DOC: buildDoc(linked, routes),
     LIKEC4_BUNDLE: stripRemoteAssets(readFileSync(args['likec4-bundle'], 'utf8')),
     MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),
     THEME: readFileSync(args.theme, 'utf8'),

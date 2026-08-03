@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildNav } from '../lib/nav.mjs';
+import { routeMap } from '../lib/doc-routes.mjs';
 
 const page = (title, docId, headings, section) => ({ title, docId, headings, section });
 const h = (level, text, slug) => ({ level, text, slug });
@@ -160,4 +161,32 @@ test('a rail section names the route it opens', () => {
     { ...page('One', 'doc-1', [], 'Decision Records'), path: '/r/adr/0001.md' },
   ]);
   assert.match(nav, /class="nav-sec"[^>]*data-route="decision-records"/);
+});
+
+// The rail is the only way to change document, so every row has to name the
+// route it opens — the head is no longer just a toggle over headings.
+test('each document row names the route it opens', () => {
+  const pages = [
+    { ...page('One', 'doc-1', [], 'Architecture'), path: '/r/ARCHITECTURE.md' },
+    { ...page('Two', 'doc-2', [], 'Architecture'), path: '/r/docs/architecture/threat-model.md' },
+  ];
+  const nav = buildNav(pages, routeMap(pages));
+  assert.match(nav, /class="nav-group" data-route="architecture"/);
+  assert.match(nav, /class="nav-group" data-route="threat-model"/);
+});
+
+test('a section row routes to its index page when it has one', () => {
+  const pages = [
+    { ...page('ADR 1', 'doc-1', [], 'Decision Records'), path: '/r/adr/0001-a.md' },
+    { ...page('Records', 'doc-idx', [], 'Decision Records'), path: '/r/adr/index.md' },
+  ];
+  assert.match(buildNav(pages, routeMap(pages)), /class="nav-sec"[^>]*data-route="decision-records"/);
+});
+
+test('a section row routes to its first document when it has no index', () => {
+  const pages = [
+    { ...page('One', 'doc-1', [], 'Architecture'), path: '/r/ARCHITECTURE.md' },
+    { ...page('Two', 'doc-2', [], 'Architecture'), path: '/r/docs/architecture/threat-model.md' },
+  ];
+  assert.match(buildNav(pages, routeMap(pages)), /class="nav-sec"[^>]*data-route="architecture"/);
 });

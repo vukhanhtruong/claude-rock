@@ -14,6 +14,19 @@ A Claude Code plugin marketplace.
 /plugin install arch-docs@claude-rock
 ```
 
+### Install via npx (Claude Code + Codex)
+
+```
+npx agents-rock                                  # interactive picker
+npx agents-rock -p arch-docs -a codex            # install arch-docs for Codex
+npx agents-rock -p arch-docs -a claude -a codex  # both agents
+npx agents-rock uninstall -p arch-docs           # remove for all agents
+```
+
+Skills are copied to `.agents/skills/<skill>` in your project and symlinked
+from `.claude/skills/` (Claude Code) and/or `.codex/skills/` (Codex).
+Use `--force` to overwrite collisions.
+
 ## Plugins
 
 | Plugin | Description | Version |

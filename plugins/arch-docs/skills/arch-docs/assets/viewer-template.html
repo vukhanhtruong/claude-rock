@@ -690,6 +690,49 @@ c4-view { display: block; width: 100%; height: 460px; }
 .diagram-shell.is-c4:fullscreen c4-view,
 .diagram-shell.is-c4.is-expanded c4-view { height: 100%; }
 
+/* ---------- record drawer ---------- */
+
+/* §14 Decisions already tables every ADR, so a Decision Records rail section was
+   the same set a second time — and the reader was looking at §14 when they
+   clicked, so replacing the page threw away the row they came from. A record opens
+   over it instead, and closing puts them back exactly where they were with no
+   scroll to re-find. */
+#drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 120;
+  display: flex; flex-direction: column;
+  width: min(720px, 100%); background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -24px 0 60px -20px rgba(0, 0, 0, .35);
+  transform: translateX(100%); transition: transform .26s cubic-bezier(.2, 0, 0, 1);
+  /* Not display:none when shut: a panel that pops in has no direction, and the
+     slide is what says "this is over the page, not instead of it". */
+  visibility: hidden;
+}
+#drawer.is-open { transform: translateX(0); visibility: visible; }
+.drawer-scrim {
+  position: fixed; inset: 0; z-index: 110; background: rgba(12, 18, 17, .38);
+  opacity: 0; pointer-events: none; transition: opacity .26s;
+}
+.drawer-scrim.is-open { opacity: 1; pointer-events: auto; }
+.drawer__bar {
+  display: flex; align-items: center; gap: 12px; flex: none;
+  height: var(--topbar-h); padding: 0 12px 0 22px;
+  border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.drawer__label {
+  margin-right: auto; font-family: var(--font-mono); font-size: 10.5px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: .13em;
+  color: var(--text-dim);
+}
+.drawer__body { flex: 1; overflow-y: auto; padding: 30px 34px 60px; }
+/* The record is the whole panel, so it drops the page's own measure: 720px of
+   drawer capped at 96ch would leave the text in a column of its own inside it. */
+.drawer__body .page { max-width: none; }
+.drawer__body .doc-head { margin-top: 0; }
+@media (max-width: 760px) {
+  .drawer__body { padding: 22px 20px 48px; }
+}
+
 /* ---------- responsive ---------- */
 /* No narrow-desktop breakpoint: --measure's own calc already gives up width to
    the rail before the 96ch cap ever binds. */
@@ -782,6 +825,19 @@ document.getElementById('rail-title').textContent = document.title;
 <main class="main">
   <article class="doc"><!-- slot:DOC --></article>
 </main>
+
+<div class="drawer-scrim" id="drawer-scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"
+       aria-hidden="true">
+  <header class="drawer__bar">
+    <span class="drawer__label" id="drawer-title">Decision record</span>
+    <button class="icon-btn" id="drawer-close" type="button" aria-label="Close record" title="Close">
+      <svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9"/></svg>
+    </button>
+  </header>
+  <div class="drawer__body" id="drawer-body"></div>
+</aside>
 
 <script type="module"><!-- slot:LIKEC4_BUNDLE --></script>
 
@@ -1249,15 +1305,39 @@ function landingFor(sec) {
   return sec.dataset.landing ? document.getElementById(sec.dataset.landing) : pagesOf(sec)[0];
 }
 
+/* A record is not a page of the document — it opens over whichever page referenced
+   it (§14 Decisions, in practice) and closing puts the reader back on the row they
+   clicked. So its section never becomes the layout, and the page router has to
+   leave its pages alone: hiding one would open an empty drawer. */
+var drawerSections = docSections.filter(function (s) { return 'drawer' in s.dataset; });
+var pageSections = docSections.filter(function (s) { return !('drawer' in s.dataset); });
+var recordHome = new Map();
+drawerSections.forEach(function (sec) {
+  pagesOf(sec).forEach(function (p) { recordHome.set(p, sec); });
+});
+var isRecord = function (page) { return recordHome.has(page); };
+
 function pageFor(parts) {
   var el = parts.id && document.getElementById(parts.id);
-  return (el && el.closest('.page')) || byRoute[parts.slug] || landingFor(docSections[0]);
+  var owner = el && el.closest('.page');
+  if (owner && !isRecord(owner)) return owner;
+  var routed = byRoute[parts.slug];
+  if (routed && !isRecord(routed)) return routed;
+  return activePage || landingFor(pageSections[0]);
+}
+
+function recordFor(parts) {
+  var el = parts.id && document.getElementById(parts.id);
+  var owner = el && el.closest('.page');
+  if (owner && isRecord(owner)) return owner;
+  var routed = byRoute[parts.slug];
+  return routed && isRecord(routed) ? routed : null;
 }
 
 function showPage(page) {
   var sec = page.parentNode;
   docSections.forEach(function (s) { s.hidden = s !== sec; });
-  docPages.forEach(function (p) { p.hidden = p !== page; });
+  docPages.forEach(function (p) { if (!isRecord(p)) p.hidden = p !== page; });
   /* The rail is the only way to change document, so the router owns which rows
      are open. A row expanded over a page that is not in the layout is a lie. */
   sections.forEach(function (n) { n.open = n.dataset.sec === sec.dataset.slug; });
@@ -1269,13 +1349,59 @@ function showPage(page) {
   if (window.pinEdgeChips) setTimeout(window.pinEdgeChips, 300);
 }
 
+var drawerEl = document.getElementById('drawer');
+var drawerScrim = document.getElementById('drawer-scrim');
+var drawerBody = document.getElementById('drawer-body');
+var drawerTitle = document.getElementById('drawer-title');
+var openRecord = null;
+
+/* Moved, not cloned. A clone duplicates every heading id inside the record, and
+   from then on getElementById resolves to whichever copy comes first in the
+   document — so half the anchors in the drawer would scroll the page behind it. */
+function openDrawer(page) {
+  if (openRecord === page) return;
+  closeDrawer();
+  page.hidden = false;
+  drawerBody.appendChild(page);
+  drawerBody.scrollTop = 0;
+  drawerTitle.textContent = page.dataset.title || 'Decision record';
+  drawerEl.classList.add('is-open');
+  drawerEl.setAttribute('aria-hidden', 'false');
+  drawerScrim.classList.add('is-open');
+  openRecord = page;
+}
+
+function closeDrawer() {
+  drawerEl.classList.remove('is-open');
+  drawerEl.setAttribute('aria-hidden', 'true');
+  drawerScrim.classList.remove('is-open');
+  if (!openRecord) return;
+  openRecord.hidden = true;
+  recordHome.get(openRecord).appendChild(openRecord);
+  openRecord = null;
+}
+
+/* Closing goes through the hash, so the panel and the address never disagree:
+   Escape, the scrim and the × all land on the page's own route, and Back does the
+   same thing by the ordinary route. */
+function leaveRecord() {
+  var route = activePage && activePage.dataset.route;
+  closeDrawer();
+  if (route) location.hash = '#/' + route;
+}
+
 /* The browser scrolls to a fragment before the router can reveal it, so a deep
    link into a hidden page lands nowhere. Re-run the jump once it is shown. */
 function navigate(jump) {
   var parts = routeParts();
+  var record = recordFor(parts);
   var page = pageFor(parts);
   showPage(page);
   tick();
+  /* Order matters: the host page has to be in the layout before the record goes
+     over it, or a cold load at #/0002 opens the drawer onto nothing. */
+  if (record) { openDrawer(record); return; }
+  closeDrawer();
   if (!jump) return;
   var el = parts.id && document.getElementById(parts.id);
   if (!el) { scrollTo(0, 0); return; }
@@ -1315,6 +1441,28 @@ docSections.forEach(function (sec) {
   var walk = landing ? recordsOf(sec) : pagesOf(sec);
   walk.forEach(function (p, i) { p.prepend(barEl(walk, i, landing || '')); });
 });
+document.getElementById('drawer-close').addEventListener('click', leaveRecord);
+drawerScrim.addEventListener('click', leaveRecord);
+addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && openRecord) leaveRecord();
+});
+
+/* A link to a record could be left to the id form — the router resolves it either
+   way — but then the address bar says #doc-adr-0002-multi-tenancy while the panel
+   says ADR 0002, and neither is the route somebody would paste. Listening on
+   document rather than .doc because an open record is no longer inside it, and one
+   record links to another. */
+addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!a) return;
+  var el = document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+  var page = el && el.closest('.page');
+  if (!page || !isRecord(page)) return;
+  e.preventDefault();
+  if (routeParts().slug === page.dataset.route) openDrawer(page);
+  else location.hash = '#/' + page.dataset.route;
+});
+
 addEventListener('hashchange', function () { navigate(true); });
 addEventListener('resize', tick);
 navigate(Boolean(location.hash));

@@ -190,3 +190,25 @@ test('a section row routes to its first document when it has no index', () => {
   ];
   assert.match(buildNav(pages, routeMap(pages)), /class="nav-sec"[^>]*data-route="architecture"/);
 });
+
+/* ---------- drawer sections ---------- */
+
+// A Decision Records rail row is §14's table a second time. The records open in a
+// drawer over the page the reader was already on, so the rail does not list them
+// at all — leaving the row would keep exactly the redundancy the drawer removes.
+const rec = (t, id) => ({ ...page(t, id, [h(2, 'Decision', 'd')], 'Decision Records'), drawer: true });
+
+test('a drawer section is left out of the rail entirely', () => {
+  const nav = buildNav([
+    page('Architecture', 'doc-architecture', [h(2, 'Goals', 'goals')], 'Architecture'),
+    rec('ADR 0001', 'doc-adr-1'),
+    rec('ADR 0002', 'doc-adr-2'),
+  ]);
+  assert.equal(count(nav, /class="nav-sec"/g), 1);
+  assert.doesNotMatch(nav, /Decision Records/);
+  assert.doesNotMatch(nav, /doc-adr-1/);
+});
+
+test('a rail of nothing but drawer sections is empty rather than broken', () => {
+  assert.equal(buildNav([rec('ADR 0001', 'doc-adr-1')]).trim(), '');
+});

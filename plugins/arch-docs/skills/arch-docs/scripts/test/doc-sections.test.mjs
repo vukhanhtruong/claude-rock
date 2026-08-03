@@ -143,3 +143,36 @@ test('a page with no route in the map is still rendered', () => {
   assert.match(html, /id="page-a"/);
   assert.doesNotMatch(html, /data-route=/);
 });
+
+/* ---------- drawer sections ---------- */
+
+// §14 Decisions already tables every ADR, so a Decision Records rail section is
+// the same set a second time — and the one the reader did not ask for, since they
+// were looking at §14 when they clicked. The records stay in the document (a
+// drawer needs something to show) but the section is marked so the router opens
+// them over the page instead of replacing it.
+const rec = (id, n) => ({ ...page(id, 'Decision Records', `/r/docs/adr/${n}.md`), drawer: true });
+
+test('a section of drawer pages is marked as one', () => {
+  const html = buildDoc([
+    page('a', 'Architecture', '/r/ARCHITECTURE.md'),
+    rec('r1', '0001'), rec('r2', '0002'),
+  ]);
+  assert.match(html, /<div class="doc-section"[^>]*data-drawer/);
+  // One section is a drawer, the other is not — the flag is per section, not global.
+  assert.equal(count(html, /data-drawer/g), 1);
+});
+
+test('a section with no drawer pages is not marked', () => {
+  const html = buildDoc([page('a', 'Architecture', '/r/ARCHITECTURE.md')]);
+  assert.doesNotMatch(html, /data-drawer/);
+});
+
+// The records still need addresses: a drawer without a route cannot be linked to
+// or reloaded into view, which is the whole reason to keep the hash in step.
+test('drawer pages keep their routes', () => {
+  const pages = [page('a', 'Architecture', '/r/ARCHITECTURE.md'), rec('r1', '0001')];
+  const routes = routeMap(pages);
+  const html = buildDoc(pages, routes);
+  assert.match(html, /id="page-r1"[^>]*data-route="0001"/);
+});

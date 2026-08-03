@@ -46,6 +46,13 @@ function sectionOf(path, index) {
   return dir.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
+// A record is read *because* of the row that referenced it, so it opens over that
+// row rather than replacing the page — §14 already tables every ADR, and a rail
+// section for them is that table a second time.
+function drawerOf(path, index) {
+  return index > 0 && DECISIONS.test(basename(dirname(path)).toLowerCase());
+}
+
 const args = parseArgs(process.argv.slice(2));
 const archMd = readFileSync(args.arch, 'utf8');
 const docPaths = [args.arch, ...args.docs];
@@ -56,6 +63,7 @@ const pages = docPaths.map((p, i) => ({
   section: sectionOf(p, i),
   path: resolve(p),
   spine: i === 0,
+  drawer: drawerOf(p, i),
 }));
 
 // Second pass, because a link's target id is only known once every document has

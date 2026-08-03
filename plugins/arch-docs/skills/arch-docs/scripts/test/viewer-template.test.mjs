@@ -569,3 +569,79 @@ test('landing on a page scrolls to the page, not past its bar', () => {
 test('the status total reads an inline Status label as well as a heading', () => {
   assert.match(tpl, /Status:\\s\*\(\[A-Za-z\]\+\)|Status:\\s\*/);
 });
+
+/* ---------- record drawer ---------- */
+
+// §14 Decisions tables every ADR, so a Decision Records rail section was the same
+// set a second time. A record now opens over the page that referenced it — the
+// reader keeps the row they clicked from in view behind the panel.
+test('the drawer exists as chrome, with a scrim and a close control', () => {
+  assert.match(tpl, /id="drawer"/);
+  assert.match(tpl, /id="drawer-scrim"/);
+  assert.match(tpl, /id="drawer-close"/);
+  assert.match(tpl, /aria-label="Close record"/);
+  // A dialog, not a div: the role is what tells a screen reader the page behind it
+  // is not the thing to read.
+  assert.match(tpl, /id="drawer"[^>]*role="dialog"/);
+  assert.match(tpl, /id="drawer"[^>]*aria-modal="true"/);
+});
+
+test('the drawer slides rather than appearing, and is off-screen when shut', () => {
+  const rule = tpl.match(/\n#drawer \{[^}]*\}/)[0];
+  assert.match(rule, /position:\s*fixed/);
+  assert.match(rule, /transform:\s*translateX\(100%\)/);
+  assert.match(rule, /transition:[^;]*transform/);
+  assert.match(tpl, /#drawer\.is-open \{[^}]*translateX\(0\)/);
+});
+
+// The record moves into the drawer rather than being cloned: a clone duplicates
+// every heading id in it, and the first getElementById after that resolves to the
+// copy nobody can see.
+test('the record is moved into the drawer and put back on close', () => {
+  const fn = tpl.match(/function openDrawer[\s\S]*?\n\}/)[0];
+  assert.match(fn, /appendChild\(page\)/);
+  assert.doesNotMatch(fn, /cloneNode/);
+  const close = tpl.match(/function closeDrawer[\s\S]*?\n\}/)[0];
+  assert.match(close, /appendChild/, 'the record has to go back where it came from');
+});
+
+// The hash is the point: a drawer nobody can link to cannot be pasted to a
+// colleague or survive a reload.
+test('opening a record puts its own route in the hash', () => {
+  // Every anchor the renderer writes is a bare element id, and the router resolves
+  // either form — but left alone the address bar would read
+  // #doc-adr-0002-multi-tenancy while the panel says ADR 0002, and neither is the
+  // route somebody would paste.
+  assert.match(tpl, /location\.hash = '#\/' \+ page\.dataset\.route/);
+  const nav = tpl.match(/function navigate\([\s\S]*?\n\}/)[0];
+  assert.match(nav, /openDrawer/);
+  assert.match(nav, /closeDrawer/);
+  // The host page has to be in the layout before the record goes over it, or a
+  // cold load at #/0002 opens the drawer onto nothing.
+  assert.ok(nav.indexOf('showPage(page)') < nav.indexOf('openDrawer('),
+    'the record must open after its host page is shown');
+});
+
+// Escape and Back are the two ways every drawer on the web closes; a panel that
+// traps the reader is worse than no panel.
+test('escape, the scrim and the close button all leave by the same path', () => {
+  assert.match(tpl, /key === 'Escape' && openRecord\) leaveRecord\(\)/);
+  assert.match(tpl, /drawerScrim\.addEventListener\('click', leaveRecord\)/);
+  assert.match(tpl, /'drawer-close'\)\.addEventListener\('click', leaveRecord\)/);
+  // Closing goes through the hash, so Back does the same thing by the ordinary
+  // route and the panel can never disagree with the address bar.
+  const leave = tpl.match(/function leaveRecord[\s\S]*?\n\}/)[0];
+  assert.match(leave, /closeDrawer\(\)/);
+  assert.match(leave, /location\.hash/);
+  assert.match(tpl, /hashchange/);
+});
+
+// A record left hidden by the page router would open into an empty drawer.
+test('the page router leaves record pages alone', () => {
+  const show = tpl.match(/function showPage\([\s\S]*?\n\}/)[0];
+  assert.match(show, /if \(!isRecord\(p\)\) p\.hidden/,
+    'hiding a record that is in the drawer opens an empty drawer');
+  // A record belongs to the section it came from, which is how it gets put back.
+  assert.match(tpl, /recordHome\.set\(p, sec\)/);
+  assert.match(tpl, /recordHome\.get\(openRecord\)\.appendChild/);
+});

@@ -1,5 +1,5 @@
 import { escapeHtml, stripInline } from './md-inline.mjs';
-import { bucketPages, landingOf, slugOf } from './doc-sections.mjs';
+import { bucketPages, isDrawerBucket, landingOf, slugOf } from './doc-sections.mjs';
 
 // The rail is two levels deep. One <details> per source document keeps the ~120
 // headings of a real set from reading as a wall of near-duplicate labels
@@ -57,6 +57,12 @@ function section(bucket, index, routes) {
   ].join('');
 }
 
+// Drawer sections are left out rather than rendered and hidden: a record opens over
+// the page the reader was already on, so a rail row for it is §14's table a second
+// time — the redundancy the drawer exists to remove.
 export function buildNav(pages, routes = new Map()) {
-  return bucketPages(pages).map((b, i) => section(b, i, routes)).join('\n');
+  return bucketPages(pages)
+    .filter((b) => !isDrawerBucket(b))
+    .map((b, i) => section(b, i, routes))
+    .join('\n');
 }

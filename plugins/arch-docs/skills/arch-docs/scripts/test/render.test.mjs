@@ -26,10 +26,15 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /\/\*mermaid\*\//);
   assert.doesNotMatch(html, /url\(https?:/);
   assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
-  // ARCHITECTURE.md heads its own section; anything under docs/adr/ buckets
-  // into one collapsed Decision Records block instead of padding the rail.
+  // ARCHITECTURE.md heads its own section. Anything under docs/adr/ is a record:
+  // §14 Decisions already tables every one of them, so it opens in a drawer over
+  // that table and gets no rail row of its own.
   assert.match(html, /nav-sec__title[^>]*>Architecture</);
-  assert.match(html, /nav-sec__title[^>]*>Decision Records</);
+  assert.doesNotMatch(html, /nav-sec__title[^>]*>Decision Records</);
+  // Still in the document, though — a drawer needs something to show, and the
+  // route is what makes it linkable.
+  assert.match(html, /<div class="doc-section"[^>]*data-drawer/);
+  assert.match(html, /class="page"[^>]*data-route="0001-sample"/);
 });
 
 test('render.mjs fails loudly on a missing bundle', () => {

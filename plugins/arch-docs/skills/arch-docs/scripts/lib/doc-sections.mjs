@@ -48,13 +48,23 @@ export function slugOf(label) {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+// §14 Decisions already tables every ADR, so a Decision Records rail section is
+// the same set a second time — and the copy the reader did not ask for, since they
+// were looking at §14 when they clicked. The records stay in the document, because
+// a drawer needs something to show, but the section is marked so the router opens
+// them over the page instead of replacing it.
+export function isDrawerBucket(bucket) {
+  return bucket.pages.every((p) => p.drawer);
+}
+
 function sectionEl(bucket, routes) {
   const landing = landingOf(bucket);
   const routed = landing ? ` data-routed data-landing="page-${landing.docId}"` : '';
   const slug = slugOf(bucket.label);
+  const drawer = isDrawerBucket(bucket) ? ' data-drawer' : '';
   const inner = bucket.pages.map((p) => pageEl(p, routes.get(p.docId))).join('\n');
   return `<div class="doc-section" id="sec-${slug}" data-slug="${slug}"`
-    + ` data-section="${escapeHtml(bucket.label)}"${routed}>${inner}</div>`;
+    + ` data-section="${escapeHtml(bucket.label)}"${routed}${drawer}>${inner}</div>`;
 }
 
 // routes default to empty so a caller that has not built them still renders a

@@ -330,7 +330,7 @@ the heading-id registry uses (`slug-registry.mjs`).
 | Hash | Meaning |
 |---|---|
 | `#/threat-model`, `#/0004-module-layout-vertical-slices-tenant-mixin` | that document |
-| `#/decision-records` | the section's index page |
+| `#/decision-records` | the section's index page — a drawer section, so it opens in the drawer |
 | `#page-doc-adr-0004`, `#12-security` | an element — the router opens whichever page contains it |
 
 The second form is why nothing else had to change: every anchor the renderer
@@ -360,6 +360,38 @@ The section holding the root architecture document never routes, or a 226-byte
 
 A record's bar gains a link back to the index; the index gets a status roll-up
 and a search box.
+
+**A decision record opens in a drawer, not as a page, and has no rail row.**
+§14 Decisions already tables every ADR, so a Decision Records section in the rail
+was the same set a second time — and the copy nobody asked for, since the reader
+was looking at §14 when they clicked. Replacing the page also threw away the row
+they came from. `render.mjs` marks anything under `adr/`, `decisions/` or `rfc/`
+as `drawer: true`; `buildNav` drops those buckets entirely, `buildDoc` marks the
+section `data-drawer`, and `routeMap` still gives every record its route.
+
+| what | behaviour |
+|---|---|
+| clicking a §14 row | hash becomes `#/0002-multi-tenancy-shared-db-rls`, drawer slides over the page |
+| Escape / scrim / × | all call `leaveRecord()`, which closes **and** sets the hash back to the host page's route |
+| Back | ordinary hash navigation — the drawer state is entirely a function of the hash |
+| a cold `#/0002-…` | host page is shown *first*, then the record goes over it |
+| prev/next inside the drawer | walks the records without leaving the drawer |
+| `‹ All records` | opens the index in the drawer, whose 15 links each swap the record in place |
+
+Three things that are easy to get wrong:
+
+- **The record is moved, not cloned.** A clone duplicates every heading id in it,
+  and from then on `getElementById` resolves to whichever copy comes first — so
+  half the anchors in the drawer scroll the page behind it. `recordHome` remembers
+  which section each record came from so it can be put back.
+- **`showPage` has to skip records** (`if (!isRecord(p)) p.hidden = …`). It hides
+  every page but the active one, which would hide the record currently sitting in
+  the drawer and open it onto nothing.
+- **Record links are intercepted** so the hash is the route rather than the id.
+  The router resolves either form, but left alone the address bar reads
+  `#doc-adr-0002-multi-tenancy` while the panel says ADR 0002, and neither is what
+  somebody would paste. The listener is on `document`, not `.doc`, because an open
+  record is no longer inside `.doc` and one record links to another.
 
 **The index does not trust the author's own list.** `docs/adr/README.md` in the
 EOS set indexes four records by filenames the repository never had — behind a

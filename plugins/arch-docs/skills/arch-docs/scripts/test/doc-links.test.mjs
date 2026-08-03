@@ -65,3 +65,40 @@ test('a document with no links is returned unchanged', () => {
   const src = '<p>no links here</p>';
   assert.equal(rewriteDocLinks(src, '/repo/ARCHITECTURE.md', ids), src);
 });
+
+// The rule is "any relative path", not a list of extensions. A .c4 model, a
+// directory, a .py module — none of them can ever be a document in the set, so
+// all of them are dead as links and all of them read better as text.
+test('a link to a non-markdown source file is unwrapped', () => {
+  const html = rewriteDocLinks(
+    '<p><a href="docs/architecture/model/eos.c4">eos.c4</a></p>', '/repo/ARCHITECTURE.md', ids,
+  );
+  assert.doesNotMatch(html, /<a /);
+  assert.match(html, /class="ext-ref" title="docs\/architecture\/model\/eos\.c4">eos\.c4<\/span>/);
+});
+
+test('a link to a directory is unwrapped', () => {
+  const html = rewriteDocLinks(
+    '<p><a href="../mockup/">mockups</a></p>', '/repo/docs/adr/index.md', ids,
+  );
+  assert.match(html, /class="ext-ref" title="\.\.\/mockup\/">mockups<\/span>/);
+});
+
+test('an unwrapped reference keeps its fragment in the title', () => {
+  const html = rewriteDocLinks(
+    '<p><a href="docs/PRD.md#s10">PRD §10</a></p>', '/repo/ARCHITECTURE.md', ids,
+  );
+  assert.match(html, /title="docs\/PRD\.md#s10"/);
+});
+
+test('a protocol-relative url is not mistaken for a path', () => {
+  const src = '<p><a href="//cdn.example.com/x">cdn</a></p>';
+  assert.equal(rewriteDocLinks(src, '/repo/ARCHITECTURE.md', ids), src);
+});
+
+test('a root-absolute path is unwrapped: a single file has no site root', () => {
+  const html = rewriteDocLinks(
+    '<p><a href="/docs/guide">guide</a></p>', '/repo/ARCHITECTURE.md', ids,
+  );
+  assert.match(html, /class="ext-ref"/);
+});

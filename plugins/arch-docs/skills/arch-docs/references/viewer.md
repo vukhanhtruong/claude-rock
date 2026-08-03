@@ -72,16 +72,27 @@ Four steps, in order — each feeds the next:
    (`docs/adr/` → Decision Records), so passing ADRs interleaved with
    companions splits them into repeated sections.
 
-   **Links between documents are rewritten** (`scripts/lib/doc-links.mjs`) in a
-   second pass, because a link's target id comes from the target's H1 and is only
-   known once every document has been rendered. A `.md` href resolving to a
-   document in the set becomes an in-page anchor; one resolving outside it is
-   unwrapped to a `.ext-ref` span. Both matter: the viewer is a single file, so
-   an untouched `.md` href is dead, and in a real set there are dozens of them.
-   Fragments on document links are dropped rather than resolved — heading slugs
-   are deduped across the whole set, so `#context` inside one ADR may have been
-   minted as `context-7`. Only `.md` is rewritten; a link to a `.c4` or other
-   source file is still dead.
+   **Links are rewritten** (`scripts/lib/doc-links.mjs`) in a second pass, because
+   a link's target id comes from the target's H1 and is only known once every
+   document has been rendered. The viewer is a single file, so every relative
+   href in it is dead on arrival — a real set has dozens.
+
+   | Href | Becomes |
+   |---|---|
+   | relative path resolving to a document in the set | in-page anchor, fragment dropped |
+   | any other relative path — `.c4`, a directory, `/site/root` | `.ext-ref` span, path kept in `title` |
+   | `#anchor` | untouched |
+   | `https:`, `mailto:`, `//host` | untouched |
+
+   The test is "is this a relative path", not a list of extensions: a `.c4` model
+   or a `docs/` directory can never be a document in the set, so it is exactly as
+   dead as an unresolved `.md` and reads better as text. Fragments on document
+   links are dropped rather than resolved — heading slugs are deduped across the
+   whole set, so `#context` inside one ADR may have been minted as `context-7`.
+
+   Unwrapping is also a cheap link check: anything that comes out as `.ext-ref`
+   either lives outside the set or does not exist. In the EOS set it surfaced
+   three ADRs that `docs/adr/README.md` indexes but the repository never had.
 
 4. **Serve it.**
    `node scripts/serve.mjs viewer/` — a tiny static file server, no build

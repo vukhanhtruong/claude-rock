@@ -50,8 +50,8 @@ skill does not know: arch-docs' own naming and structure conventions.
   diagram beside it — is teal. Left alone, the two diagram systems on one page
   read as two different products. The hexes are **not** free choice: they come
   from `assets/mermaid-theme.json`'s `likec4` block, which is the single palette
-  both renderers are cut from — `brand` is the hex mermaid draws
-  `primaryBorderColor` with, `muted` is `secondaryBorderColor`.
+  both renderers are cut from — `brand` is the hex mermaid draws `primaryColor`
+  with, `muted` is `secondaryColor`.
 
   ```
   specification {
@@ -71,6 +71,13 @@ skill does not know: arch-docs' own naming and structure conventions.
   contrast shades, the relationship line and label colours, **and the entire
   dark rendering** from that single value (`#0f766e` → stroke `#00524b`,
   hiContrast `#c7ffff`). There is no light/dark pair to specify.
+
+  The derivations mermaid has to copy are recorded under `likec4.light` and
+  `likec4.dark` — compound group fill/stroke/title and the relation label chip,
+  each sampled pixel-for-pixel off a real render in that mode, because LikeC4
+  publishes no table of them. Change `brand` and those samples are stale: re-run
+  `gen webcomponent`, screenshot both modes, and re-measure
+  (`viewer.md` §2 lists the mermaid variables they feed).
 
   **This bakes in at generate time**, not at view time. A viewer-side CSS
   override does not work: `--likec4-palette-fill` set on `c4-view` reaches the

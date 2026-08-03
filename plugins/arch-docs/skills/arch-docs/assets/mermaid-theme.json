@@ -7,13 +7,24 @@
     "mutedStroke": "#263447",
     "mutedText": "#e8f7ff",
     "relationLine": "#8d8d8d",
-    "relationLabelBg": "#18191b",
-    "relationLabel": "#c9c9c9"
+    "light": {
+      "canvas": "#ffffff",
+      "groupFill": "#dae8e7",
+      "groupStroke": "#719591",
+      "groupText": "#19524e",
+      "relationLabelBg": "#69696b"
+    },
+    "dark": {
+      "canvas": "#121a19",
+      "groupFill": "#102523",
+      "groupStroke": "#0c342f",
+      "groupText": "#93cbc5",
+      "relationLabelBg": "#16181a"
+    }
   },
   "themeVariables": {
     "fontFamily": "'IBM Plex Sans', system-ui, sans-serif",
     "fontSize": "16px",
-    "textColor": "#1c1b18",
     "primaryColor": "#0f766e",
     "primaryBorderColor": "#00524b",
     "primaryTextColor": "#c7ffff",
@@ -21,15 +32,23 @@
     "secondaryBorderColor": "#263447",
     "secondaryTextColor": "#e8f7ff",
     "tertiaryColor": "#18191b",
-    "tertiaryBorderColor": "#263447",
-    "tertiaryTextColor": "#c9c9c9",
     "lineColor": "#8d8d8d",
-    "edgeLabelBackground": "#18191b",
     "noteBkgColor": "#0f766e",
     "noteBorderColor": "#00524b",
     "noteTextColor": "#c7ffff"
   },
+  "light": {
+    "textColor": "#1c1b18",
+    "clusterBkg": "#dae8e7",
+    "clusterBorder": "#719591",
+    "titleColor": "#19524e",
+    "edgeLabelBackground": "#69696b"
+  },
   "dark": {
-    "textColor": "#e9e7e1"
+    "textColor": "#e9e7e1",
+    "clusterBkg": "#102523",
+    "clusterBorder": "#0c342f",
+    "titleColor": "#93cbc5",
+    "edgeLabelBackground": "#16181a"
   }
 }

@@ -740,15 +740,18 @@ function isDark() {
 /* Mermaid bakes colours into the SVG at render time, so the palette has to be
    chosen before rendering and the diagrams re-rendered whenever it changes.
 
-   Merged over the shared palette, not swapped for it. Almost nothing differs by
-   mode: the element fills are solid and carry their own text colour, which is
-   what makes them legible either way — and it is what LikeC4 does, whose node
-   fill samples as the same hex in light and dark with only the canvas flipping.
-   `dark` therefore holds the few genuine deltas, and a shared value cannot be
-   updated in one mode and forgotten in the other. */
+   Merged over the shared palette, not swapped for it. `themeVariables` holds the
+   elements: solid fills carrying their own text colour, which is what makes them
+   legible either way — and it is what LikeC4 does, whose node fill samples as the
+   same hex in light and dark with only the canvas flipping. `light` and `dark`
+   hold the chrome that sits against that canvas and therefore has to flip with
+   it: subgraph panels, edge-label chips, prose ink. Both blocks state the same
+   keys, so a palette edit cannot land in one mode and leave a stale hex in the
+   other — which is exactly how a cream page ended up with black boundary
+   panels. */
 function initMermaid() {
   var t = window.ARCH_DOCS_THEME;
-  var vars = Object.assign({}, t.themeVariables, isDark() ? t.dark : {});
+  var vars = Object.assign({}, t.themeVariables, isDark() ? t.dark : t.light);
   mermaid.initialize({ theme: 'base', themeVariables: vars, layout: 'elk' });
 }
 /* LikeC4 renders its own SVG in a shadow root and takes light/dark from a

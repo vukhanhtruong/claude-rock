@@ -171,19 +171,57 @@ test('mermaid fills match the exact hexes LikeC4 derives from the same brand', (
 // light AND dark — only the canvas behind it flips.
 test('the element palette does not change between light and dark', () => {
   for (const key of ['primaryColor', 'primaryBorderColor', 'primaryTextColor',
-    'secondaryColor', 'lineColor', 'edgeLabelBackground']) {
+    'secondaryColor', 'lineColor']) {
     assert.equal(theme.dark[key], undefined, `${key} must not be re-stated per mode`);
+    assert.equal(theme.light[key], undefined, `${key} must not be re-stated per mode`);
   }
-  assert.ok(theme.dark.textColor, 'text outside a box does still flip');
-  assert.notEqual(theme.dark.textColor, theme.themeVariables.textColor);
 });
 
-// Merged, not swapped: `dark` holds only what genuinely differs, so a shared
-// value cannot be updated in one mode and forgotten in the other.
-test('the dark palette is merged over the shared one', () => {
+// Merged, not swapped: the mode block holds only what genuinely differs, so a
+// shared value cannot be updated in one mode and forgotten in the other.
+test('the mode palette is merged over the shared one', () => {
   assert.match(tpl, /Object\.assign\(\{\}, t\.themeVariables/);
+  assert.match(tpl, /isDark\(\) \? t\.dark : t\.light/);
   assert.match(tpl, /ARCH_DOCS_THEME/);
   assert.match(tpl, /rerenderDiagrams\(\)/);
+});
+
+// A subgraph panel, an edge-label chip and the prose ink are chrome, not
+// elements: they sit against the canvas, so they have to flip with it. Holding
+// only one mode's values is what put black boundary panels on a cream page.
+// Both blocks state the same keys, or the next palette edit lands in one mode
+// and the other keeps a stale hex with nothing to flag it.
+test('every chrome value is stated for both modes, never only one', () => {
+  const l = Object.keys(theme.light).sort();
+  const d = Object.keys(theme.dark).sort();
+  assert.deepEqual(l, d, 'light and dark must state the same keys');
+  assert.ok(l.length >= 5, 'the mode blocks look empty');
+  for (const key of l) {
+    assert.equal(theme.themeVariables[key], undefined,
+      `${key} is per-mode, so a shared value for it only looks authoritative`);
+    assert.notEqual(theme.light[key], theme.dark[key], `${key} is the same in both modes`);
+  }
+});
+
+// The sync contract, measured rather than guessed: LikeC4's own render sampled
+// pixel-for-pixel in each mode, and mermaid told to paint the same hex with the
+// same chrome. Which mermaid variable paints which part was also found by
+// rendering with marker colours — a subgraph takes clusterBkg/clusterBorder and
+// its title takes titleColor, none of which fall back to the tertiary trio once
+// they are set.
+test('mermaid chrome matches the hexes LikeC4 paints in the same mode', () => {
+  const map = {
+    clusterBkg: 'groupFill',
+    clusterBorder: 'groupStroke',
+    titleColor: 'groupText',
+    edgeLabelBackground: 'relationLabelBg',
+  };
+  for (const mode of ['light', 'dark']) {
+    for (const [mermaidVar, likec4Role] of Object.entries(map)) {
+      assert.equal(theme[mode][mermaidVar], theme.likec4[mode][likec4Role],
+        `${mode} ${mermaidVar} does not match LikeC4's ${likec4Role}`);
+    }
+  }
 });
 
 // WCAG relative luminance and contrast ratio. Diagram text is baked into the
@@ -203,10 +241,15 @@ test('every diagram text pairing clears the WCAG AA ratio', () => {
   const v = theme.themeVariables;
   const pairs = [
     ['entity name on its fill', v.primaryColor, v.primaryTextColor],
-    ['DFD boundary title on its panel', v.tertiaryColor, v.tertiaryTextColor],
     ['secondary node label', v.secondaryColor, v.secondaryTextColor],
-    ['flowchart edge label', v.edgeLabelBackground, v.primaryTextColor],
   ];
+  // The chrome pairings are per mode, and a ratio that only holds in one of them
+  // is the bug this pass exists to close.
+  for (const mode of ['light', 'dark']) {
+    const m = theme[mode];
+    pairs.push([`${mode} DFD boundary title on its panel`, m.clusterBkg, m.titleColor]);
+    pairs.push([`${mode} flowchart edge label`, m.edgeLabelBackground, v.primaryTextColor]);
+  }
   for (const [what, bg, fg] of pairs) {
     const ratio = contrast(bg, fg);
     assert.ok(ratio >= 4.5, `${what}: ${fg} on ${bg} is only ${ratio.toFixed(2)}:1`);

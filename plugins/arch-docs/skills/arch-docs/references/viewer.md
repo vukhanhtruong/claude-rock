@@ -135,23 +135,58 @@ Security DFD) follows all of these, no exceptions:
   LikeC4 derives stroke and both contrast shades from the one hex it is given;
   those derived values are recorded in the `likec4` block so mermaid can match
   them. Regenerate and re-check if a LikeC4 upgrade changes the derivation.
-- **One palette across both modes.** A solid fill carries its own text colour, so
-  it is legible either way — and LikeC4 does the same: sampled pixel-for-pixel
-  its node fill is `#0f766e` in light *and* dark, with only the canvas flipping.
-  `dark` therefore holds one genuine delta (`textColor`, for text outside a box)
-  and is **merged over** `themeVariables` rather than swapped for it, so a shared
-  value cannot be changed in one mode and forgotten in the other.
-- **`tertiaryColor` is the ER relationship chip and the DFD trust boundary**, and
-  those two want opposite things. Mermaid paints the chip as `tertiaryColor`
-  mixed about halfway to white and labels it with `primaryTextColor` — the same
-  light colour entity names use. Found by rendering with marker colours:
-  `#000000` paints as `~#808080`, so the chip can never be darker than mid-grey
-  and **3:1 is this pairing's ceiling** (`#18191b` reaches 3.07:1; a teal
-  tertiary lands at 1.9:1 and the labels are genuinely unreadable). Legibility
-  wins, so `tertiaryColor` is dark — which makes the DFD boundaries dark panels
-  rather than the pale tint LikeC4 uses for a compound group. That is the one
-  place the two renderers still differ, and it is a mermaid limitation, not a
-  choice. A test asserts every other pairing at AA and this one at 3:1.
+- **Elements are one palette across both modes; chrome is two.** A solid fill
+  carries its own text colour, so it is legible either way — and LikeC4 does the
+  same: sampled pixel-for-pixel its node fill is `#0f766e` in light *and* dark.
+  So `themeVariables` holds the elements and nothing else. What flips is the
+  chrome that sits *against* the canvas — subgraph panels, edge-label chips,
+  prose ink — and that lives in a `light` block and a `dark` block, **merged
+  over** `themeVariables` rather than swapping it:
+
+  ```js
+  Object.assign({}, t.themeVariables, isDark() ? t.dark : t.light)
+  ```
+
+  Both blocks state the **same keys**, enforced by a test. Holding only `dark` is
+  what put black trust-boundary panels and near-black edge chips on a cream page
+  while the LikeC4 diagram two sections above went properly pale.
+- **The chrome hexes are measured off LikeC4, not invented.** LikeC4's own render
+  was screenshotted in each mode and sampled pixel-for-pixel; the values are
+  recorded under `likec4.light` / `likec4.dark`, and a test asserts the mermaid
+  variables equal them:
+
+  | LikeC4 role | mermaid variable | light | dark |
+  |---|---|---|---|
+  | compound group fill | `clusterBkg` | `#dae8e7` | `#102523` |
+  | compound group stroke | `clusterBorder` | `#719591` | `#0c342f` |
+  | compound group title | `titleColor` | `#19524e` | `#93cbc5` |
+  | relation label chip | `edgeLabelBackground` | `#69696b` | `#16181a` |
+
+  Which variable paints which part was also found by rendering with marker
+  colours, because mermaid's fallback chain is not what it looks like. In the
+  ER and DFD subset:
+
+  | painted thing | variable |
+  |---|---|
+  | subgraph fill / stroke / title | `clusterBkg` / `clusterBorder` / `titleColor` |
+  | flowchart edge-label chip / its text | `edgeLabelBackground` / `primaryTextColor` |
+  | ER relationship label box / its text | `tertiaryColor` at 0.5 alpha / `primaryTextColor` |
+
+  `tertiaryTextColor`, `tertiaryBorderColor`, `relationLabelBackground`,
+  `relationLabelColor` and `textColor` paint **nothing** here — they are fallbacks
+  for keys now set explicitly, or for diagram types this subset does not use.
+  Setting them looks like it works and changes nothing.
+- **`tertiaryColor` is the ER relationship chip only**, and it cannot reach AA.
+  Mermaid paints that box at 0.5 alpha and labels it with `primaryTextColor` — the
+  same light colour entity names use. Found by rendering with marker colours:
+  `#000000` paints as `~#808080` over a light canvas, so the chip can never be
+  darker than mid-grey and **3:1 is this pairing's ceiling** (`#18191b` reaches
+  3.07:1 and paints `#8b8c8d`, one step lighter than LikeC4's `#69696b`; a teal
+  tertiary lands at 1.9:1 and the labels are genuinely unreadable). It stays
+  shared across modes because the 0.5 alpha does the flipping for it: the same
+  hex paints `#8b8c8d` on a light canvas and `#151a1a` on a dark one, and that
+  dark value *is* LikeC4's. A test asserts every other pairing at AA and this
+  one at 3:1.
 - The `likec4` block is the palette **for both renderers**, consumed at different
   times — the part to keep straight:
 

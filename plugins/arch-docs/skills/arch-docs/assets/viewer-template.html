@@ -1396,6 +1396,11 @@ function navigate(jump) {
   var parts = routeParts();
   var record = recordFor(parts);
   var page = pageFor(parts);
+  /* Before showPage, which is what assigns activePage. A route that resolves to
+     the page already on screen is not a move, and starting it at the top is how
+     closing a record threw the reader from §14 back to §1 — the drawer leaves by
+     the host page's own route, and Back does the same. */
+  var moved = page !== activePage;
   showPage(page);
   tick();
   /* Order matters: the host page has to be in the layout before the record goes
@@ -1404,7 +1409,7 @@ function navigate(jump) {
   closeDrawer();
   if (!jump) return;
   var el = parts.id && document.getElementById(parts.id);
-  if (!el) { scrollTo(0, 0); return; }
+  if (!el) { if (moved) scrollTo(0, 0); return; }
   /* A link to a document scrolls to the page so its prev/next bar stays on
      screen. A link to a heading inside it still lands on that heading. */
   (el.classList.contains('doc-head') ? page : el).scrollIntoView();

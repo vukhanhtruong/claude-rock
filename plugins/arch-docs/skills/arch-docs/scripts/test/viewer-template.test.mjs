@@ -645,3 +645,18 @@ test('the page router leaves record pages alone', () => {
   assert.match(tpl, /recordHome\.set\(p, sec\)/);
   assert.match(tpl, /recordHome\.get\(openRecord\)\.appendChild/);
 });
+
+// Closing a record went through the host page's own route, and the router treats
+// any route without an element id as "new page, start at the top" — so Escape
+// threw the reader from §14 back to §1, and Back did the same. A route that
+// resolves to the page already on screen is not a move.
+test('closing a record leaves the host page where the reader left it', () => {
+  const nav = tpl.match(/function navigate\([\s\S]*?\n\}/)[0];
+  assert.match(nav, /var moved = page !== activePage/);
+  assert.match(nav, /if \(moved\) scrollTo\(0, 0\)/);
+  assert.doesNotMatch(nav, /\n\s*\{ scrollTo\(0, 0\); return; \}/,
+    'an unconditional jump to the top is what lost the reader their place');
+  // showPage assigns activePage, so the comparison has to happen before it.
+  assert.ok(nav.indexOf('var moved') < nav.indexOf('showPage(page)'),
+    'moved must be computed before showPage overwrites activePage');
+});

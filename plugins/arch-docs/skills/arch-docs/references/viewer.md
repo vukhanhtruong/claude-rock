@@ -11,46 +11,88 @@ Four steps, in order — each feeds the next:
 
 1. **Write the palette config, then generate the LikeC4 webcomponent bundle.**
    ```
-   node scripts/likec4-config.mjs --out <dir>      # writes <dir>/likec4.config.json
-   npx likec4 gen webcomponent --webcomponent-prefix c4 --outfile <out> <dir>
+   node scripts/likec4-config.mjs --out <dir>              # writes <dir>/likec4.config.json
+   node scripts/likec4-gen.mjs --dir <dir> --out <bundle>  # validate, then generate
    ```
 
-   The config step is **not optional**, and it is the plugin's job rather than
-   the model's (`likec4.md` §"Declare no colours at all"). LikeC4's default
-   element colour is blue; a model that declares no palette is valid, generates
-   clean and exits 0, and its diagrams arrive blue beside teal mermaid ones with
-   no signal at any step. `gen webcomponent` is not a validation gate either — it
-   generated a 2.2 MB bundle from a workspace carrying 194 validation errors
-   without a word, so run `npx likec4 validate <dir>` first if the model is not
-   freshly generated.
+   Both steps refuse rather than warn, because both failures they cover are
+   silent:
 
-   `render.mjs` refuses a bundle whose theme palette is missing or off
-   (`scripts/lib/validate-palette.mjs`), which is the backstop for both. It reads
-   the **resolved node colour** rather than grepping for the brand hex: a model
+   | Skipped | What ships |
+   |---|---|
+   | the config | LikeC4's default blue diagrams beside teal mermaid ones. The model is valid, generates clean, exits 0 |
+   | validation | a bundle built from a model that never parsed. `gen webcomponent` produced 2.2 MB from a workspace carrying 194 errors, silently, exit 0 |
+
+   The palette is the plugin's job rather than the model's — see `likec4.md`
+   §"Declare no colours at all". `likec4-gen.mjs` checks the config is present
+   *before* spending a LikeC4 run, then runs `likec4 validate` and `likec4 gen
+   webcomponent` in that order, aborting if validation fails
+   (`scripts/lib/likec4-steps.mjs`). Calling `npx likec4 gen webcomponent`
+   directly skips both gates; there is no reason to.
+
+   `render.mjs` is the backstop, not the gate: it refuses a bundle whose theme
+   palette is missing or off (`scripts/lib/validate-palette.mjs`), which is one
+   whole render too late to be the first thing that notices. It reads the
+   **resolved node colour** rather than grepping for the brand hex — a model
    declaring its own colour leaves that hex in the bundle's colour registry,
    defined and never painted, so a grep reports success on an all-blue bundle.
-   — `--webcomponent-prefix c4` is **mandatory**. It pins the custom-element
-   tag to `<c4-view>`, which the renderer emits and the viewer template
-   expects. LikeC4's own default prefix is `likec4`; omitting the flag
-   yields `<likec4-view>` instead, and every diagram renders blank with no
-   error (`likec4.md` §3 covers the same fact for model generation).
 
-2. **Obtain the mermaid + `@mermaid-js/layout-elk` ESM bundles.**
-   `npm pack` (or a cache copy) each package, then read the built ESM file
-   off disk — **never a CDN URL in the output**; the viewer must work fully
-   offline. The bundle content is spliced into the template as inline
-   `<script type="module">` text (`scripts/lib/embed.mjs`), not loaded as a
-   separate file, so it must define **top-level `mermaid` and `elkLayouts`
-   bindings** — plain values in that script's scope, not bare ESM `export`
-   statements (which have nothing to bind to once inlined). The template's
-   init line runs immediately after the splice point:
+   `--webcomponent-prefix c4` is **mandatory** and `likec4-gen.mjs` supplies it.
+   It pins the custom-element tag to `<c4-view>`, which the renderer emits and
+   the viewer template expects. LikeC4's own default prefix is `likec4`;
+   omitting the flag yields `<likec4-view>` instead, and every diagram renders
+   blank with no error (`likec4.md` §3 covers the same fact for model
+   generation).
+
+2. **Build one mermaid + `@mermaid-js/layout-elk` bundle with esbuild.**
+
+   The bundle is spliced into the template as inline `<script>` text
+   (`scripts/lib/embed.mjs`), not loaded as a file, so it must leave
+   **top-level `mermaid` and `elkLayouts` bindings** in that script's scope.
+   The template's init line runs immediately after the splice point:
    ```js
    mermaid.registerLayoutLoaders(elkLayouts);
    mermaid.initialize({ theme: 'base', themeVariables: ..., layout: 'elk' });
    ```
-   If the bundle doesn't expose `mermaid`/`elkLayouts` as bindings at that
-   scope, this line throws a `ReferenceError` and the whole page fails to
-   render — not just the diagrams.
+   Miss either binding and this throws a `ReferenceError` that takes the whole
+   page, not just the diagrams.
+
+   **No published file satisfies that**, which is what this step used to ask
+   for. Mermaid 11.x ships code-split ESM: `dist/mermaid.esm.mjs` is an entry
+   that `import`s ~40 sibling chunks, so no single file on disk carries the
+   library — and an inlined `export` statement has nothing to bind to anyway.
+   A bundling step is not an optimisation here, it is the only way to get one
+   file. Two dependencies, three commands:
+
+   ```
+   npm i mermaid@^11.16.0 @mermaid-js/layout-elk@^0.2.2
+   ```
+   ```js
+   // entry.mjs — the assignment IS the deliverable; esbuild would otherwise
+   // scope both imports inside the IIFE where the init line cannot see them.
+   import mermaid from 'mermaid';
+   import elkLayouts from '@mermaid-js/layout-elk';
+   globalThis.mermaid = mermaid;
+   globalThis.elkLayouts = elkLayouts;
+   ```
+   ```
+   npx esbuild@0.25.12 entry.mjs --bundle --format=iife --minify \
+     --legal-comments=none --outfile=mermaid-bundle.js
+   ```
+
+   `--format=iife` is the load-bearing flag: `esm` re-emits the `export`s that
+   cannot bind, and `cjs` emits a `module.exports` no browser will honour.
+   `--legal-comments=none` matters because the default hoists licence comments
+   to the top of the file, where any `</script` inside one would close the
+   template's script tag early.
+
+   Measured on mermaid 11.16.0 + layout-elk 0.2.2 + esbuild 0.25.12: **4.7 MB**,
+   `node --check` clean, zero `</script` literals, and both bindings resolve
+   after the splice. Check those four before rendering — a bundle that fails
+   any of them produces a blank page with one console error.
+
+   **Never a CDN URL in the output.** The viewer must work fully offline, and
+   `scripts/test/offline.test.mjs` fails the render if a remote URL survives.
 
 3. **Render the pages.**
    ```
@@ -147,6 +189,62 @@ Four steps, in order — each feeds the next:
    `node scripts/serve.mjs viewer/` — a tiny static file server, no build
    step. Regenerating after a doc edit is: rerun step 3, refresh the
    browser tab (step 4's server needs no restart).
+
+### Pinning a diagram
+
+Diagrams are what an architecture set is *for*, and they sit inline. Scrolling to
+the paragraph that explains a container scrolls the container view off the
+screen, so the reader holds it in their head or scrolls back. Expand and
+fullscreen both cover the prose, which answers a different question.
+
+The pin (📌 in the diagram toolbar) docks one diagram in a 380px gutter beside
+the column. One at a time — pinning a second releases the first, because the
+column has one gutter to give. Escape releases it, like the expand overlay.
+
+| Concern | How it is handled |
+|---|---|
+| the pane covering the prose | `body.has-pin .main` reserves `--pin-w + 56px`; the pane is `position: fixed`, so it cannot push anything itself |
+| the flow collapsing when the shell leaves it | a `.diagram-slot` placeholder is inserted at the shell's pre-pin `offsetHeight` |
+| the reader losing their place | reserving the gutter narrows the column, so the document reflows. The first block below the top bar is recorded and its position restored — `keepingPlace` |
+| no room for a gutter | below 1200px the control is hidden **and** any existing pin is released back into the flow; a pin taken before a resize would otherwise stay welded to a viewport with no gutter |
+| paper | `@media print` puts a pinned shell back to `position: static` and hides the placeholder. A fixed pane prints once, over page one |
+
+`keepingPlace` is worth a note because it looks unnecessary and is not.
+Chrome does its own scroll anchoring and absorbs the reflow when it lands in one
+frame — which is what happens on the test fixture. On a real set the LikeC4
+webcomponent re-fits a frame later, after anchoring has already run, and the
+text under the reader moves **48px**. Measured on the 20-document EOS set, with
+and without, twice. `scripts/test/browser.test.mjs` records that its own check
+cannot discriminate this, and why.
+
+### What the text assertions cannot check
+
+`scripts/test/viewer-template.test.mjs` reads the template as a string. That
+catches a missing rule; it cannot catch a rule that is present and loses to a
+later one, a script that throws on boot, or a font that is embedded and never
+applied — which is most of what actually goes wrong in a single-file offline
+viewer.
+
+`scripts/test/browser.test.mjs` renders the fixture set and drives a real
+headless Chrome over the DevTools protocol (`lib/chrome.mjs` launches,
+`lib/cdp.mjs` speaks the protocol). **No dependency was added**: Node 22+ ships
+a global `WebSocket` and `fetch`, and Chrome speaks DevTools over both, so
+`npm ls` still reports zero. With no Chrome on `PATH` the suite prints
+`﹣ the viewer in a real browser # no chrome on PATH` and exits 0.
+
+It asserts the things that need a layout engine: boot from `file://` with an
+empty console, `document.fonts.check` for the embedded faces, the prose track
+measuring narrower than the block beside it and sharing its left edge, a bounded
+table scrollport with a header that stays put, the theme toggle repainting,
+the rail filter's hit and empty states, one page in the layout at a time, print
+revealing the whole set, and the skip link landing focus in `<main>`.
+
+Two of these were written wrong first and passed anyway — a sticky-header check
+that measured drift after a scroll that could not happen, and a left-edge check
+that looked only at `p`, whose margins are re-declared after the cap. Both were
+found by deleting the rule under test and watching the suite stay green. **Do
+that to any check added here**; a browser test that cannot fail is worth less
+than the text assertion it replaced, because it looks like more.
 
 ## 2. Mermaid rules
 

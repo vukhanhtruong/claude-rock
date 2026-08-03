@@ -60,6 +60,17 @@
      off every block on the platforms that reserve one. It also makes the cap
      self-correcting below 960px, where the rail leaves the flow entirely. */
   --measure: min(96ch, 100%);
+  /* The pinned diagram's gutter. Wide enough for a container view to stay
+     readable, narrow enough that the column keeps its full measure at 1440px —
+     which is why the pin is withdrawn below 1200px rather than shrunk. */
+  --pin-w: 380px;
+  /* The second track, and the reason the first one is allowed to be 96ch. The
+     comment above records that the measure was widened from 74ch because every
+     table and diagram had to live inside it — which charged a block's
+     requirement to the reader of a sentence. Blocks keep the width they were
+     given; running prose is capped back to 72ch, and the two only ever differ
+     where a paragraph would otherwise run the full width of a table. */
+  --prose: min(72ch, 100%);
 }
 /* Dark palette is applied by both the media query and the explicit attribute so
    the toggle wins in either direction. */
@@ -366,6 +377,14 @@ body {
   margin-left: var(--rail-w); padding: calc(var(--topbar-h) + 40px) 40px 25vh;
 }
 .doc { max-width: var(--measure); margin: 0 auto; }
+/* The cap goes on the paragraph, not on .doc. .doc is what gives every block its
+   shared left edge, so narrowing it would take the table and the diagram down
+   with the prose — which is the layout this column replaced. No auto margin
+   either: a centred 72ch paragraph starts 12ch right of the 96ch table above it,
+   and a ragged left edge is what the single column exists to end. h2 keeps the
+   full width because its rule is the section break; h3 and below are titles for
+   the prose under them and belong on its axis. */
+.main :is(p, ul, ol, blockquote, h3, h4, h5, h6) { max-width: var(--prose); }
 .main :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 .diagram-shell, .table-wrap { scroll-margin-top: calc(var(--topbar-h) + 20px); }
 
@@ -799,6 +818,30 @@ li::marker { color: var(--text-faint); }
 }
 .diagram-shell.is-expanded .diagram-viewport { height: calc(100% - 12px); }
 
+/* ---------- pinning ---------- */
+/* Diagrams are what an architecture set is for, and they sit inline: scrolling
+   to the paragraph explaining a container scrolls the container view off the
+   screen, so the reader holds it in their head or scrolls back. Expand and
+   fullscreen both answer a different question — they cover the prose.
+   A pin docks the diagram in its own gutter and leaves the column readable. */
+.diagram-shell.is-pinned {
+  position: fixed; z-index: 90; margin: 0;
+  top: calc(var(--topbar-h) + 16px); right: 16px; bottom: 16px;
+  width: var(--pin-w);
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 70px -18px rgba(0, 0, 0, .5);
+}
+/* min-height: 0 because the viewport carries its own 320px floor, which in a
+   flex column is a floor on the item too — the pane would overflow its own
+   bottom edge on a short window instead of the diagram shrinking. */
+.diagram-shell.is-pinned .diagram-viewport { flex: 1; min-height: 0; }
+/* The pane is fixed, so it is out of flow and cannot push anything. Without a
+   reserved gutter it sits over the column it was pinned to be read beside. */
+body.has-pin .main { padding-right: calc(var(--pin-w) + 56px); }
+/* Holds the height the shell had, so taking it out of the flow does not shorten
+   the document under a reader whose scroll offset the browser is keeping. */
+.diagram-slot { margin: 26px 0; }
+
 /* A diagram mermaid could not parse. Named as a failure rather than left to show
    its own source: an unhandled render puts a slab of DSL inside a diagram frame,
    which reads as a code block somebody meant to put there. Brick, because this is
@@ -889,6 +932,19 @@ c4-view { display: block; width: 100%; height: 460px; }
 }
 
 /* ---------- responsive ---------- */
+/* Above this the column keeps its 96ch beside a 380px pane; below it, one of the
+   two has to give, and a diagram squeezed into 240px is not a diagram. The
+   control is withdrawn rather than shrunk — and a pin already taken before a
+   resize is released, or it stays welded to a viewport with no gutter left. */
+@media (max-width: 1200px) {
+  .diagram-toolbar [data-pin] { display: none; }
+  .diagram-shell.is-pinned {
+    position: relative; inset: auto; width: auto; margin: 26px 0;
+    display: block; box-shadow: var(--shadow);
+  }
+  .diagram-slot { display: none; }
+  body.has-pin .main { padding-right: 40px; }
+}
 /* No narrow-desktop breakpoint, and no --measure override below either: the
    measure resolves against the column the rail has already left, so it gives up
    width on its own before the 96ch cap ever binds. */
@@ -924,6 +980,13 @@ c4-view { display: block; width: 100%; height: 460px; }
   .sidebar, .topbar, .scrim, #progress, .diagram-toolbar,
   .skip, .drawer-scrim, .drawer__bar, .page-bar { display: none; }
   .main { margin: 0; padding: 0; }
+  /* Paper has no viewport to pin against: a fixed pane prints once, over page
+     one, and the place it was pinned from prints as a gap. Back in the flow. */
+  .diagram-shell.is-pinned {
+    position: static; inset: auto; width: auto; margin: 26px 0;
+    display: block; box-shadow: none;
+  }
+  .diagram-slot { display: none; }
   /* The cap that lets the sticky header work is a screen affordance. Paper has
      no scrollport, so a table taller than it would simply lose its last rows.
      (`pre` carries a 30rem cap with the same consequence — untouched here
@@ -1844,6 +1907,10 @@ var ICONS = {
   'expand': '<svg viewBox="0 0 18 18"><path d="M11 2h5v5M7 16H2v-5M16 2l-6 6M2 16l6-6"/></svg>',
   'fullscreen': '<svg viewBox="0 0 18 18"><path d="M2 6.5V2h4.5M11.5 2H16v4.5M16 11.5V16h-4.5M6.5 16H2v-4.5"/></svg>',
   'exit': '<svg viewBox="0 0 18 18"><path d="M6.5 2v4.5H2M16 6.5h-4.5V2M11.5 16v-4.5H16M2 11.5h4.5V16"/></svg>',
+  /* A pushpin rather than the usual "dock to side" bracket: the bracket is the
+     same shape as expand and exit-fullscreen already in this bar, and three
+     rectangles-with-arrows is a toolbar nobody can read at 14px. */
+  'pin': '<svg viewBox="0 0 18 18"><path d="M11.2 2.4 15.6 6.8M12.4 3.6 8.6 6 4.9 7.1l6 6L12 9.4l2.4-3.8M6.2 11.8 2.6 15.4"/></svg>',
 };
 
 function buildToolbar() {
@@ -1853,10 +1920,74 @@ function buildToolbar() {
     '<button type="button" data-zoom-in aria-label="Zoom in" title="Zoom in">' + ICONS['zoom-in'] + '</button>' +
     '<button type="button" data-zoom-out aria-label="Zoom out" title="Zoom out">' + ICONS['zoom-out'] + '</button>' +
     '<button type="button" data-zoom-reset aria-label="Reset zoom, currently 100%" title="Reset zoom">100%</button>' +
+    '<button type="button" data-pin aria-pressed="false" aria-label="Pin beside the text" title="Pin beside the text">' + ICONS.pin + '</button>' +
     '<button type="button" data-expand aria-pressed="false" aria-label="Expand" title="Expand">' + ICONS.expand + '</button>' +
     '<button type="button" data-fullscreen aria-label="Fullscreen" title="Fullscreen">' + ICONS.fullscreen + '</button>' +
     '<button type="button" data-exit-fullscreen aria-label="Exit fullscreen" title="Exit fullscreen">' + ICONS.exit + '</button>';
   return t;
+}
+
+/* Pinning reserves a 380px gutter, so the column narrows and every paragraph in
+   the document reflows. The placeholder keeps the *diagram's* space, but nothing
+   keeps the reader's: on the 20-document EOS set the text under the cursor moved
+   48px — two lines — which on a page whose whole job is being read is the change
+   arriving as a jolt. The fixture set is too short to show it; it took a real
+   render to measure. So the first block below the top bar is treated as the
+   anchor and its position restored afterwards.
+   `behavior: 'instant'` because html sets scroll-behavior: smooth, and a
+   correction that animates is the jump plus a slide. */
+function readingAnchor() {
+  var els = document.querySelectorAll('.main p, .main li, .main h2, .main h3');
+  for (var i = 0; i < els.length; i += 1) {
+    var r = els[i].getBoundingClientRect();
+    if (r.height && r.top > 60) return els[i];
+  }
+  return null;
+}
+
+function keepingPlace(change) {
+  var el = readingAnchor();
+  var before = el && el.getBoundingClientRect().top;
+  change();
+  if (!el) return;
+  scrollBy({ top: el.getBoundingClientRect().top - before, behavior: 'instant' });
+}
+
+/* Measured while the shell is still in flow, because once it is fixed its
+   offsetHeight is the pane's, not the space it left behind. */
+function slotFor(shell) {
+  var slot = document.createElement('div');
+  slot.className = 'diagram-slot';
+  slot.style.height = shell.offsetHeight + 'px';
+  shell.parentNode.insertBefore(slot, shell);
+}
+
+/* Returns the shell it released, which is how pinDiagram tells "pin this one"
+   from "the reader clicked the pin that is already down". Focus is deliberately
+   not moved: the pin button may be a screen away by now, and focusing it would
+   drag the viewport back there — the opposite of what a reader pressing Escape
+   over the prose was asking for. */
+function unpinDiagram() {
+  var shell = document.querySelector('.diagram-shell.is-pinned');
+  if (!shell) return null;
+  shell.classList.remove('is-pinned');
+  document.body.classList.remove('has-pin');
+  var slot = shell.previousElementSibling;
+  if (slot && slot.classList.contains('diagram-slot')) slot.remove();
+  shell.querySelector('[data-pin]').setAttribute('aria-pressed', 'false');
+  if (shell.archDocsSync) shell.archDocsSync();
+  return shell;
+}
+
+/* One pane, so pinning a second diagram releases the first. Two would need two
+   gutters, and the column has one to give. */
+function pinDiagram(shell) {
+  if (unpinDiagram() === shell) return;
+  slotFor(shell);
+  shell.classList.add('is-pinned');
+  document.body.classList.add('has-pin');
+  shell.querySelector('[data-pin]').setAttribute('aria-pressed', 'true');
+  if (shell.archDocsSync) shell.archDocsSync();
 }
 
 /* There is something to pan once the diagram is bigger than its box, or once the
@@ -1968,6 +2099,9 @@ function wireDiagram(shell) {
   toolbar.querySelector('[data-zoom-in]').onclick = function () { ctl.zoomBy(1.2); };
   toolbar.querySelector('[data-zoom-out]').onclick = function () { ctl.zoomBy(1 / 1.2); };
   toolbar.querySelector('[data-zoom-reset]').onclick = ctl.reset;
+  toolbar.querySelector('[data-pin]').onclick = function () {
+    keepingPlace(function () { pinDiagram(shell); });
+  };
   toolbar.querySelector('[data-expand]').onclick = function () {
     var on = !shell.classList.contains('is-expanded');
     shell.classList.toggle('is-expanded', on);
@@ -2004,6 +2138,7 @@ document.querySelectorAll('.diagram-shell').forEach(wireDiagram);
    was. Focus goes back to that button, since it is what they left. */
 addEventListener('keydown', function (e) {
   if (e.key !== 'Escape') return;
+  keepingPlace(unpinDiagram);
   document.querySelectorAll('.diagram-shell.is-expanded').forEach(function (shell) {
     shell.classList.remove('is-expanded');
     var btn = shell.querySelector('[data-expand]');

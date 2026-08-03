@@ -439,6 +439,45 @@ test('the wider column is not the old prose measure', () => {
   assert.ok(width >= 90, `${width}ch is still the narrow column`);
 });
 
+// One number used to serve both, and the comment on it says which one paid: the
+// measure was widened from 74ch because every table and diagram had to fit
+// inside it. That is a block's requirement charged to the reader of a sentence.
+// Two tracks — blocks keep the width they were given, running prose gets back
+// the width the line-length evidence actually supports.
+test('running prose is set narrower than the blocks it sits between', () => {
+  const prose = Number(tpl.match(/--prose:\s*min\((\d+)ch/)[1]);
+  const measure = Number(tpl.match(/--measure:\s*min\((\d+)ch/)[1]);
+  assert.ok(prose < measure, `${prose}ch is not narrower than the ${measure}ch column`);
+  assert.ok(prose >= 65 && prose <= 80, `${prose}ch is outside the readable band`);
+});
+
+// The cap belongs on the paragraph, not on .doc: .doc is what gives every block
+// its shared left edge, and narrowing it would take the table and the diagram
+// down with the prose.
+test('the narrower track caps the prose without moving the column', () => {
+  assert.match(tpl, /\.doc \{[^}]*max-width:\s*var\(--measure\)/, '.doc still owns the column');
+  const rule = tpl.match(/\.main :is\(p, ul, ol, blockquote[^)]*\) \{[^}]*\}/)[0];
+  assert.match(rule, /max-width:\s*var\(--prose\)/);
+});
+
+// A narrowed paragraph that centres itself leaves the block above it starting
+// 12ch to the left — the ragged left edge the single column was built to end.
+test('the narrowed prose keeps the column left edge', () => {
+  const rule = tpl.match(/\.main :is\(p, ul, ol, blockquote[^)]*\) \{[^}]*\}/)[0];
+  assert.doesNotMatch(rule, /margin[^;]*auto/, 'centring re-creates the ragged left edge');
+});
+
+// Blocks are the reason the column is 96ch. Capping any of them to the prose
+// track hands back the width and re-opens the sideways scroll inside 15 of the
+// 18 tables in a real set.
+test('no block is capped to the prose track', () => {
+  for (const sel of ['.table-wrap', '.diagram-shell', '.def-grid', '.rec-cards', 'pre']) {
+    const rule = tpl.match(new RegExp(`\\n\\${sel} \\{[^}]*\\}`))
+      || tpl.match(new RegExp(`\\n${sel} \\{[^}]*\\}`));
+    assert.doesNotMatch(rule[0], /var\(--prose\)/, `${sel} gave back the width it was widened for`);
+  }
+});
+
 test('the top bar shows the progress of the open section, not of the whole set', () => {
   const js = tpl.match(/---- reading progress ----[\s\S]*?passive: true \}\)/)[0];
   assert.doesNotMatch(js, /document\.body\.scrollHeight/);
@@ -831,6 +870,100 @@ test('no rule is declared twice', () => {
 test('the viewer reference describes the table rule the template ships', () => {
   assert.doesNotMatch(ref, /width:\s*max-content/);
   assert.match(tpl.match(/\ntable \{[\s\S]*?\}/)[0], /width:\s*100%/);
+});
+
+// Step 2 used to say: npm pack mermaid, read the built ESM off disk, splice it
+// in. Mermaid 11.x ships code-split ESM — no single file on disk carries the
+// whole library, and none of them leaves a top-level `mermaid` binding once
+// inlined, which is the one thing the template's init line needs. The procedure
+// could not be followed, and nothing failed until a human tried it.
+test('the documented mermaid bundle step produces the bindings the template needs', () => {
+  const entry = ref.match(/```js\n([^`]*globalThis\.mermaid[^`]*)```/);
+  assert.ok(entry, 'no entry file is shown that binds mermaid globally');
+  assert.match(entry[1], /globalThis\.mermaid\s*=/);
+  assert.match(entry[1], /globalThis\.elkLayouts\s*=/);
+  const cmd = ref.match(/npx esbuild[^\n]*/);
+  assert.ok(cmd, 'no bundling command is given');
+  assert.match(cmd[0], /--bundle/);
+  // IIFE, not esm: an inlined `export` has nothing to bind to, which is the
+  // failure the old wording walked into.
+  assert.match(cmd[0], /--format=iife/);
+});
+
+test('the reference no longer claims the ESM ships ready to splice', () => {
+  const step = ref.match(/\n2\. \*\*[\s\S]*?\n3\. \*\*/)[0];
+  assert.doesNotMatch(step, /read the built ESM file\s*\n?\s*off disk/);
+  // `npm pack` was the whole of the old procedure. Naming it as the source of a
+  // spliceable file is the same instruction under another verb.
+  assert.doesNotMatch(step, /`npm pack`[^\n]*then read/);
+  assert.match(step, /code-split/, 'the reason a bundling step exists is the fact worth keeping');
+});
+
+// ---------------------------------------------------------------------------
+// Pinning a diagram. Diagrams are the payload of an architecture set and they
+// sit inline in the flow, so scrolling to the paragraph that explains a
+// container scrolls the container view off the screen. Expand and fullscreen
+// both cover the prose, which answers a different question.
+// ---------------------------------------------------------------------------
+
+test('the diagram toolbar offers a pin', () => {
+  const bar = tpl.match(/function buildToolbar[\s\S]*?\n\}/)[0];
+  assert.match(bar, /data-pin/);
+  assert.match(bar, /data-pin aria-pressed="false"/, 'a toggle has to say which way it is');
+});
+
+test('a pinned diagram stops scrolling with the document', () => {
+  const rule = tpl.match(/\.diagram-shell\.is-pinned \{[^}]*\}/)[0];
+  assert.match(rule, /position:\s*fixed/);
+  assert.match(rule, /width:\s*var\(--pin-w\)/);
+});
+
+// A fixed pane over the column would cover the prose it was pinned to read
+// alongside, which is the whole point lost.
+test('the pinned pane is given its own gutter rather than covering the column', () => {
+  assert.match(tpl, /body\.has-pin \.main \{[^}]*padding-right/);
+});
+
+// Removing 320px+ from the flow shortens the document under the reader, and the
+// browser keeps the scroll offset — so the page jumps by the height of whatever
+// was pinned.
+test('the vacated space is held open while a diagram is pinned', () => {
+  assert.match(tpl, /\.diagram-slot \{/);
+  const js = tpl.match(/function slotFor[\s\S]*?\n\}/)[0];
+  assert.match(js, /offsetHeight/, 'the placeholder has to be the height it replaced');
+});
+
+test('pinning a second diagram releases the first', () => {
+  const fn = tpl.match(/function pinDiagram[\s\S]*?\n\}/)[0];
+  assert.match(fn, /unpinDiagram\(\)/, 'nothing releases the diagram already pinned');
+});
+
+// The same exit the expand overlay got, for the same reason: a state entered by
+// a button the reader has since scrolled away from needs a key that always works.
+// Anchored on the diagram handler by name: there is a second Escape listener for
+// the rail filter, and a generic `e.key !== 'Escape'` match finds whichever the
+// file happens to declare first.
+test('escape releases a pinned diagram', () => {
+  const handler = tpl.match(/if \(e\.key !== 'Escape'\) return;[\s\S]*?is-expanded[\s\S]*?\n\}\);/)[0];
+  assert.match(handler, /unpinDiagram\(\)/);
+});
+
+// Paper has no viewport to pin against. A fixed pane prints once, over page one.
+test('print puts a pinned diagram back in the flow', () => {
+  const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
+  assert.match(print, /\.is-pinned[^}]*position:\s*static/);
+  assert.match(print, /\.diagram-slot[^}]*display:\s*none/);
+});
+
+// Below the breakpoint the column already has the screen to itself, so there is
+// no gutter to put a pane in — offering the control would promise a layout the
+// viewport cannot give.
+test('the pin is withdrawn where there is no room for a pane', () => {
+  const narrow = tpl.match(/@media \(max-width: 1200px\) \{[\s\S]*?\n\}/);
+  assert.ok(narrow, 'no breakpoint withdraws the pin');
+  assert.match(narrow[0], /\[data-pin\][^}]*display:\s*none/);
+  assert.match(narrow[0], /\.diagram-shell\.is-pinned[^}]*position:\s*(relative|static)/,
+    'a diagram pinned before the resize stays stuck to a viewport with no gutter');
 });
 
 // The cap that makes the sticky header work is a screen affordance: paper has no

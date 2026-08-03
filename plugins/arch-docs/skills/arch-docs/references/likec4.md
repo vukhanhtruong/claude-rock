@@ -135,10 +135,19 @@ Two separate LikeC4 invocations, different outputs, different consumers:
 | Command | Output | Consumer |
 |---|---|---|
 | `npx likec4 export json --outfile <out> <dir>` | model JSON | the validator (`scripts/lib/likec4-extract.mjs` reads it) |
-| `npx likec4 gen webcomponent --webcomponent-prefix c4 --outfile <out> <dir>` | webcomponent bundle | the viewer (`viewer.md`) |
+| `node scripts/likec4-gen.mjs --dir <dir> --out <bundle>` | webcomponent bundle | the viewer (`viewer.md`) |
 
-`--webcomponent-prefix c4` is **mandatory** on the `gen webcomponent` call.
-It pins the generated custom-element tag to `<c4-view>`, which is what the
-viewer template and renderer expect. Omit it and LikeC4 falls back to its
-own default prefix, emitting `<likec4-view>` instead — the template's
-markers never match, and every diagram renders blank with no error.
+The bundle is generated through the wrapper rather than by calling
+`npx likec4 gen webcomponent` directly, because `gen` validates nothing: it
+produced a 2.2 MB bundle from a workspace carrying 194 validation errors,
+silently, exit 0. The wrapper checks the palette config is present, runs
+`likec4 validate`, and only then generates — and it supplies
+`--webcomponent-prefix c4`, which is **mandatory**. That flag pins the
+generated custom-element tag to `<c4-view>`, which is what the viewer template
+and renderer expect. Omit it and LikeC4 falls back to its own default prefix,
+emitting `<likec4-view>` instead — the template's markers never match, and
+every diagram renders blank with no error.
+
+`export json` has no such wrapper and no gate. A broken model exports too, so
+the validator can be reading a model nobody wrote — run the bundle step first
+and let it fail there.

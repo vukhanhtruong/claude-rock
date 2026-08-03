@@ -151,33 +151,92 @@ test('the theme toggle reaches LikeC4, not just mermaid', () => {
 // One file is the palette for both renderers: mermaid reads it at runtime,
 // LikeC4 bakes it in at generate time. Leaving them in two places is how the
 // diagrams drifted to teal and blue in the first place.
-test('the theme file carries the LikeC4 palette alongside the mermaid one', () => {
-  const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
-  assert.ok(theme.likec4, 'no likec4 palette');
+const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
+
+// The two renderers were teal-on-pale and teal-on-solid: mermaid drew a light
+// tinted fill with a dark border, LikeC4 a solid fill with light text. LikeC4's
+// leaf fill cannot be softened — opacity reaches the node data but its renderer
+// only applies it to compound groups — so mermaid is the one that moves.
+test('mermaid fills match the exact hexes LikeC4 derives from the same brand', () => {
   assert.match(theme.likec4.brand, /^#[0-9a-f]{6}$/, 'brand is not a hex');
-  assert.match(theme.likec4.muted, /^#[0-9a-f]{6}$/, 'muted is not a hex');
-  // One hex per colour, not a light/dark pair. LikeC4 derives stroke, both
-  // contrast shades and the whole dark rendering from the single value
-  // (#0f766e -> stroke #00524b), so a second hex here would have no consumer.
-  assert.equal(theme.likec4.light, undefined, 'likec4 takes one hex, not a mode pair');
-  // The same hexes mermaid draws its borders with, or the two diagram systems
-  // are only nearly the same colour, which reads as a mistake rather than a set.
-  assert.ok(theme.themeVariables.primaryBorderColor.startsWith(theme.likec4.brand));
-  assert.ok(theme.themeVariables.secondaryBorderColor.startsWith(theme.likec4.muted));
+  assert.equal(theme.themeVariables.primaryColor, theme.likec4.brand);
+  assert.equal(theme.themeVariables.primaryBorderColor, theme.likec4.brandStroke);
+  assert.equal(theme.themeVariables.primaryTextColor, theme.likec4.brandText);
+  assert.equal(theme.themeVariables.secondaryColor, theme.likec4.muted);
+  assert.equal(theme.themeVariables.secondaryBorderColor, theme.likec4.mutedStroke);
 });
 
-test('mermaid ships a dark palette and the viewer re-renders on theme change', () => {
-  const theme = JSON.parse(readFileSync(new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
-  // Diagram text is baked in at render time, so one fixed palette leaves labels
-  // unreadable in whichever mode it was not chosen for.
-  for (const key of ['primaryTextColor', 'lineColor', 'edgeLabelBackground']) {
-    assert.ok(theme.dark[key], `dark palette missing ${key}`);
-    assert.ok(theme.themeVariables[key], `light palette missing ${key}`);
-    assert.notEqual(theme.dark[key], theme.themeVariables[key]);
+// A solid fill carries its own text colour, so it is legible in either mode.
+// LikeC4 proves the point: sampled pixel-for-pixel, its node fill is #0f766e in
+// light AND dark — only the canvas behind it flips.
+test('the element palette does not change between light and dark', () => {
+  for (const key of ['primaryColor', 'primaryBorderColor', 'primaryTextColor',
+    'secondaryColor', 'lineColor', 'edgeLabelBackground']) {
+    assert.equal(theme.dark[key], undefined, `${key} must not be re-stated per mode`);
   }
+  assert.ok(theme.dark.textColor, 'text outside a box does still flip');
+  assert.notEqual(theme.dark.textColor, theme.themeVariables.textColor);
+});
+
+// Merged, not swapped: `dark` holds only what genuinely differs, so a shared
+// value cannot be updated in one mode and forgotten in the other.
+test('the dark palette is merged over the shared one', () => {
+  assert.match(tpl, /Object\.assign\(\{\}, t\.themeVariables/);
   assert.match(tpl, /ARCH_DOCS_THEME/);
-  assert.match(tpl, /\.dark\b/);
   assert.match(tpl, /rerenderDiagrams\(\)/);
+});
+
+// WCAG relative luminance and contrast ratio. Diagram text is baked into the
+// SVG, so an unreadable pairing cannot be fixed by the reader or by the theme
+// toggle — it has to be caught here.
+const lum = (h) => {
+  const ch = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test('every diagram text pairing clears the WCAG AA ratio', () => {
+  const v = theme.themeVariables;
+  const pairs = [
+    ['entity name on its fill', v.primaryColor, v.primaryTextColor],
+    ['DFD boundary title on its panel', v.tertiaryColor, v.tertiaryTextColor],
+    ['secondary node label', v.secondaryColor, v.secondaryTextColor],
+    ['flowchart edge label', v.edgeLabelBackground, v.primaryTextColor],
+  ];
+  for (const [what, bg, fg] of pairs) {
+    const ratio = contrast(bg, fg);
+    assert.ok(ratio >= 4.5, `${what}: ${fg} on ${bg} is only ${ratio.toFixed(2)}:1`);
+  }
+});
+
+// The one pairing that cannot reach AA. Mermaid draws an ER relationship label
+// ("owns", "has") with primaryTextColor — the same light colour entity names
+// use on a solid fill — over tertiaryColor mixed about halfway to white. Found
+// by rendering with marker colours: #000000 paints as ~#808080, so the chip can
+// never be darker than mid-grey and 3:1 is this pairing's ceiling. A teal
+// tertiary lands at 1.9:1 and the labels are genuinely unreadable, so the bound
+// still catches the regression that matters.
+const mixWhite = (h) => '#' + [1, 3, 5]
+  .map((i) => Math.round((parseInt(h.slice(i, i + 2), 16) + 255) / 2).toString(16).padStart(2, '0'))
+  .join('');
+
+test('the ER relationship label reaches the best ratio mermaid allows it', () => {
+  const v = theme.themeVariables;
+  const painted = mixWhite(v.tertiaryColor);
+  const ratio = contrast(painted, v.primaryTextColor);
+  assert.ok(ratio >= 3, `chip paints as ${painted}: only ${ratio.toFixed(2)}:1`);
+});
+
+// No fill may be semi-transparent any more. An 8-digit hex was how the old
+// tinted fills were built, and it is exactly what LikeC4 cannot reproduce.
+test('no fill is semi-transparent, because LikeC4 has no way to match one', () => {
+  const alpha = Object.entries(theme.themeVariables)
+    .filter(([, v]) => typeof v === 'string' && /^#[0-9a-f]{8}$/i.test(v));
+  assert.deepEqual(alpha, [], '8-digit hex fills cannot be matched by LikeC4');
 });
 
 /* ---------- one column ---------- */

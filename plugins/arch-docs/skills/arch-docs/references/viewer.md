@@ -117,20 +117,43 @@ Security DFD) follows all of these, no exceptions:
   color and breaks dark/light switching.
 - Fonts: IBM Plex Sans (body) + IBM Plex Mono (code), matching the viewer
   template's `--font-body`/`--font-mono`.
-- Accent colors: an approved pair only — teal `#0f766e` + slate `#475569`
-  (as shipped in `assets/mermaid-theme.json`), semi-transparent 8-digit-hex
-  fills. No violet-fuchsia accents.
-- `mermaid-theme.json` carries **two** palettes: `themeVariables` (light) and
-  `dark` (teal `#2dd4bf` + slate `#94a3b8`, light text). Mermaid bakes colors
-  into the SVG at render time, so one fixed palette leaves every label
-  unreadable in the other mode — the fills are semi-transparent, and dark text
-  over a dark-tinted fill disappears. The theme toggle therefore re-runs
-  `mermaid.initialize` and re-renders every diagram from its stashed source.
-- The same file carries a third block, `likec4` (`brand` + `muted`), so **one
-  file is the palette for both renderers** — `brand` is the hex mermaid draws
-  `primaryBorderColor` with. One hex per colour, because LikeC4 derives its own
-  stroke, contrast shades and dark rendering from it. The two renderers consume
-  the file at different times, which is the part to keep straight:
+- Accent colors: an approved pair only — teal `#0f766e` + slate `#475569`, as
+  shipped in `assets/mermaid-theme.json`. No violet-fuchsia accents.
+- **Fills are solid, never semi-transparent.** They used to be 8-digit hex tints
+  with a dark border and dark text, which looked nothing like the LikeC4 diagram
+  three sections above: LikeC4 paints a solid fill with light text and there is
+  no way to soften it. `opacity` reaches the node data but its renderer applies
+  it only to compound groups, and a custom colour takes a single opaque hex —
+  both confirmed against LikeC4's own DSL reference. So mermaid is the renderer
+  that moves, and its element palette is LikeC4's derived triple exactly:
+
+  | | fill | stroke | text |
+  |---|---|---|---|
+  | `brand` | `#0f766e` | `#00524b` | `#c7ffff` |
+  | `muted` | `#475569` | `#263447` | `#e8f7ff` |
+
+  LikeC4 derives stroke and both contrast shades from the one hex it is given;
+  those derived values are recorded in the `likec4` block so mermaid can match
+  them. Regenerate and re-check if a LikeC4 upgrade changes the derivation.
+- **One palette across both modes.** A solid fill carries its own text colour, so
+  it is legible either way — and LikeC4 does the same: sampled pixel-for-pixel
+  its node fill is `#0f766e` in light *and* dark, with only the canvas flipping.
+  `dark` therefore holds one genuine delta (`textColor`, for text outside a box)
+  and is **merged over** `themeVariables` rather than swapped for it, so a shared
+  value cannot be changed in one mode and forgotten in the other.
+- **`tertiaryColor` is the ER relationship chip and the DFD trust boundary**, and
+  those two want opposite things. Mermaid paints the chip as `tertiaryColor`
+  mixed about halfway to white and labels it with `primaryTextColor` — the same
+  light colour entity names use. Found by rendering with marker colours:
+  `#000000` paints as `~#808080`, so the chip can never be darker than mid-grey
+  and **3:1 is this pairing's ceiling** (`#18191b` reaches 3.07:1; a teal
+  tertiary lands at 1.9:1 and the labels are genuinely unreadable). Legibility
+  wins, so `tertiaryColor` is dark — which makes the DFD boundaries dark panels
+  rather than the pale tint LikeC4 uses for a compound group. That is the one
+  place the two renderers still differ, and it is a mermaid limitation, not a
+  choice. A test asserts every other pairing at AA and this one at 3:1.
+- The `likec4` block is the palette **for both renderers**, consumed at different
+  times — the part to keep straight:
 
   | | Hue | Light/dark |
   |---|---|---|

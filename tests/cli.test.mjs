@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, lstatSync, existsSync } from 'node:fs';
+import {
+  mkdtempSync,
+  rmSync,
+  lstatSync,
+  existsSync,
+  chmodSync,
+  writeFileSync,
+  unlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,7 +71,34 @@ test('collision without force exits 1 and reports skip', (t) => {
   assert.equal(mk.status, 0);
   const res = run(['-p', 'arch-docs', '-a', 'claude'], cwd);
   assert.equal(res.status, 1);
-  assert.match(res.stdout, /force/);
+  assert.match(res.stderr, /force/);
+});
+
+test('read-only cwd prints a clean single-line error, no stack trace', (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agents-rock-cli-ro-'));
+  t.after(() => {
+    chmodSync(dir, 0o755);
+    rmSync(dir, { recursive: true, force: true });
+  });
+  chmodSync(dir, 0o555);
+  const probe = path.join(dir, '.probe-write');
+  try {
+    writeFileSync(probe, 'x');
+    unlinkSync(probe);
+    t.skip('chmod does not block writes in this environment (likely root)');
+    return;
+  } catch {
+    // expected: write blocked, proceed with the read-only assertions
+  }
+  const res = spawnSync(process.execPath, [BIN, '-p', 'arch-docs', '-a', 'claude'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, DEBUG: '' },
+  });
+  assert.equal(res.status, 1);
+  const lines = res.stderr.trim().split('\n');
+  assert.equal(lines.length, 1);
+  assert.doesNotMatch(res.stderr, /\bat /);
 });
 
 test('--help and --version exit 0', (t) => {

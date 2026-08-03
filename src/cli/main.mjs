@@ -14,8 +14,8 @@ export async function main(argv) {
   try {
     return await run(argv);
   } catch (err) {
-    if (!(err instanceof UsageError)) throw err;
-    console.error(err.message);
+    if (process.env.DEBUG) console.error(err.stack);
+    else console.error(err.message);
     return 1;
   }
 }
@@ -82,6 +82,7 @@ function printSummary(pluginName, result) {
   }
   for (const item of result.installed ?? []) {
     console.log(`✔ ${pluginName}: ${item.skill} → ${item.agent} (${item.mode})`);
+    warnIfCopyFallback(item);
   }
   for (const item of result.removed ?? []) {
     console.log(`✔ ${pluginName}: removed ${item.skill} ← ${item.agent}`);
@@ -90,9 +91,16 @@ function printSummary(pluginName, result) {
     console.log(`✔ ${pluginName}: removed canonical ${skill}`);
   }
   for (const item of result.skipped ?? []) {
-    console.log(`✖ skipped ${item.path} — ${item.reason}`);
+    console.error(`✖ skipped ${item.path} — ${item.reason}`);
   }
   return (result.skipped ?? []).length;
+}
+
+function warnIfCopyFallback(item) {
+  if (item.mode !== 'copy') return;
+  console.error(
+    `⚠ ${item.skill} → ${item.agent} installed as plain copy — updates to .agents/skills will not propagate`,
+  );
 }
 
 function printHelp() {

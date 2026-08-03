@@ -48,10 +48,14 @@ export function runPicker({ title, items }) {
 
 function makeKeyHandler(session, finish) {
   return (str, key) => {
-    if (key.ctrl && key.name === 'c') return finish(null);
-    if (key.name === 'return') return finish([...session.state.selected]);
-    session.state = reduceKey(session.state, keyName(key));
-    draw(session);
+    try {
+      if (key.ctrl && key.name === 'c') return finish(null);
+      if (key.name === 'return') return finish([...session.state.selected]);
+      session.state = reduceKey(session.state, keyName(key));
+      draw(session);
+    } catch {
+      finish(null);
+    }
   };
 }
 

@@ -68,3 +68,60 @@ test('escapes a quote in a link target so it cannot break out of the href attrib
   assert.doesNotMatch(html, /"\s*onclick=/);
   assert.match(html, /&quot;/);
 });
+
+test('h1 gets a doc-prefixed id and is reported as the page title', () => {
+  const { html, title, docId } = renderMarkdown('# Threat Model\n\n## Threats');
+  assert.match(html, /<h1 id="doc-threat-model"/);
+  assert.equal(title, 'Threat Model');
+  assert.equal(docId, 'doc-threat-model');
+});
+
+test('doc ids use their own namespace so section slugs keep their numbering', () => {
+  const slugs = new Map();
+  const docSlugs = new Map();
+  renderMarkdown('# Related\n\n## Related', slugs, docSlugs);
+  const second = renderMarkdown('# Related\n\n## Related', slugs, docSlugs);
+  assert.equal(second.docId, 'doc-related-2');
+  assert.equal(second.headings[0].slug, 'related-2');
+});
+
+test('a page with no h1 falls back to its first section for a title', () => {
+  const { title, docId } = renderMarkdown('## Only A Section');
+  assert.equal(title, 'Only A Section');
+  assert.equal(docId, null);
+});
+
+// Lists had no shape of their own, so every "- item" fell through to the
+// paragraph collector and a bulleted block came out as one run-on sentence with
+// literal dashes in it. The real doc set has 268 bullets, 22 nested and 45
+// numbered items — this was the largest reading defect in the body.
+test('bullet lines become a list, not a run-on paragraph', () => {
+  const { html } = renderMarkdown('- one\n- two\n- three');
+  assert.match(html, /<ul><li>one<\/li><li>two<\/li><li>three<\/li><\/ul>/);
+  assert.doesNotMatch(html, /<p>- /);
+});
+
+test('numbered lines become an ordered list', () => {
+  const { html } = renderMarkdown('1. first\n2. second');
+  assert.match(html, /<ol><li>first<\/li><li>second<\/li><\/ol>/);
+});
+
+test('an indented bullet nests inside the item above it', () => {
+  const { html } = renderMarkdown('- parent\n  - child\n- sibling');
+  assert.match(html, /<li>parent<ul><li>child<\/li><\/ul><\/li><li>sibling<\/li>/);
+});
+
+test('inline markup still renders inside a list item', () => {
+  const { html } = renderMarkdown('- see `code` and **bold** and [a](b.md)');
+  assert.match(html, /<li>see <code>code<\/code> and <strong>bold<\/strong> and <a href="b\.md">a<\/a><\/li>/);
+});
+
+test('a list ends where the prose resumes', () => {
+  const { html } = renderMarkdown('- item\n\nAfter the list.');
+  assert.match(html, /<\/ul>\n<p>After the list\.<\/p>/);
+});
+
+test('a paragraph is not swallowed into a list that follows it', () => {
+  const { html } = renderMarkdown('Lead in:\n- item');
+  assert.match(html, /<p>Lead in:<\/p>\n<ul><li>item<\/li><\/ul>/);
+});

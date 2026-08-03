@@ -1,12 +1,21 @@
 import { nextSlug } from './slug-registry.mjs';
+import { escapeHtml, inline } from './md-inline.mjs';
+import { isListItem, renderList } from './md-list.mjs';
 
-export function renderMarkdown(md, slugs = new Map()) {
+export { escapeHtml };
+
+export function renderMarkdown(md, slugs = new Map(), docSlugs = new Map()) {
   const ctx = {
     lines: md.replace(/^---\n[\s\S]*?\n---\n?/, '').split('\n'),
-    i: 0, html: [], headings: [], slugs,
+    i: 0, html: [], headings: [], slugs, docSlugs, title: null, docId: null,
   };
   while (ctx.i < ctx.lines.length) dispatch(ctx);
-  return { html: ctx.html.join('\n'), headings: ctx.headings };
+  return {
+    html: ctx.html.join('\n'),
+    headings: ctx.headings,
+    title: ctx.title ?? ctx.headings[0]?.text ?? 'Document',
+    docId: ctx.docId,
+  };
 }
 
 function shapeOf(lines, i) {
@@ -16,6 +25,7 @@ function shapeOf(lines, i) {
   if (line.trim().startsWith('```')) return 'fence';
   if (/^<!--\s*likec4:view\s+\S+\s*-->/.test(line.trim())) return 'marker';
   if (line.startsWith('|') && /^\|[\s|:-]+\|$/.test((lines[i + 1] ?? '').trim())) return 'table';
+  if (isListItem(line)) return 'list';
   return 'paragraph';
 }
 
@@ -26,21 +36,35 @@ function dispatch(ctx) {
   if (shape === 'fence') return renderFence(ctx);
   if (shape === 'marker') return renderMarker(ctx);
   if (shape === 'table') return renderTable(ctx);
+  if (shape === 'list') return renderListBlock(ctx);
   return renderParagraph(ctx);
+}
+
+function renderListBlock(ctx) {
+  const { html, next } = renderList(ctx.lines, ctx.i);
+  ctx.html.push(html);
+  ctx.i = next;
 }
 
 function renderHeading(ctx) {
   const [, hashes, raw] = ctx.lines[ctx.i].match(/^(#{1,6})\s+(.*)$/);
   const level = hashes.length;
   const text = raw.trim();
-  if (level === 2 || level === 3) {
-    const slug = nextSlug(text, ctx.slugs);
-    ctx.html.push(`<h${level} id="${slug}">${inline(text)}</h${level}>`);
-    ctx.headings.push({ level, text, slug });
-  } else {
-    ctx.html.push(`<h${level}>${inline(text)}</h${level}>`);
-  }
   ctx.i += 1;
+  if (level === 1) {
+    const id = `doc-${nextSlug(text, ctx.docSlugs)}`;
+    ctx.title ??= text;
+    ctx.docId ??= id;
+    ctx.html.push(`<h1 id="${id}" class="doc-head">${inline(text)}</h1>`);
+    return;
+  }
+  if (level !== 2 && level !== 3) {
+    ctx.html.push(`<h${level}>${inline(text)}</h${level}>`);
+    return;
+  }
+  const slug = nextSlug(text, ctx.slugs);
+  ctx.html.push(`<h${level} id="${slug}">${inline(text)}</h${level}>`);
+  ctx.headings.push({ level, text, slug });
 }
 
 function renderFence(ctx) {
@@ -87,13 +111,3 @@ function renderParagraph(ctx) {
   ctx.i = j;
 }
 
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function inline(text) {
-  return escapeHtml(text)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]*)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
-}

@@ -26,6 +26,10 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /\/\*mermaid\*\//);
   assert.doesNotMatch(html, /url\(https?:/);
   assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
+  // ARCHITECTURE.md heads its own section; anything under docs/adr/ buckets
+  // into one collapsed Decision Records block instead of padding the rail.
+  assert.match(html, /nav-sec__title[^>]*>Architecture</);
+  assert.match(html, /nav-sec__title[^>]*>Decision Records</);
 });
 
 test('render.mjs fails loudly on a missing bundle', () => {

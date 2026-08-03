@@ -50,6 +50,19 @@ Four steps, in order — each feeds the next:
    template slots (`TITLE`, `NAV`, `DOC`, `LIKEC4_BUNDLE`, `MERMAID_BUNDLE`,
    `THEME`), and writes `viewer/index.html` — one self-contained file.
 
+   The markdown subset is headings, fenced code, likec4 view markers, tables,
+   **lists** (`scripts/lib/md-list.mjs` — bullet, numbered, and nested, with
+   the child `<ul>` inside its parent `<li>`) and paragraphs, plus inline
+   code/bold/link (`scripts/lib/md-inline.mjs`). Anything without a shape falls
+   through to the paragraph collector, which joins consecutive lines — so an
+   unsupported block does not fail loudly, it silently comes out as run-on
+   prose. Add the shape to `shapeOf` before adding the renderer.
+
+   `--docs` order is the reading order and the rail order; the renderer never
+   sorts. The rail's section label comes from each document's parent directory
+   (`docs/adr/` → Decision Records), so passing ADRs interleaved with
+   companions splits them into repeated sections.
+
 4. **Serve it.**
    `node scripts/serve.mjs viewer/` — a tiny static file server, no build
    step. Regenerating after a doc edit is: rerun step 3, refresh the
@@ -76,6 +89,17 @@ Security DFD) follows all of these, no exceptions:
 - Accent colors: an approved pair only — teal `#0f766e` + slate `#475569`
   (as shipped in `assets/mermaid-theme.json`), semi-transparent 8-digit-hex
   fills. No violet-fuchsia accents.
+- `mermaid-theme.json` carries **two** palettes: `themeVariables` (light) and
+  `dark` (teal `#2dd4bf` + slate `#94a3b8`, light text). Mermaid bakes colors
+  into the SVG at render time, so one fixed palette leaves every label
+  unreadable in the other mode — the fills are semi-transparent, and dark text
+  over a dark-tinted fill disappears. The theme toggle therefore re-runs
+  `mermaid.initialize` and re-renders every diagram from its stashed source.
+- The renderer strips mermaid's intrinsic `width`/`height` off the SVG and
+  scales it to the container via its `viewBox`. Mermaid otherwise pins a
+  diagram to its natural size (~300px for the §8 ER), which is an unreadable
+  thumbnail in a full-width shell. LikeC4 needs the opposite — an explicit
+  box (`c4-view { height: 460px }`) to fit its view into.
 - Every diagram — LikeC4 `<c4-view>` embeds and mermaid diagrams alike —
   gets all four controls: zoom, pan, expand, and **fullscreen**
   (`.diagram-shell` + `.diagram-toolbar` in the viewer template).
@@ -83,7 +107,22 @@ Security DFD) follows all of these, no exceptions:
 ## 3. v1 scope record
 
 Shipped: per-section and per-view deep links, dark/light toggle (persisted
-in `localStorage`), responsive sidebar nav.
+in `localStorage`), and a **two-level** sidebar nav (`scripts/lib/nav.mjs`) with
+a substring filter, scroll-spy active state, three-part breadcrumb, and an
+off-canvas drawer below 960px.
+
+Both levels are load-bearing, and the second one is the one that is easy to
+skip. A real set runs to ~20 documents and ~120 headings:
+
+| Rail | What the reader sees |
+|---|---|
+| flat headings | ~120 rows of near-duplicate labels — "Status", "Context", "Decision", "Consequences" repeat once per ADR with nothing saying which ADR a link belongs to |
+| one group per document | 21 rows, 17 of them ADRs — the same wall one level up, and the four documents that are not ADRs are buried in it |
+| section → document → heading | 2 rows closed. `Architecture` (4 docs) opens; `Decision Records` (17) stays collapsed until asked for |
+
+Only the first section and its first document open on load. Scroll spy opens
+whatever it lands on, at both levels; the filter force-opens hits and restores
+the reader's own open/closed layout from `data-was-open` when the box clears.
 
 Deliberately **not** shipped, with reasons recorded here rather than left
 silent:
@@ -91,7 +130,8 @@ silent:
 | Feature | Status | Reason |
 |---|---|---|
 | Reach tracing | not shipped | LikeC4 covers this natively for its own architecture views — a second implementation would duplicate what LikeC4 already does |
-| Semantic search | not shipped | v1 is a single page; the browser's built-in find (Ctrl/Cmd+F) is sufficient at this scale |
+| Semantic search | not shipped | the rail filter matches heading substrings, which covers wayfinding; ranking by meaning would need an index the offline single-file viewer has nowhere to put |
+| Full-text body search | not shipped | the browser's built-in find (Ctrl/Cmd+F) already searches the whole page, because every document is in the one DOM |
 
 The honest-absence rule (`interview.md` §"Honest absence") applies to the
 tool itself, not just to documentation facts: an unshipped feature is

@@ -1,6 +1,7 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { renderMarkdown } from './lib/md-render.mjs';
+import { buildNav } from './lib/nav.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
@@ -30,18 +31,27 @@ function docTitle(archMd) {
   return h1 ? h1[1].trim() : 'Architecture';
 }
 
-function renderNav(pages) {
-  return pages
-    .flatMap((p) => p.headings)
-    .map((h) => `<a href="#${h.slug}">${h.text}</a>`)
-    .join('\n');
+// The rail buckets documents by the directory they came from, so a docs/adr run
+// collapses to one row instead of 17. ARCHITECTURE.md sits at the repo root, so
+// its own directory name is meaningless and it heads its own section instead.
+const DECISIONS = /^(adrs?|decisions?|rfcs?)$/;
+
+function sectionOf(path, index) {
+  if (index === 0) return 'Architecture';
+  const dir = basename(dirname(path)).toLowerCase();
+  if (DECISIONS.test(dir)) return 'Decision Records';
+  return dir.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
 const args = parseArgs(process.argv.slice(2));
 const archMd = readFileSync(args.arch, 'utf8');
 const docPaths = [args.arch, ...args.docs];
 const slugs = new Map();
-const pages = docPaths.map((p) => renderMarkdown(readFileSync(p, 'utf8'), slugs));
+const docSlugs = new Map();
+const pages = docPaths.map((p, i) => ({
+  ...renderMarkdown(readFileSync(p, 'utf8'), slugs, docSlugs),
+  section: sectionOf(p, i),
+}));
 
 const templateUrl = new URL('../assets/viewer-template.html', import.meta.url);
 const template = readFileSync(templateUrl, 'utf8');
@@ -49,7 +59,7 @@ const html = embed({
   template,
   slots: {
     TITLE: docTitle(archMd),
-    NAV: renderNav(pages),
+    NAV: buildNav(pages),
     DOC: pages.map((p) => p.html).join('\n'),
     LIKEC4_BUNDLE: stripRemoteAssets(readFileSync(args['likec4-bundle'], 'utf8')),
     MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),

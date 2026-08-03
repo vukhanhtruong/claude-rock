@@ -45,32 +45,52 @@ skill does not know: arch-docs' own naming and structure conventions.
   }
   ```
 
-- **Declare the palette in `specification { }`.** LikeC4's default element
-  colour is blue (`#3b82f6`), and the viewer's own accent — and every mermaid
-  diagram beside it — is teal. Left alone, the two diagram systems on one page
-  read as two different products. The hexes are **not** free choice: they come
-  from `assets/mermaid-theme.json`'s `likec4` block, which is the single palette
-  both renderers are cut from — `brand` is the hex mermaid draws `primaryColor`
-  with, `muted` is `secondaryColor`.
+- **Declare no colours at all. The plugin owns the palette.**
+
+  This used to say the opposite — write `color brand #0f766e` into
+  `specification { }` and style each element kind with it. That instruction was
+  wrong twice over, and the second way is why a real set shipped blue.
+
+  | Problem | Detail |
+  |---|---|
+  | it does not parse | `color muted #475569` is rejected. `muted` is a **reserved built-in** (`primary`, `secondary`, `muted`, `amber`, `gray`, `green`, `indigo`, `red`), and a built-in cannot be redefined in `specification` |
+  | it is prose enforcing an invariant | a model that simply omits the palette is **valid**, generates clean, exits 0 — and paints every node LikeC4's default blue beside teal mermaid diagrams. Nothing in the pipeline noticed. That is exactly what happened to the EOS set |
+
+  The palette now comes from a project config the plugin writes, not from the
+  model. Run before `gen webcomponent`:
 
   ```
-  specification {
-    color brand #0f766e
-    color muted #475569
-
-    element person    { style { color brand } }
-    element system    { style { color brand } }
-    element container { style { color brand } }
-    element component { style { color brand } }
-    deploymentNode node { style { color muted } }
-    tag external
-  }
+  node scripts/likec4-config.mjs --out <dir holding the .c4 sources>
   ```
+
+  It writes `likec4.config.json` from `assets/mermaid-theme.json`'s `likec4`
+  block — the single palette both renderers are cut from — overriding the
+  built-in colour names so output lands in-palette **however the model is
+  written**:
+
+  ```json
+  { "styles": {
+      "theme": { "colors": {
+        "primary": "#0f766e", "secondary": "#475569",
+        "muted": "#475569", "gray": "#475569" } },
+      "defaults": { "color": "primary" } } }
+  ```
+
+  LikeC4 reads the config from the folder holding the `.c4` sources. The skill
+  generates that folder, so the target repo stays markdown-only.
+
+  Overriding the **built-in names** rather than adding a custom one is
+  deliberate: a custom name applies only where something references it, and
+  `styles.defaults.color` reaches only elements that declare no colour of their
+  own — LikeC4's precedence is kind spec → element → view, and each of those
+  beats a default.
 
   One hex per colour is all there is to give. LikeC4 derives stroke, both
   contrast shades, the relationship line and label colours, **and the entire
-  dark rendering** from that single value (`#0f766e` → stroke `#00524b`,
-  hiContrast `#c7ffff`). There is no light/dark pair to specify.
+  dark rendering** from that single value — verified against 1.59.2, where
+  `#0f766e` yields stroke `#00524b` and hiContrast `#c7ffff`, the values
+  `mermaid-theme.json` already records. Writing those out would be restating
+  derived numbers as if they were ours.
 
   The derivations mermaid has to copy are recorded under `likec4.light` and
   `likec4.dark` — compound group fill/stroke/title and the relation label chip,
@@ -82,8 +102,13 @@ skill does not know: arch-docs' own naming and structure conventions.
   **This bakes in at generate time**, not at view time. A viewer-side CSS
   override does not work: `--likec4-palette-fill` set on `c4-view` reaches the
   host and is then re-declared closer to the node inside the shadow root, so
-  the nodes keep the default. Changing the palette means editing the
-  specification and re-running `gen webcomponent`.
+  the nodes keep whatever the bundle baked in.
+
+  `render.mjs` refuses a bundle whose theme palette is missing or off — see
+  `viewer.md` §1 step 1. It reads the **resolved node colour**, not a hex grep: a
+  model declaring its own colour leaves the brand hex sitting in the bundle's
+  colour registry, defined and never painted, so a grep passes on an all-blue
+  bundle.
 
 - **Every container must appear in an `instanceOf`** somewhere under
   `deployment { }`. A logical container with no deployment-node instance is

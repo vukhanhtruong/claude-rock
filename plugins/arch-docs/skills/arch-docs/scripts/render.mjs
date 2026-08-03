@@ -8,6 +8,8 @@ import { routeMap } from './lib/doc-routes.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
+import { buildFontFaces } from './lib/fonts.mjs';
+import { validatePalette } from './lib/validate-palette.mjs';
 
 function consumeDocs(argv, i, docs) {
   while (argv[i + 1] && !argv[i + 1].startsWith('--')) docs.push(argv[++i]);
@@ -72,17 +74,36 @@ const idByPath = new Map(pages.map((p) => [p.path, p.docId]));
 const linked = pages.map((p) => ({ ...p, html: rewriteDocLinks(p.html, p.path, idByPath) }));
 const routes = routeMap(linked);
 
+// The last point at which an off-palette bundle can still be stopped. A model
+// that declares no colours is valid, generates clean and exits 0, so nothing
+// upstream reports anything — the diagrams simply arrive in LikeC4's default
+// blue beside teal mermaid ones. Checked here because this is where the bundle
+// is read, and refused rather than warned about: a viewer is worth building only
+// if its two diagram renderers agree.
+const likec4Bundle = readFileSync(args['likec4-bundle'], 'utf8');
+const themeJson = readFileSync(args.theme, 'utf8');
+const paletteFindings = validatePalette({ bundle: likec4Bundle, theme: JSON.parse(themeJson) });
+if (paletteFindings.length) {
+  throw new Error(`${paletteFindings.join('\n')}\n`
+    + 'Write the config with scripts/likec4-config.mjs, then re-run likec4 gen webcomponent.');
+}
+
 const templateUrl = new URL('../assets/viewer-template.html', import.meta.url);
 const template = readFileSync(templateUrl, 'utf8');
+// Shipped with the skill rather than passed in: unlike the two bundles these are
+// fixed bytes that never need regenerating, so there is nothing for a caller to
+// choose and no build step to get wrong.
+const fontsDir = new URL('../assets/fonts/', import.meta.url).pathname;
 const html = embed({
   template,
   slots: {
     TITLE: docTitle(archMd),
+    FONTS: buildFontFaces(fontsDir),
     NAV: buildNav(linked, routes),
     DOC: buildDoc(linked, routes),
-    LIKEC4_BUNDLE: stripRemoteAssets(readFileSync(args['likec4-bundle'], 'utf8')),
+    LIKEC4_BUNDLE: stripRemoteAssets(likec4Bundle),
     MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),
-    THEME: readFileSync(args.theme, 'utf8'),
+    THEME: themeJson,
   },
 });
 

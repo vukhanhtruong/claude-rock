@@ -3,10 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Declared, not merely implemented in CSS: the browser paints the canvas
+     before the boot script runs, so without this a dark-mode reader gets a white
+     flash — and the UA scrollbar and the search field's own clear button stay
+     light inside a dark page. -->
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Architecture documentation — one self-contained page, no network.">
+<!-- The rail's own mark, inline. A linked file would be a second request from a
+     viewer whose whole premise is one offline file. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%230f766e' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M10 1.8 18 6v8l-8 4.2L2 14V6z'/%3E%3Cpath d='M10 10.2 18 6M10 10.2v8M10 10.2 2 6'/%3E%3C/svg%3E">
 <title><!-- slot:TITLE --></title>
 <style>
-/* Fonts are local-only: the viewer must render with no network. The design
-   carries itself on scale, weight and rhythm rather than a downloaded face. */
+/* The two faces the stacks below name and could not rely on, embedded as base64
+   woff2 by scripts/lib/fonts.mjs — nothing is fetched, and the bytes are not in
+   this file. Declared first, before anything names them. */
+<!-- slot:FONTS -->
+
+/* Still no network: what the slot embeds is IBM Plex Sans and Mono, the two
+   stacks whose fallback crosses a genre boundary. The display serif is left to
+   the platform on purpose — Iowan → Charter → Georgia is a book serif the whole
+   way down, so it degrades rather than substitutes. */
 :root {
   --font-display: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text',
                   'Palatino Linotype', Palatino, Georgia, serif;
@@ -34,11 +50,16 @@
      the paragraph above it — the reader re-found the margin on every block.
      A block may now be narrower than the measure; none may be wider. */
   --rail-w: 292px; --topbar-h: 52px;
-  /* 96ch, capped by the room the rail leaves. 74ch is the classic prose measure
-     and it was too tight once every table and diagram had to live inside it —
-     three of eighteen tables still cannot fit and scroll in their card. Widen
-     this one value to trade reading comfort for table room. */
-  --measure: min(96ch, calc(100vw - var(--rail-w) - 80px));
+  /* 96ch, capped by the column it sits in. 74ch is the classic prose measure and
+     it was too tight once every table and diagram had to live inside it — three
+     of eighteen tables still cannot fit and scroll in their card. Widen this one
+     value to trade reading comfort for table room.
+     `100%`, not `calc(100vw - rail - 80px)`: .main is already offset by the rail
+     and its own padding, so subtracting them again restates the layout in a
+     second place — and 100vw counts the scrollbar gutter, which clipped ~15px
+     off every block on the platforms that reserve one. It also makes the cap
+     self-correcting below 960px, where the rail leaves the flow entirely. */
+  --measure: min(96ch, 100%);
 }
 /* Dark palette is applied by both the media query and the explicit attribute so
    the toggle wins in either direction. */
@@ -78,6 +99,19 @@ body {
 }
 ::selection { background: var(--accent-soft); }
 
+/* The same ring the buttons and the rail heads already carry, extended to the
+   rest of what a keyboard reader can land on. These were falling through to the
+   UA default — visible, but a different object on every platform, and this page
+   has ten kinds of interactive surface. Named here rather than folded into each
+   component's block so there is one place that says what focus looks like.
+   Inset on the rail link, which sits in a padded well whose edge a 2px outer
+   ring would collide with; outside on the rest, which have room. */
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.view-tab:focus-visible,
+.page-chip:focus-visible,
+.record-row:focus-visible,
+.record-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* One scrollbar treatment for every scroll container: the rail, a code block, a
    wide table, a tab strip. The platform default is a ~15px grey slab, which
    inside a table card is an object heavier than the hairline around it — and a
@@ -94,6 +128,26 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); background-clip: content-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---------- skip link ---------- */
+/* DOM order is topbar, rail, prose — which is the right reading order and the
+   wrong tab order: a real set puts ~120 rail links between the two, and a
+   keyboard reader had to walk every one of them to reach a sentence. Parked
+   above the viewport rather than clipped to a pixel, so when it takes focus it
+   lands over the bar it is offering to skip. */
+.skip {
+  position: fixed; top: 10px; left: 10px; z-index: 200;
+  padding: 9px 14px; border-radius: 8px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--bg); background: var(--accent); text-decoration: none;
+  translate: 0 -300%; transition: translate .16s cubic-bezier(.2, 0, 0, 1);
+}
+/* :focus, not :focus-visible — a link this size is worth showing to whoever
+   reaches it, however they got there. */
+.skip:focus { translate: 0 0; outline: 2px solid var(--text); outline-offset: 2px; }
+/* The target takes focus programmatically and should not draw a ring for it. */
+.main:focus { outline: none; }
 
 /* Micro-label: the recurring texture for every piece of metadata. */
 .eyebrow {
@@ -285,6 +339,17 @@ body {
   font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
 }
 .sidebar.is-filtering :is(.nav-sec__count, .nav-group__count) { display: none; }
+/* A document the filter promoted on its text rather than on any of its headings.
+   Without the marker the reader types a phrase and gets a row whose every
+   visible label lacks it, which reads as a bug in the filter. It takes the slot
+   the count badge vacates while filtering, so the row keeps its shape. */
+.nav-group.is-body-hit > .nav-group__head::after {
+  content: 'in text'; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--accent); background: var(--accent-soft);
+  border-radius: 20px; padding: 2px 6px;
+}
 
 /* One staggered reveal on load beats a dozen scattered micro-interactions. */
 @keyframes rail-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
@@ -395,8 +460,7 @@ pre {
   padding: 16px 18px; margin: 24px 0; max-height: 30rem; overflow: auto;
   white-space: pre; box-shadow: var(--shadow);
 }
-pre code { white-space: inherit; }
-pre code { background: none; padding: 0; font-size: inherit; }
+pre code { white-space: inherit; background: none; padding: 0; font-size: inherit; }
 blockquote {
   margin: 24px 0; padding: 14px 18px; border-left: 2px solid var(--accent);
   border-radius: 0 8px 8px 0; background: var(--surface-2); color: var(--text-dim);
@@ -413,7 +477,16 @@ hr { border: none; height: 1px; background: var(--border); margin: 48px 0; }
   overflow: hidden; background: var(--surface); box-shadow: var(--shadow);
   width: 100%;
 }
-.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* The height is what makes the sticky header below work at all. `overflow-x:
+   auto` computes the other axis from `visible` to `auto` — the same rule the tab
+   bar's own comment records — so this box is a scrollport on both axes. Left
+   unbounded it never scrolls vertically, the header sticks to a box that cannot
+   move, and a 40-row table scrolls its own column labels away under the top bar.
+   Capped, a tall table scrolls inside its card the way a long `pre` already does. */
+.table-scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  max-height: min(70vh, 40rem);
+}
 /* One width for every table, because content width gave each one its own and a
    page of them read as a ragged right edge against a fixed prose column. The cap
    stays: full width is a floor too, and without a ceiling a wide table pushes
@@ -651,6 +724,12 @@ li::marker { color: var(--text-faint); }
 .record-search input:focus {
   outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
 }
+.record-empty {
+  margin: 0; padding: 16px 14px; text-align: center;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint);
+  background: var(--surface-2); border: 1px dashed var(--border-strong);
+  border-radius: 9px;
+}
 .record-hits { display: grid; gap: 6px; margin: 0 0 24px; }
 .record-hits:empty { margin: 0; }
 .record-hit {
@@ -687,6 +766,13 @@ li::marker { color: var(--text-faint); }
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .02em;
   transition: background .13s, color .13s;
 }
+/* The one control carrying a value rather than an icon. Tabular figures and a
+   floor on the width, because it rewrites on every zoom step and proportional
+   digits would shove the three buttons beside it sideways as it counted. */
+.diagram-toolbar [data-zoom-reset] {
+  width: auto; min-width: 38px; padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
 .diagram-toolbar button:hover { background: var(--surface-3); color: var(--text); }
 .diagram-toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .diagram-toolbar svg { width: 14px; height: 14px; fill: none; stroke: currentColor;
@@ -695,16 +781,34 @@ li::marker { color: var(--text-faint); }
 .diagram-shell:fullscreen [data-exit-fullscreen] { display: inline-flex; }
 .diagram-viewport {
   overflow: hidden; min-height: 320px; display: flex; align-items: center;
-  justify-content: center; cursor: grab; padding: 20px;
+  justify-content: center; padding: 20px;
 }
 .diagram-shell:fullscreen .diagram-viewport { height: 100vh; }
-.diagram-viewport.is-panning { cursor: grabbing; user-select: none; }
+.diagram-viewport:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Panning is offered only once there is something to pan — zoomed in, expanded,
+   or fullscreen. Two reasons it is a state rather than the default: at 1:1 the
+   whole diagram is already in the box, so a grab cursor promises movement that
+   cannot happen; and `touch-action: none` there would swallow the page scroll of
+   any reader whose finger lands on a diagram on the way down the document. */
+.diagram-viewport.is-pannable { cursor: grab; touch-action: none; }
+.diagram-viewport.is-pannable.is-panning { cursor: grabbing; user-select: none; }
 .diagram-canvas { transform-origin: center; }
 .diagram-shell.is-expanded {
   position: fixed; inset: 20px; width: auto; margin: 0; z-index: 100;
   box-shadow: 0 24px 70px -18px rgba(0, 0, 0, .5);
 }
 .diagram-shell.is-expanded .diagram-viewport { height: calc(100% - 12px); }
+
+/* A diagram mermaid could not parse. Named as a failure rather than left to show
+   its own source: an unhandled render puts a slab of DSL inside a diagram frame,
+   which reads as a code block somebody meant to put there. Brick, because this is
+   the same "something is wrong" the rejected-status pill means. */
+.diagram-error {
+  margin: 0; padding: 16px 18px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+  color: var(--state-stop); background: var(--state-stop-soft);
+  border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
 
 /* LikeC4 fits its view to the box it is given. Without an explicit one the
    webcomponent collapses to a thumbnail in the middle of an empty shell. */
@@ -785,10 +889,11 @@ c4-view { display: block; width: 100%; height: 460px; }
 }
 
 /* ---------- responsive ---------- */
-/* No narrow-desktop breakpoint: --measure's own calc already gives up width to
-   the rail before the 96ch cap ever binds. */
+/* No narrow-desktop breakpoint, and no --measure override below either: the
+   measure resolves against the column the rail has already left, so it gives up
+   width on its own before the 96ch cap ever binds. */
 @media (max-width: 960px) {
-  :root { --rail-w: 300px; --measure: 100%; }
+  :root { --rail-w: 300px; }
   .topbar { left: 0; padding: 0 14px; }
   #progress { left: 0; }
   .route-pos { min-width: 0; letter-spacing: .06em; }
@@ -816,18 +921,46 @@ c4-view { display: block; width: 100%; height: 460px; }
   }
 }
 @media print {
-  .sidebar, .topbar, .scrim, #progress, .diagram-toolbar { display: none; }
+  .sidebar, .topbar, .scrim, #progress, .diagram-toolbar,
+  .skip, .drawer-scrim, .drawer__bar, .page-bar { display: none; }
   .main { margin: 0; padding: 0; }
+  /* The cap that lets the sticky header work is a screen affordance. Paper has
+     no scrollport, so a table taller than it would simply lose its last rows.
+     (`pre` carries a 30rem cap with the same consequence — untouched here
+     because it predates this rule and is its own call.) */
+  .table-scroll { max-height: none; overflow: visible; }
+  /* Printing printed whichever document the router had in the layout — one of
+     twenty-one, and inside a routed section one record of fifteen. Paper has no
+     router and every page is already in the DOM, only hidden, so it can have the
+     whole set. Which is what somebody printing an architecture document meant. */
+  .doc-section[hidden], .page[hidden] { display: block; }
+  /* An open record has been moved into the drawer, so it prints from there or
+     not at all. Static rather than the fixed panel it is on screen: in flow it
+     lands at the end of the set instead of over the first page of it. */
+  #drawer {
+    position: static; transform: none; visibility: visible;
+    width: auto; border: none; box-shadow: none;
+  }
+  .drawer__body { overflow: visible; padding: 0; }
 }
 </style>
 </head>
 <body>
 <script>
+/* Guarded, because this runs before the body paints and localStorage is not
+   always readable: blocked site data throws SecurityError, and so does a
+   file:// origin in some browsers — which is exactly how a single-file offline
+   viewer gets opened. Unguarded, the throw takes the theme and every script
+   after it, so the page renders in the wrong mode or not at all. Losing the
+   stored preference is the correct failure; losing the page is not. */
 (function () {
-  var stored = localStorage.getItem('arch-docs-theme');
+  var stored = null;
+  try { stored = localStorage.getItem('arch-docs-theme'); } catch (e) { /* no store */ }
   if (stored) document.documentElement.setAttribute('data-theme', stored);
 })();
 </script>
+
+<a class="skip" href="#main-content">Skip to content</a>
 
 <div id="progress"></div>
 
@@ -873,7 +1006,10 @@ c4-view { display: block; width: 100%; height: 460px; }
 document.getElementById('rail-title').textContent = document.title;
 </script>
 
-<main class="main">
+<!-- tabindex="-1" so the skip link can actually put focus here. Without it the
+     link moves the viewport and leaves the tab position back up in the rail, so
+     the next Tab returns the reader to the row they were escaping. -->
+<main class="main" id="main-content" tabindex="-1">
   <article class="doc"><!-- slot:DOC --></article>
 </main>
 
@@ -897,6 +1033,9 @@ document.getElementById('rail-title').textContent = document.title;
 window.ARCH_DOCS_THEME = <!-- slot:THEME -->;
 <!-- slot:MERMAID_BUNDLE -->
 var root = document.documentElement;
+/* Live, not sampled once: a reader can turn reduced motion on mid-session and
+   the router reads this on every jump. */
+var reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
 function isDark() {
   var set = root.getAttribute('data-theme');
@@ -943,7 +1082,9 @@ var navToggle = document.getElementById('nav-toggle');
 document.getElementById('theme-toggle').addEventListener('click', function () {
   var next = isDark() ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
-  localStorage.setItem('arch-docs-theme', next);
+  /* Same guard as the boot script: the toggle still has to work for this session
+     even where the preference cannot be kept for the next one. */
+  try { localStorage.setItem('arch-docs-theme', next); } catch (e) { /* no store */ }
   /* One call per renderer, in one place. Split across two handlers is how the
      two diagram systems drifted out of step to begin with. */
   initMermaid();
@@ -1043,15 +1184,33 @@ function restoreOpen(d) {
   if ('wasOpen' in d.dataset) d.open = d.dataset.wasOpen === '1';
 }
 
+/* Every document's own text, keyed by route. Filled once the router has sorted
+   records from pages — see the note where it is populated. */
+var docText = new Map();
+function bodyHas(g, q) {
+  var text = docText.get(g.dataset.route);
+  return Boolean(text) && text.indexOf(q) !== -1;
+}
+
+/* The filter used to match heading labels and nothing else, which is wayfinding
+   rather than search: a reader looking for "row-level security" found it only if
+   somebody had made it a heading. Every page is already in the DOM, so matching
+   the body costs an indexOf per document and no index at all.
+   A body match promotes the whole document rather than any one heading — the
+   phrase is somewhere in it, and Ctrl+F finds the line once the page is open. */
 function filterGroup(g, q) {
   var links = [].slice.call(g.querySelectorAll('.nav-link'));
-  var hit = Boolean(q) && titleOf(g, '.nav-group__title').indexOf(q) !== -1;
+  var inTitle = Boolean(q) && titleOf(g, '.nav-group__title').indexOf(q) !== -1;
+  var labelled = links.some(function (a) { return q && a.dataset.label.indexOf(q) !== -1; });
+  var inBody = Boolean(q) && !inTitle && !labelled && bodyHas(g, q);
+  var hit = inTitle || inBody;
   var found = 0;
   links.forEach(function (a) {
     var show = !q || hit || a.dataset.label.indexOf(q) !== -1;
     a.style.display = show ? '' : 'none';
     if (show) found += 1;
   });
+  g.classList.toggle('is-body-hit', inBody);
   g.style.display = !q || found || hit ? '' : 'none';
   if (q) g.open = Boolean(found || hit); else restoreOpen(g);
   return found || (hit ? 1 : 0);
@@ -1067,6 +1226,35 @@ function filterSection(sec, q) {
   if (q) sec.open = Boolean(found || hit); else restoreOpen(sec);
   return found;
 }
+
+/* The filter is the viewer's only wayfinding control and it was reachable by Tab
+   or by mouse alone — from the bottom of a document that is a long way back.
+   `/` is the convention in every documentation reader; ⌘K is the convention
+   everywhere else, so both work. On a phone the rail has to come out first, or
+   focus lands in a panel that is off screen. */
+addEventListener('keydown', function (e) {
+  var el = e.target;
+  var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable;
+  var slash = e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey;
+  var palette = e.key === 'k' && (e.metaKey || e.ctrlKey);
+  if (typing || !(slash || palette)) return;
+  e.preventDefault();
+  if (innerWidth <= 960) setDrawer(true);
+  filter.focus();
+  filter.select();
+});
+
+/* Escape clears the box and stops there. The same key closes the mobile rail and
+   any open record, and a reader clearing a search asked for neither — so the
+   event does not reach those handlers. An already-empty box hands focus back
+   instead, which is the second press doing what the reader meant. */
+filter.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  e.stopPropagation();
+  if (!filter.value) { filter.blur(); return; }
+  filter.value = '';
+  filter.dispatchEvent(new Event('input'));
+});
 
 var stashed = false;
 filter.addEventListener('input', function () {
@@ -1133,6 +1321,10 @@ function activate(el) {
 }
 
 var visible = new Set();
+/* The spy's top edge is the bar the reader is looking under, plus the 8px the
+   headings already clear it by. Read from the property the bar is sized by
+   rather than restated as a literal that goes stale the moment it changes. */
+var topbarH = parseFloat(getComputedStyle(root).getPropertyValue('--topbar-h')) || 52;
 var spy = new IntersectionObserver(function (entries) {
   entries.forEach(function (e) {
     if (e.isIntersecting) visible.add(e.target); else visible.delete(e.target);
@@ -1140,7 +1332,7 @@ var spy = new IntersectionObserver(function (entries) {
   if (!visible.size) return;
   var ordered = targets.filter(function (t) { return visible.has(t); });
   if (ordered.length) activate(ordered[0]);
-}, { rootMargin: '-' + (60) + 'px 0px -72% 0px', threshold: 0 });
+}, { rootMargin: '-' + (topbarH + 8) + 'px 0px -72% 0px', threshold: 0 });
 targets.forEach(function (t) { spy.observe(t); });
 
 links.forEach(function (a) {
@@ -1212,6 +1404,16 @@ function hitEl(page, q) {
   return a;
 }
 
+/* An empty result used to be indistinguishable from a query too short to run,
+   from a broken search, and from a section with no records — all four rendered
+   as nothing at all. */
+function emptyEl(q) {
+  var el = document.createElement('p');
+  el.className = 'record-empty';
+  el.textContent = 'No record contains “' + q + '”';
+  return el;
+}
+
 function searchEl(records, hits) {
   var box = document.createElement('div');
   box.className = 'record-search';
@@ -1224,9 +1426,13 @@ function searchEl(records, hits) {
     var q = input.value.trim().toLowerCase();
     hits.textContent = '';
     if (q.length < 2) return;
+    var found = 0;
     records.forEach(function (p) {
-      if (bodyText.get(p).toLowerCase().indexOf(q) !== -1) hits.appendChild(hitEl(p, q));
+      if (bodyText.get(p).toLowerCase().indexOf(q) === -1) return;
+      hits.appendChild(hitEl(p, q));
+      found += 1;
     });
+    if (!found) hits.appendChild(emptyEl(input.value.trim()));
   });
   return box;
 }
@@ -1423,8 +1629,12 @@ function recordLabel(title) {
 /* `inert` rather than a hand-rolled tab trap: it takes the page out of the tab
    order and the accessibility tree in one property, which is what aria-modal was
    claiming and nothing was enforcing. */
+/* The skip link is in the list because it sits outside .main and would otherwise
+   stay reachable from behind the scrim — a skip link that fires while a record
+   is open lands the reader on a page they cannot see. */
 function setBehindInert(on) {
-  [document.querySelector('.main'), sidebar, document.querySelector('.topbar')]
+  [document.querySelector('.main'), sidebar, document.querySelector('.topbar'),
+    document.querySelector('.skip')]
     .forEach(function (el) { if (el) el.inert = on; });
 }
 
@@ -1497,10 +1707,18 @@ function navigate(jump) {
   closeDrawer();
   if (!jump) return;
   var el = parts.id && document.getElementById(parts.id);
-  if (!el) { if (moved) scrollTo(0, 0); return; }
+  /* Instant when the router changed the page, smooth when it did not.
+     `scroll-behavior: smooth` cannot tell the two apart, so a deep link into
+     another document used to animate the whole way there — through content the
+     reader never asked to see, and past the top of the document they did. An
+     anchor inside the page already on screen is a short deliberate move and
+     keeps its glide. Reduced motion takes even that back: passing `behavior`
+     explicitly outranks the CSS rule that used to cover this. */
+  var how = (moved || reduced.matches) ? 'instant' : 'smooth';
+  if (!el) { if (moved) scrollTo({ top: 0, behavior: 'instant' }); return; }
   /* A link to a document scrolls to the page so its prev/next bar stays on
      screen. A link to a heading inside it still lands on that heading. */
-  (el.classList.contains('doc-head') ? page : el).scrollIntoView();
+  (el.classList.contains('doc-head') ? page : el).scrollIntoView({ behavior: how });
 }
 
 function goTo(route) {
@@ -1525,6 +1743,17 @@ groups.forEach(function (g) { if (g.dataset.route) wireRow(g, '.nav-group__head'
    text, and the search stashes that text. A bar prepended before either would
    put "‹ ALL RECORDS 3 / 15 ‹ PREV NEXT ›" at the head of every record — inside
    the 700 characters the status is looked for, and inside every search hit. */
+/* Before the bars, for the same reason the index search is: a bar contributes
+   "‹ All records 3 / 15 ‹ Prev Next ›" to every page, and captured after it those
+   become words the filter matches in every document at once.
+   Records are left out — they have no rail row to promote, and their section's
+   own index already searches them. Between the two, nothing in the set is
+   unsearchable. */
+docPages.forEach(function (p) {
+  if (isRecord(p)) return;
+  docText.set(p.dataset.route, p.textContent.replace(/\s+/g, ' ').toLowerCase());
+});
+
 routed.forEach(equipSection);
 
 docSections.forEach(function (sec) {
@@ -1564,12 +1793,36 @@ navigate(Boolean(location.hash));
 var mermaidEls = [];
 function rerenderDiagrams() { mermaidEls.forEach(renderMermaid); }
 
+/* mermaid measures a diagram in a scratch div it appends to the body under
+   'd' + id, and leaves it there when the parse throws. */
+function dropScratch(id) {
+  var junk = document.getElementById('d' + id);
+  if (junk) junk.remove();
+}
+
+/* Left alone, a rejected render is silent: the element keeps the source text it
+   was seeded with, so a syntax error renders as a slab of mermaid DSL inside a
+   diagram frame — which reads as a code block somebody meant to put there. */
+function showDiagramError(el, err) {
+  var msg = document.createElement('p');
+  msg.className = 'diagram-error';
+  msg.textContent = 'Diagram failed to render — ' + ((err && err.message) || err);
+  el.replaceChildren(msg);
+}
+
 async function renderMermaid(el) {
   var code = el.dataset.src || el.textContent.trim();
   if (!code) return;
   el.dataset.src = code;
   var id = 'd' + Math.random().toString(36).slice(2);
-  var out = await mermaid.render(id, code);
+  var out;
+  try {
+    out = await mermaid.render(id, code);
+  } catch (err) {
+    dropScratch(id);
+    showDiagramError(el, err);
+    return;
+  }
   var svg = new DOMParser().parseFromString(out.svg, 'text/html').body.querySelector('svg');
   if (!svg) return;
   // Mermaid pins the SVG to its natural width (~300px for an ER diagram), which
@@ -1599,17 +1852,85 @@ function buildToolbar() {
   t.innerHTML =
     '<button type="button" data-zoom-in aria-label="Zoom in" title="Zoom in">' + ICONS['zoom-in'] + '</button>' +
     '<button type="button" data-zoom-out aria-label="Zoom out" title="Zoom out">' + ICONS['zoom-out'] + '</button>' +
-    '<button type="button" data-zoom-reset aria-label="Reset zoom" title="Reset zoom">1:1</button>' +
-    '<button type="button" data-expand aria-label="Expand" title="Expand">' + ICONS.expand + '</button>' +
+    '<button type="button" data-zoom-reset aria-label="Reset zoom, currently 100%" title="Reset zoom">100%</button>' +
+    '<button type="button" data-expand aria-pressed="false" aria-label="Expand" title="Expand">' + ICONS.expand + '</button>' +
     '<button type="button" data-fullscreen aria-label="Fullscreen" title="Fullscreen">' + ICONS.fullscreen + '</button>' +
     '<button type="button" data-exit-fullscreen aria-label="Exit fullscreen" title="Exit fullscreen">' + ICONS.exit + '</button>';
   return t;
+}
+
+/* There is something to pan once the diagram is bigger than its box, or once the
+   box is the whole screen. Below that, panning is a promise the diagram cannot
+   keep — and claiming the touch gesture for it costs the reader their scroll. */
+function pannable(shell, zoom) {
+  return zoom > 1 || shell.classList.contains('is-expanded')
+    || document.fullscreenElement === shell;
+}
+
+var PAN_KEYS = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
+
+/* How far the canvas may travel: the overhang, meaning how far the scaled canvas
+   sticks out past the viewport on each side. So the content edges can be brought
+   to the frame edges and no further. Below zoom 1 there is no overhang, the
+   limit is zero, and the diagram stays parked in the middle — which is right,
+   because at that size there is nothing off screen to go and look at. */
+function panLimit(viewport, canvas, zoom) {
+  return {
+    x: Math.max(0, (canvas.offsetWidth * zoom - viewport.clientWidth) / 2),
+    y: Math.max(0, (canvas.offsetHeight * zoom - viewport.clientHeight) / 2),
+  };
+}
+
+/* Pointer events, not the mouse pair: the mouse events never fire for touch, so
+   a diagram on a phone could be zoomed and then not moved. Capture keeps the
+   drag bound to the element it started in, which also retires the two
+   document-level listeners this used to add once per diagram — a page with a
+   dozen diagrams was running a dozen mousemove handlers on every move. */
+function wirePan(viewport, ctl) {
+  var drag = null;
+  var end = function () { drag = null; viewport.classList.remove('is-panning'); };
+  viewport.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.diagram-toolbar')) return;
+    if (!viewport.classList.contains('is-pannable')) return;
+    drag = { x: e.clientX, y: e.clientY };
+    viewport.setPointerCapture(e.pointerId);
+    viewport.classList.add('is-panning');
+  });
+  viewport.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    ctl.panBy(e.clientX - drag.x, e.clientY - drag.y);
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  viewport.addEventListener('pointerup', end);
+  viewport.addEventListener('pointercancel', end);
+}
+
+/* A zoomed diagram was reachable by keyboard and then frozen: the toolbar takes
+   focus and zooms, and nothing moved the canvas afterwards. */
+function wireKeys(viewport, ctl) {
+  viewport.addEventListener('keydown', function (e) {
+    var step = PAN_KEYS[e.key];
+    /* Not pannable means the whole diagram is already in its box, so the arrows
+       belong to the page. Taking them anyway traps a reader who tabbed in here
+       on their way down the document. */
+    if (step && !viewport.classList.contains('is-pannable')) return;
+    if (step) ctl.panBy(step[0] * 48, step[1] * 48);
+    else if (e.key === '+' || e.key === '=') ctl.zoomBy(1.2);
+    else if (e.key === '-') ctl.zoomBy(1 / 1.2);
+    else if (e.key === '0') ctl.reset();
+    else return;
+    e.preventDefault();
+  });
 }
 
 function wireDiagram(shell) {
   var toolbar = buildToolbar();
   var viewport = document.createElement('div');
   viewport.className = 'diagram-viewport';
+  viewport.tabIndex = 0;
+  viewport.setAttribute('role', 'group');
+  viewport.setAttribute('aria-label',
+    'Diagram. Arrow keys pan, plus and minus zoom, 0 resets.');
   var canvas = document.createElement('div');
   canvas.className = 'diagram-canvas';
   var content = shell.firstElementChild;
@@ -1617,35 +1938,54 @@ function wireDiagram(shell) {
   viewport.appendChild(canvas);
   canvas.appendChild(content);
 
-  var zoom = 1, panX = 0, panY = 0, drag = null;
-  function apply() { canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')'; }
-  function zoomBy(f) { zoom = Math.min(4, Math.max(0.25, zoom * f)); apply(); }
+  var readout = toolbar.querySelector('[data-zoom-reset]');
+  var zoom = 1, panX = 0, panY = 0;
+  /* Clamped here rather than in each of zoom, pan and reset: this is the one
+     place the transform is written, so it is the one place that cannot be
+     forgotten. Zooming back out re-centres for free. */
+  function clampPan() {
+    var lim = panLimit(viewport, canvas, zoom);
+    panX = Math.min(lim.x, Math.max(-lim.x, panX));
+    panY = Math.min(lim.y, Math.max(-lim.y, panY));
+  }
+  function apply() {
+    clampPan();
+    canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+    var pct = Math.round(zoom * 100) + '%';
+    readout.textContent = pct;
+    readout.setAttribute('aria-label', 'Reset zoom, currently ' + pct);
+  }
+  function sync() { viewport.classList.toggle('is-pannable', pannable(shell, zoom)); }
+  var ctl = {
+    zoomBy: function (f) { zoom = Math.min(4, Math.max(0.25, zoom * f)); apply(); sync(); },
+    panBy: function (dx, dy) { panX += dx; panY += dy; apply(); },
+    reset: function () { zoom = 1; panX = 0; panY = 0; apply(); sync(); },
+  };
+  /* Escape is handled once for the whole page rather than per shell, and it needs
+     to put each shell's pannable state back the way its own zoom says. */
+  shell.archDocsSync = sync;
 
-  toolbar.querySelector('[data-zoom-in]').onclick = function () { zoomBy(1.2); };
-  toolbar.querySelector('[data-zoom-out]').onclick = function () { zoomBy(1 / 1.2); };
-  toolbar.querySelector('[data-zoom-reset]').onclick = function () { zoom = 1; panX = 0; panY = 0; apply(); };
-  toolbar.querySelector('[data-expand]').onclick = function () { shell.classList.toggle('is-expanded'); };
+  toolbar.querySelector('[data-zoom-in]').onclick = function () { ctl.zoomBy(1.2); };
+  toolbar.querySelector('[data-zoom-out]').onclick = function () { ctl.zoomBy(1 / 1.2); };
+  toolbar.querySelector('[data-zoom-reset]').onclick = ctl.reset;
+  toolbar.querySelector('[data-expand]').onclick = function () {
+    var on = !shell.classList.contains('is-expanded');
+    shell.classList.toggle('is-expanded', on);
+    this.setAttribute('aria-pressed', String(on));
+    sync();
+  };
   toolbar.querySelector('[data-fullscreen]').onclick = function () { shell.requestFullscreen().catch(function () {}); };
   toolbar.querySelector('[data-exit-fullscreen]').onclick = function () { document.exitFullscreen(); };
+  shell.addEventListener('fullscreenchange', sync);
 
   viewport.addEventListener('wheel', function (e) {
     if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    ctl.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
   }, { passive: false });
 
-  viewport.addEventListener('mousedown', function (e) {
-    if (e.target.closest('.diagram-toolbar')) return;
-    drag = { x: e.clientX - panX, y: e.clientY - panY };
-    viewport.classList.add('is-panning');
-  });
-  addEventListener('mousemove', function (e) {
-    if (!drag) return;
-    panX = e.clientX - drag.x;
-    panY = e.clientY - drag.y;
-    apply();
-  });
-  addEventListener('mouseup', function () { drag = null; viewport.classList.remove('is-panning'); });
+  wirePan(viewport, ctl);
+  wireKeys(viewport, ctl);
 
   if (canvas.querySelector('c4-view')) shell.classList.add('is-c4');
   var mermaidEl = canvas.querySelector('.mermaid-canvas');
@@ -1657,6 +1997,20 @@ function wireDiagram(shell) {
 }
 
 document.querySelectorAll('.diagram-shell').forEach(wireDiagram);
+
+/* The fullscreen path gets Escape from the browser. Expand is an ordinary fixed
+   overlay covering the whole viewport, and had no way out but the button that
+   opened it — which is under the reader's cursor only if they remember where it
+   was. Focus goes back to that button, since it is what they left. */
+addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.diagram-shell.is-expanded').forEach(function (shell) {
+    shell.classList.remove('is-expanded');
+    var btn = shell.querySelector('[data-expand]');
+    if (btn) { btn.setAttribute('aria-pressed', 'false'); btn.focus(); }
+    if (shell.archDocsSync) shell.archDocsSync();
+  });
+});
 
 /* LikeC4 fits a view to its box when the element boots, and only refits on
    resize. The router reveals a section before <c4-view> is upgraded, so that

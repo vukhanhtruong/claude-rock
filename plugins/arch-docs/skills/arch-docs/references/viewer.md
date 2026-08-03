@@ -9,8 +9,26 @@ deliberately does not ship.
 
 Four steps, in order — each feeds the next:
 
-1. **Generate the LikeC4 webcomponent bundle.**
-   `npx likec4 gen webcomponent --webcomponent-prefix c4 --outfile <out> <dir>`
+1. **Write the palette config, then generate the LikeC4 webcomponent bundle.**
+   ```
+   node scripts/likec4-config.mjs --out <dir>      # writes <dir>/likec4.config.json
+   npx likec4 gen webcomponent --webcomponent-prefix c4 --outfile <out> <dir>
+   ```
+
+   The config step is **not optional**, and it is the plugin's job rather than
+   the model's (`likec4.md` §"Declare no colours at all"). LikeC4's default
+   element colour is blue; a model that declares no palette is valid, generates
+   clean and exits 0, and its diagrams arrive blue beside teal mermaid ones with
+   no signal at any step. `gen webcomponent` is not a validation gate either — it
+   generated a 2.2 MB bundle from a workspace carrying 194 validation errors
+   without a word, so run `npx likec4 validate <dir>` first if the model is not
+   freshly generated.
+
+   `render.mjs` refuses a bundle whose theme palette is missing or off
+   (`scripts/lib/validate-palette.mjs`), which is the backstop for both. It reads
+   the **resolved node colour** rather than grepping for the brand hex: a model
+   declaring its own colour leaves that hex in the bundle's colour registry,
+   defined and never painted, so a grep reports success on an all-blue bundle.
    — `--webcomponent-prefix c4` is **mandatory**. It pins the custom-element
    tag to `<c4-view>`, which the renderer emits and the viewer template
    expects. LikeC4's own default prefix is `likec4`; omitting the flag
@@ -46,9 +64,25 @@ Four steps, in order — each feeds the next:
      --theme assets/mermaid-theme.json
    ```
    Renders ARCHITECTURE.md and every companion/ADR page to HTML, injects
-   heading ids (for deep links), builds the sidebar nav, embeds all six
-   template slots (`TITLE`, `NAV`, `DOC`, `LIKEC4_BUNDLE`, `MERMAID_BUNDLE`,
-   `THEME`), and writes `viewer/index.html` — one self-contained file.
+   heading ids (for deep links), builds the sidebar nav, embeds all seven
+   template slots (`TITLE`, `FONTS`, `NAV`, `DOC`, `LIKEC4_BUNDLE`,
+   `MERMAID_BUNDLE`, `THEME`), and writes `viewer/index.html` — one
+   self-contained file.
+
+   **`FONTS` needs no flag.** `scripts/lib/fonts.mjs` reads the woff2 subsets
+   shipped in `assets/fonts/` and emits one `@font-face` per file with the bytes
+   inline as base64 (~136KB for five faces). Unlike the two bundles these are
+   fixed bytes that never need regenerating, so there is nothing for a caller to
+   choose and no build step to get wrong — but they are still embedded at render
+   time rather than committed into the template, because 136KB of base64 would
+   turn a readable design document into a blob with a stylesheet around it and
+   every later diff of that file would carry it.
+
+   The filename is the contract — `ibm-plex-{sans,mono}-latin-<weight>-normal.woff2`,
+   which is what `@fontsource` ships — so a weight is added by adding a file. A
+   directory with no matching file **throws**: returning an empty string would
+   ship a viewer whose CSS still names the faces, which is the silent fallback
+   the embedding exists to end. `assets/fonts/OFL.txt` carries the licence.
 
    The markdown subset is headings, fenced code, likec4 view markers, tables,
    **lists** (`scripts/lib/md-list.mjs` — bullet, numbered, and nested, with
@@ -131,7 +165,11 @@ Security DFD) follows all of these, no exceptions:
 - **Never** `color:` inside a `classDef` — it fights the theme's own text
   color and breaks dark/light switching.
 - Fonts: IBM Plex Sans (body) + IBM Plex Mono (code), matching the viewer
-  template's `--font-body`/`--font-mono`.
+  template's `--font-body`/`--font-mono` — and now actually present, since the
+  viewer embeds both (§1 step 3). Naming them here used to be a wish: neither
+  ships with macOS, Windows or a stock Linux desktop, so the diagrams rendered in
+  system-ui while the page around them did the same, and the match held only by
+  both missing.
 - Accent colors: an approved pair only — teal `#0f766e` + slate `#475569`, as
   shipped in `assets/mermaid-theme.json`. No violet-fuchsia accents.
 - **Fills are solid, never semi-transparent.** They used to be 8-digit hex tints
@@ -251,16 +289,65 @@ Security DFD) follows all of these, no exceptions:
   diagram to its natural size (~300px for the §8 ER), which is an unreadable
   thumbnail in a full-width shell. LikeC4 needs the opposite — an explicit
   box (`c4-view { height: 460px }`) to fit its view into.
+- **The zoom control is also the zoom readout.** It said `1:1` at every level, so
+  the diagram was the only report of its own state and pressing the button was the
+  only way to learn what it did. It now reads `140%`, in tabular figures with a
+  width floor — a live number in proportional digits shoves the three buttons
+  beside it sideways as it counts.
+- **Pan is bounded by the frame.** The bound is the overhang: how far the scaled
+  canvas sticks out past the viewport, so the content edges can be brought to the
+  frame edges and no further. Below zoom 1 there is no overhang, the limit is
+  zero, and the diagram parks centred. Unbounded, the canvas could be thrown clear
+  of the viewport and the way back was a button the reader had to already know was
+  a reset. Clamped inside `apply()`, the one place the transform is written, so
+  zoom, pan and reset all get it rather than three call sites remembering to.
 - Every diagram — LikeC4 `<c4-view>` embeds and mermaid diagrams alike —
   gets all four controls: zoom, pan, expand, and **fullscreen**
-  (`.diagram-shell` + `.diagram-toolbar` in the viewer template).
+  (`.diagram-shell` + `.diagram-toolbar` in the viewer template), and each is
+  reachable by pointer, by touch and by keyboard:
+
+  | input | how |
+  |---|---|
+  | mouse / touch / pen | `pointerdown` + `setPointerCapture` on the viewport. Not the mouse pair: those never fire for touch, so a diagram on a phone could be zoomed and then not moved. Capture also retires the two `document`-level listeners this added *per diagram* |
+  | keyboard | the viewport is `tabindex="0"` with a name that states its keys; arrows pan, `+`/`-` zoom, `0` resets |
+  | trackpad / wheel | `ctrl`/`meta` + wheel, which is also what a pinch reports |
+
+- **Panning is a state, not the default** (`.is-pannable`, set by `pannable()`
+  when zoom > 1 or the shell is expanded or fullscreen). Two things hang on it,
+  and both are wrong without it: a `grab` cursor at 1:1 promises movement the
+  diagram cannot make, and `touch-action: none` at 1:1 swallows the page scroll
+  of any reader whose finger lands on a diagram on the way down the document.
+  The arrow keys are gated on the same class for the same reason — a reader who
+  tabs into a fitted diagram must not lose their scroll keys.
+- **Expand needs its own Escape.** Fullscreen gets one from the browser; expand
+  is an ordinary `position: fixed` overlay and had no way out but the button that
+  opened it. One page-level handler collapses any expanded shell, restores its
+  `aria-pressed`, and returns focus to that button. Each shell publishes its
+  `sync()` as `shell.archDocsSync` so the handler can put `.is-pannable` back to
+  whatever that shell's own zoom says.
+- **A diagram that fails to render says so.** `mermaid.render` rejects on a
+  syntax error; unhandled, the element keeps the source text it was seeded with,
+  so the reader gets a slab of mermaid DSL inside a diagram frame — which reads
+  as a code block somebody meant to put there. The catch drops mermaid's scratch
+  div (it appends one under `'d' + id` and leaves it behind) and renders
+  `.diagram-error` naming the failure.
 
 ## 3. v1 scope record
 
 Shipped: per-section and per-view deep links, dark/light toggle (persisted
-in `localStorage`), and a **two-level** sidebar nav (`scripts/lib/nav.mjs`) with
+in `localStorage`, and guarded — the read runs before the body paints, and a
+blocked or `file://` store throws, which would take the theme and every script
+after it), and a **two-level** sidebar nav (`scripts/lib/nav.mjs`) with
 a substring filter, scroll-spy active state, three-part breadcrumb, and an
 off-canvas drawer below 960px.
+
+A **skip link** is the first focusable thing in the body. Reading order is
+topbar, rail, prose, which is the right order to read and the wrong order to tab:
+a real set puts ~120 rail links between a keyboard reader and the first sentence.
+`<main>` carries `tabindex="-1"` so focus can actually land there rather than the
+viewport moving and the tab position staying up in the rail — and the link joins
+`.main`, the rail and the topbar in `setBehindInert`, or it stays live behind an
+open record's scrim and lands the reader on a page they cannot see.
 
 Both levels are load-bearing, and the second one is the one that is easy to
 skip. A real set runs to ~20 documents and ~120 headings:
@@ -285,19 +372,29 @@ axis, which put their left edge ~190px outside the paragraph above them: the
 reader re-found the margin on every block, and a 3x15 index needing 523px was
 stretched to double its content for nothing. Three consequences worth stating:
 
-- `table` is `width: max-content; max-width: 100%` — a small table hugs its
-  content, a big one wraps its cells. Uncapped `max-content` never wraps, and 15
-  of the 18 tables in a real set overran the column and grew their own sideways
-  scrollbar. `th` cannot be `nowrap`: a header that refuses to wrap sets a floor
-  the cap cannot beat.
-- Two tables in that set (7–8 columns) still cannot fit and scroll inside their
+- `table` is `width: 100%; max-width: 100%` — **one** width for every table,
+  because content width gave each one its own and a page of them read as a ragged
+  right edge against a fixed prose column. The cap is still load-bearing: without
+  a ceiling a wide table pushes past the column instead of wrapping its cells, and
+  15 of the 18 tables in a real set grew their own sideways scrollbar. `th` cannot
+  be `nowrap`: a header that refuses to wrap sets a floor the cap cannot beat.
+- Three tables in that set (7–8 columns) still cannot fit and scroll inside their
   card. That is the floor of the design, not a bug to chase — the alternatives
   are wider prose for every document or restructuring the table.
-- The measure is `min(96ch, calc(100vw - var(--rail-w) - 80px))`, not the classic
-  74ch: once every table and diagram had to live inside the column, 74ch (689px)
-  left 15 of 18 tables scrolling sideways. Widen this one value to trade reading
-  comfort for table room. There is no narrow-desktop breakpoint — the `calc`
-  gives up width to the rail before the cap ever binds.
+- `.table-scroll` is capped at `min(70vh, 40rem)`, and that height is what makes
+  the sticky `th` work at all. `overflow-x: auto` computes the *other* axis from
+  `visible` to `auto`, so the box is a scrollport vertically too; left unbounded
+  it never scrolls, and the header sticks to a box that cannot move. A 40-row
+  table then scrolls its own column labels away under the top bar.
+- The measure is `min(96ch, 100%)`, not the classic 74ch: once every table and
+  diagram had to live inside the column, 74ch (689px) left 15 of 18 tables
+  scrolling sideways. Widen this one value to trade reading comfort for table
+  room. `100%` rather than `calc(100vw - var(--rail-w) - 80px)` — `.main` is
+  already offset by the rail and its own padding, so subtracting them again
+  restates the layout in a second place, and `100vw` counts the scrollbar gutter
+  and clipped ~15px off every block on the platforms that reserve one. There is
+  no narrow-desktop breakpoint, and none below 960px either: `100%` resolves
+  against whatever column the rail has left.
 - Block links (index rows, search hits, page-bar chips) must be named against
   `.main a`, which is (0,1,1) and beats a bare class. Otherwise each one grows
   the prose underline meant for links inside a sentence.
@@ -454,10 +551,60 @@ read from each record's own `## Status` section, falling back to an inline
 `**Status:** …` label, and only the leading word is counted (a real status line
 carries qualifiers: `Accepted — partially supersedes ADR-0008`).
 
-Two consequences worth stating plainly: printing prints only the section on
-screen (and only the open record inside a routed one), and a deep link into a
-hidden section or record needs the router to reveal it before the scroll can land
-— the browser jumps to the fragment first, so the jump is re-run after routing.
+One consequence worth stating plainly: a deep link into a hidden section or
+record needs the router to reveal it before the scroll can land — the browser
+jumps to the fragment first, so the jump is re-run after routing.
+
+That re-run **lands instantly when the page changed and glides when it did not.**
+`scroll-behavior: smooth` cannot tell the two apart, so a deep link into another
+document used to animate the whole way there — through content the reader never
+asked to see, and past the top of the document they did. An anchor inside the page
+already on screen is a short deliberate move and keeps its glide. Reduced motion
+takes even that back explicitly: passing `behavior` to `scrollIntoView` outranks
+the CSS rule that used to cover it, so the media query is read in JS too.
+
+**Printing prints the whole set.** It used to print whichever document the router
+had in the layout — one of twenty-one, and inside a routed section one record of
+fifteen. Every page is already in the DOM and only hidden, so `@media print`
+unhides them all and drops the chrome that is navigation rather than content
+(rail, top bar, page bars, drawer bar, skip link). An open record has been
+*moved* into the drawer, so `#drawer` goes `position: static` for print and the
+record lands at the end of the set instead of over the first page of it.
+
+### Searching
+
+Three searches, over three different scopes, and together they leave nothing in
+the set unreachable:
+
+| Search | Scope | Why it exists |
+|---|---|---|
+| rail filter | every document's headings **and body text** | wayfinding plus phrase-finding across the set |
+| index search | the records of one routed section | those records are hidden, so Ctrl+F cannot reach them |
+| Ctrl/Cmd+F | the page in the layout | the browser's own, and the reason the other two stop where they do |
+
+The rail filter used to match heading labels alone, which is wayfinding rather
+than search: a reader looking for `row-level security` found it only if somebody
+had made it a heading, and the other ~20 documents were reachable by no search at
+all. Every page is already in the DOM, so matching the body costs one `indexOf`
+per document and **no index** — the objection recorded below is to *semantic*
+search, which is a different thing.
+
+A body match promotes the whole **document**, not any one heading: the phrase is
+somewhere in it, and Ctrl+F finds the line once the page is open. The row is
+marked `in text` (`.is-body-hit`, taking the slot the count badge vacates while
+filtering) — without it the reader types a phrase and gets back a row whose every
+visible label lacks it, which reads as a bug.
+
+Document text is captured **before** the page bars are prepended, for the same
+reason the index search is: a bar contributes `‹ All records 3 / 15 ‹ Prev Next ›`
+to every page, and those would otherwise match in every document at once. Records
+are left out of it — they have no rail row to promote, and their section's index
+already searches them.
+
+The filter is reachable by `/` and by ⌘/Ctrl+K, and Escape clears it. Escape
+stops there rather than bubbling: the same key closes the mobile rail and any
+open record, and a reader clearing a search asked for neither. A second press on
+an empty box hands focus back to the page.
 
 Deliberately **not** shipped, with reasons recorded here rather than left
 silent:
@@ -465,8 +612,8 @@ silent:
 | Feature | Status | Reason |
 |---|---|---|
 | Reach tracing | not shipped | LikeC4 covers this natively for its own architecture views — a second implementation would duplicate what LikeC4 already does |
-| Semantic search | not shipped | the rail filter matches heading substrings, which covers wayfinding; ranking by meaning would need an index the offline single-file viewer has nowhere to put |
-| Full-text body search | shipped for routed sections only | Ctrl/Cmd+F covers every document that is on screen, but a routed section hides all but one record, so its index carries its own search over the hidden bodies |
+| Semantic search | not shipped | substring search over the bodies is shipped and needs no index; ranking by *meaning* would need one, and the offline single-file viewer has nowhere to put it |
+| Ranked or snippet results in the rail | not shipped | the rail row is 32px and already carries a title, a chevron and a badge; the index search is where snippets fit, and it has them |
 
 The honest-absence rule (`interview.md` §"Honest absence") applies to the
 tool itself, not just to documentation facts: an unshipped feature is

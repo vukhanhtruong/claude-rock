@@ -5,16 +5,29 @@ import { embed } from '../lib/embed.mjs';
 
 const tpl = readFileSync(new URL('../../assets/viewer-template.html', import.meta.url), 'utf8');
 
-test('template has exactly the six slots and no external URLs', () => {
+test('template has exactly the seven slots and no external URLs', () => {
   const markers = [...tpl.matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]).sort();
-  assert.deepEqual(markers, ['DOC', 'LIKEC4_BUNDLE', 'MERMAID_BUNDLE', 'NAV', 'THEME', 'TITLE']);
+  assert.deepEqual(markers,
+    ['DOC', 'FONTS', 'LIKEC4_BUNDLE', 'MERMAID_BUNDLE', 'NAV', 'THEME', 'TITLE']);
   assert.doesNotMatch(tpl, /https?:\/\/(?!www\.w3\.org)/);
+});
+
+// The faces have to be declared before the stacks that name them, and the whole
+// point is that the bytes are not in this file: 100KB of base64 would turn a
+// readable design document into a blob with a stylesheet round it.
+test('the font slot sits at the head of the stylesheet, not in the repo', () => {
+  const style = tpl.indexOf('<style>');
+  assert.ok(tpl.indexOf('<!-- slot:FONTS -->') > style);
+  assert.ok(tpl.indexOf('<!-- slot:FONTS -->') < tpl.indexOf('--font-display'));
+  assert.doesNotMatch(tpl, /base64,[A-Za-z0-9+/]{200,}/,
+    'font bytes belong in the slot, not committed into the template');
 });
 
 test('template embeds cleanly and keeps required controls', () => {
   const out = embed({ template: tpl, slots: {
     TITLE: 't', NAV: '<a href="#x">x</a>', DOC: '<h2 id="x">x</h2>',
     LIKEC4_BUNDLE: '/*l*/', MERMAID_BUNDLE: '/*m*/', THEME: '{"themeVariables":{}}',
+    FONTS: '/*fonts*/',
   } });
   for (const control of ['data-zoom-in', 'data-zoom-out', 'data-zoom-reset', 'data-expand', 'data-fullscreen']) {
     assert.match(out, new RegExp(control));
@@ -653,8 +666,8 @@ test('the page router leaves record pages alone', () => {
 test('closing a record leaves the host page where the reader left it', () => {
   const nav = tpl.match(/function navigate\([\s\S]*?\n\}/)[0];
   assert.match(nav, /var moved = page !== activePage/);
-  assert.match(nav, /if \(moved\) scrollTo\(0, 0\)/);
-  assert.doesNotMatch(nav, /\n\s*\{ scrollTo\(0, 0\); return; \}/,
+  assert.match(nav, /if \(moved\) scrollTo\(/);
+  assert.doesNotMatch(nav, /\n\s*\{ scrollTo\(/,
     'an unconditional jump to the top is what lost the reader their place');
   // showPage assigns activePage, so the comparison has to happen before it.
   assert.ok(nav.indexOf('var moved') < nav.indexOf('showPage(page)'),
@@ -734,4 +747,245 @@ test('a provenance marker is styled as evidence, not as code', () => {
   assert.match(tpl, /\.prov \{/);
   const rule = tpl.match(/\.prov \{[^}]*\}/)[0];
   assert.doesNotMatch(rule, /var\(--accent-soft\)/, 'that is the code chip it was mistaken for');
+});
+
+// ---------------------------------------------------------------------------
+// Robustness and consistency pass. Each of these was a rule the template states
+// somewhere else and then breaks here, or a failure with no visible state.
+// ---------------------------------------------------------------------------
+
+const ref = readFileSync(new URL('../../references/viewer.md', import.meta.url), 'utf8');
+
+// `overflow-x: auto` computes overflow-y from `visible` to `auto` — the same fact
+// the tab bar's rule already documents. So .table-scroll is a scrollport, and
+// without a height it never scrolls: the sticky header sticks to a box that
+// cannot move, and a 40-row table scrolls its heading off under the top bar.
+test('a table taller than the screen keeps its header in view', () => {
+  const scroll = tpl.match(/\.table-scroll \{[\s\S]*?\}/)[0];
+  assert.match(scroll, /max-height:/, 'a scrollport with no height never scrolls');
+  assert.match(tpl, /\nth \{[\s\S]*?position:\s*sticky/);
+});
+
+// The boot script runs before the body paints. localStorage throws when site
+// data is blocked and in some file:// contexts, and this viewer is meant to open
+// by double-click off a filesystem — an unguarded throw loses the theme and
+// every script after it.
+test('a blocked or file:// localStorage cannot stop the page painting', () => {
+  const uses = [...tpl.matchAll(/localStorage\.\w+/g)];
+  assert.ok(uses.length >= 2, 'the theme is still read and written');
+  for (const use of uses) {
+    const before = tpl.slice(Math.max(0, use.index - 300), use.index);
+    assert.match(before, /try\s*\{/, `unguarded ${use[0]}`);
+  }
+});
+
+// mermaid.render rejects on a syntax error. Unhandled, the element keeps its raw
+// source text and the reader sees a slab of DSL in a diagram shell.
+test('a diagram that fails to render says so instead of going blank', () => {
+  const fn = tpl.match(/async function renderMermaid[\s\S]*?\n\}/)[0];
+  assert.match(fn, /catch/);
+  assert.match(tpl, /\.diagram-error/);
+});
+
+// The 2px accent ring is a deliberate treatment, applied to four of the ten
+// things a keyboard reader can land on. The rest fall back to the UA default.
+test('every interactive surface shows the same focus ring', () => {
+  for (const sel of ['.nav-link', '.view-tab', '.page-chip', '.record-row', '.record-hit']) {
+    assert.match(tpl, new RegExp(`\\${sel}[^{]*:focus-visible`), `${sel} has no focus ring`);
+  }
+});
+
+// .main is already offset by the rail and its own padding, so subtracting them
+// again from 100vw restates the layout — and 100vw counts the scrollbar gutter,
+// clipping ~15px of every block on Windows and Linux.
+test('the measure is the column it sits in, not the viewport minus the rail', () => {
+  const measure = tpl.match(/--measure:[^;]+;/)[0];
+  assert.doesNotMatch(measure, /100vw/, 'includes the scrollbar gutter');
+  assert.match(measure, /min\(96ch,\s*100%\)/);
+  const narrow = tpl.match(/@media \(max-width: 960px\) \{[\s\S]*?\n\}/)[0];
+  assert.doesNotMatch(narrow, /--measure:/, '96ch already loses to 100% at this width');
+});
+
+// Without a declared scheme the browser paints the canvas white before the boot
+// script runs, so a dark-mode reader gets a flash — and the UA scrollbar and the
+// search field's clear button stay light inside a dark page.
+test('the head states its colour scheme, its icon and its description', () => {
+  assert.match(tpl, /<meta name="color-scheme" content="light dark">/);
+  assert.match(tpl, /<link rel="icon"[^>]*data:image\/svg\+xml/);
+  assert.match(tpl, /<meta name="description"/);
+});
+
+test('the scroll spy reads the bar height rather than restating it', () => {
+  assert.doesNotMatch(tpl, /'-' \+ \(60\) \+ 'px/);
+  assert.match(tpl, /getPropertyValue\('--topbar-h'\)/);
+});
+
+test('no rule is declared twice', () => {
+  const preCode = tpl.match(/^pre code \{/gm) || [];
+  assert.equal(preCode.length, 1, `pre code declared ${preCode.length} times`);
+});
+
+// The reference describes the rejected design: content-width tables were what
+// gave a page of them a ragged right edge, and the template has shipped a single
+// full width for a while.
+test('the viewer reference describes the table rule the template ships', () => {
+  assert.doesNotMatch(ref, /width:\s*max-content/);
+  assert.match(tpl.match(/\ntable \{[\s\S]*?\}/)[0], /width:\s*100%/);
+});
+
+// The cap that makes the sticky header work is a screen affordance: paper has no
+// scrollport, so a table taller than it would simply lose its last rows.
+test('a capped table is uncapped for print', () => {
+  const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
+  assert.match(print, /\.table-scroll[^}]*max-height:\s*none/);
+});
+
+// ---------------------------------------------------------------------------
+// Reaching the page without a mouse, and reaching a diagram without either a
+// mouse or a keyboard-shaped assumption about who is reading.
+// ---------------------------------------------------------------------------
+
+// DOM order is topbar, rail, prose. A real set puts ~120 rail links between the
+// two, and a keyboard reader had to walk every one of them to reach a sentence.
+test('a keyboard reader can reach the document without walking the rail', () => {
+  assert.match(tpl, /class="skip"[^>]*href="#main-content"/);
+  assert.match(tpl, /<main[^>]*id="main-content"/);
+  // Focus has to be able to land there, or the link moves the viewport and
+  // leaves the tab position back up in the rail.
+  assert.match(tpl, /<main[^>]*tabindex="-1"/);
+  const body = tpl.slice(tpl.indexOf('<body>'));
+  assert.ok(body.indexOf('class="skip"') < body.indexOf('<button'),
+    'the skip link is not the first focusable thing in the body');
+});
+
+// It sits outside .main, so the drawer's own inert call does not cover it — and
+// a skip link that works from behind a modal scrim lands the reader nowhere.
+test('the skip link goes inert with the rest of the page behind a record', () => {
+  const fn = tpl.match(/function setBehindInert[\s\S]*?\n\}/)[0];
+  assert.match(fn, /\.skip/);
+});
+
+// The mouse pair never fires for touch, so a diagram on a phone could be zoomed
+// and then not moved. Capture also retires the two document-level listeners this
+// added once per diagram.
+test('a diagram pans by pointer capture rather than by mouse events', () => {
+  assert.match(tpl, /pointerdown/);
+  assert.match(tpl, /setPointerCapture/);
+  assert.doesNotMatch(tpl, /addEventListener\('mousedown'/);
+  assert.doesNotMatch(tpl, /addEventListener\('mousemove'/);
+});
+
+// `touch-action: none` on a diagram sitting at 1:1 eats the page scroll of any
+// reader whose finger happens to land on it while reading.
+test('touch panning is claimed only when there is something to pan', () => {
+  assert.match(tpl, /\.diagram-viewport\.is-pannable[^{]*\{[^}]*touch-action:\s*none/);
+  assert.match(tpl, /function pannable/);
+  const base = tpl.match(/\n\.diagram-viewport \{[\s\S]*?\}/)[0];
+  assert.doesNotMatch(base, /cursor:\s*grab/, 'a grab cursor promises movement that cannot happen');
+});
+
+test('a zoomed diagram can be panned from the keyboard', () => {
+  assert.match(tpl, /viewport\.tabIndex\s*=\s*0/);
+  assert.match(tpl, /ArrowLeft/);
+  // At 1:1 the arrows belong to the page: a reader who tabbed into a diagram on
+  // the way down the document must not find their scroll keys taken.
+  const keys = tpl.match(/function wireKeys[\s\S]*?\n\}/)[0];
+  assert.match(keys, /is-pannable/);
+  assert.match(tpl, /\.diagram-viewport:focus-visible/);
+  // The viewport is built in script, so its name is set rather than written.
+  assert.match(tpl, /setAttribute\('aria-label',[\s\S]{0,40}'Diagram\. Arrow keys pan/);
+});
+
+// The fullscreen path gets Escape from the browser. The expand path is an
+// ordinary fixed overlay covering the viewport, and had no way out but the
+// button that opened it.
+test('the expand overlay can be left by Escape and reports its state', () => {
+  assert.match(tpl, /data-expand aria-pressed="false"/);
+  // Named against the expanded-shell query, because the rail filter now has an
+  // Escape guard of its own and it comes first in the file.
+  assert.match(tpl,
+    /if \(e\.key !== 'Escape'\) return;[\s\S]{0,240}?querySelectorAll\('\.diagram-shell\.is-expanded'\)/,
+    'no Escape handler for the expanded overlay');
+});
+
+// ---------------------------------------------------------------------------
+// Searching and printing the set rather than the page that happens to be open.
+// ---------------------------------------------------------------------------
+
+// Ctrl+F reaches the open page; a routed section's index reaches its records.
+// Every other document in the set was reachable by neither — the rail filter
+// only ever matched heading labels.
+test('the whole set is searchable, not only the page on screen', () => {
+  assert.match(tpl, /docText/);
+  const grp = tpl.match(/function filterGroup[\s\S]*?\n\}/)[0];
+  assert.match(grp, /docText|bodyHas/, 'the rail filter still reads headings only');
+});
+
+// The bar prepends "All records 3 / 15 Prev Next" to every page. Captured after
+// it, those become words the filter matches in every document at once.
+test('document text is captured before the page bars are prepended', () => {
+  const captured = tpl.indexOf('docText.set');
+  const bars = tpl.indexOf('barEl(walk, i');
+  assert.ok(captured > 0, 'nothing captures document text');
+  assert.ok(captured < bars, 'document text is captured after the bars are added');
+});
+
+// The reader typed a phrase and got back a row whose visible labels do not
+// contain it. Unexplained, that row reads as a bug in the filter.
+test('a document matched only on its body text says so', () => {
+  assert.match(tpl, /is-body-hit/);
+});
+
+test('a record search with no hits says so rather than going blank', () => {
+  assert.match(tpl, /record-empty/);
+});
+
+// Every page is already in the DOM, only hidden. Paper has no router.
+test('printing prints the whole set, not the page on screen', () => {
+  const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
+  assert.match(print, /\.doc-section\[hidden\]/);
+  assert.match(print, /\.page-bar/, 'prev/next chips are navigation, not content');
+  assert.match(print, /#drawer/, 'an open record prints from the drawer or not at all');
+});
+
+test('the filter is one keystroke away and Escape leaves it', () => {
+  assert.match(tpl, /e\.key === '\/'/);
+  assert.match(tpl, /e\.metaKey \|\| e\.ctrlKey/);
+  const esc = tpl.match(/filter\.addEventListener\('keydown'[\s\S]*?\n\}\);/)[0];
+  assert.match(esc, /Escape/);
+  // The same key closes the mobile rail and any open record, and a reader
+  // clearing a search asked for neither.
+  assert.match(esc, /stopPropagation/);
+});
+
+// ---------------------------------------------------------------------------
+// Diagram state the reader can see, movement they cannot lose, and a router
+// that does not animate its way across a document nobody asked to read.
+// ---------------------------------------------------------------------------
+
+// The button said 1:1 at every zoom level, so the only readout of the diagram's
+// state was the diagram, and the only way to learn what the button did was to
+// press it.
+test('the zoom control reads out the level it resets', () => {
+  assert.match(tpl, /Math\.round\(zoom \* 100\)/);
+  const css = tpl.match(/\[data-zoom-reset\] \{[\s\S]*?\}/)[0];
+  assert.match(css, /tabular-nums/, 'a live number in proportional digits shoves its neighbours');
+});
+
+// Pan was unbounded: the canvas could be thrown clear of the viewport, and the
+// way back was a button the reader had to already know was a reset.
+test('a panned diagram cannot be dragged out of its own frame', () => {
+  assert.match(tpl, /function panLimit/);
+  // Clamped on the way to every transform write, so zoom, pan and reset all get
+  // it rather than three call sites each remembering to.
+  assert.match(tpl, /clampPan\(\);\s*canvas\.style\.transform/);
+});
+
+test('a route change lands instantly and an in-page anchor still glides', () => {
+  const nav = tpl.match(/function navigate[\s\S]*?\n\}/)[0];
+  assert.match(nav, /'instant'/);
+  assert.match(nav, /moved/);
+  // Passing behavior explicitly outranks the CSS, so the reduced-motion rule
+  // that used to cover this no longer does on its own.
+  assert.match(tpl, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
 });

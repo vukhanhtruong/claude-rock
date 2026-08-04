@@ -454,6 +454,30 @@ body {
   text-wrap: balance;
 }
 
+/* The section explains the system; this explains the section. Click, not hover:
+   the text is too long for a tooltip, and a hover-only control is unreachable
+   from a keyboard and on a touch screen. */
+.help-btn {
+  position: relative; margin-left: .4em; padding: 0;
+  width: 1.15em; height: 1.15em; vertical-align: .06em;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: none; color: var(--text-faint);
+  font: 600 .62em/1.15 var(--font-body); cursor: pointer;
+  transition: color .13s, border-color .13s;
+}
+.help-btn:hover { color: var(--text); border-color: var(--text-faint); }
+.help-btn::after { content: ''; position: absolute; inset: -12px; }
+.help-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+details.help { margin: 0 0 18px; }
+details.help > summary { display: none; }
+.help__body {
+  border-left: 2px solid var(--border); padding: 2px 0 2px 14px;
+  color: var(--text-dim); font-size: .94em;
+}
+.help__body p { margin: 0 0 6px; }
+.help__body b { color: var(--text); font-weight: 600; }
+.help__body a { font-size: .92em; }
+
 code {
   font-family: var(--font-mono); font-size: .855em;
   background: var(--surface-3); border-radius: 4px; padding: .1em .38em;
@@ -1000,6 +1024,9 @@ c4-view { display: block; width: 100%; height: 460px; }
     width: auto; border: none; box-shadow: none;
   }
   .drawer__body { overflow: visible; padding: 0; }
+  /* A control on paper is a control nobody can press. The panel is a closed
+     <details> and prints closed, which leaves the document as authored. */
+  .help-btn { display: none; }
 }
 </style>
 </head>
@@ -1184,13 +1211,91 @@ function tick() {
 }
 addEventListener('scroll', tick, { passive: true });
 
-/* ---- deep-link anchors on every section heading ---- */
-document.querySelectorAll('.doc h2[id], .doc h3[id]').forEach(function (h) {
+/* ---- deep-link anchors and section explainers on every heading ---- */
+/* One pass, and the order inside it matters: the anchor prepends a '#' to the
+   heading, so the title has to be read before that happens or every lookup
+   misses by one character. */
+function helpPanel(entry) {
+  var d = document.createElement('details');
+  d.className = 'help';
+  var body = document.createElement('div');
+  body.className = 'help__body';
+  body.appendChild(helpRow('What goes here', entry.what));
+  body.appendChild(helpRow('Why it matters', entry.why));
+  body.appendChild(helpRow('What good looks like', entry.good));
+  if (entry.arc42) body.appendChild(helpLink(entry.arc42));
+  d.appendChild(document.createElement('summary'));
+  d.appendChild(body);
+  return d;
+}
+
+function helpRow(label, text) {
+  var p = document.createElement('p');
+  var b = document.createElement('b');
+  b.textContent = label + ' — ';
+  p.appendChild(b);
+  p.appendChild(document.createTextNode(text));
+  return p;
+}
+
+function helpLink(n) {
+  var p = document.createElement('p');
+  var a = document.createElement('a');
+  a.href = 'https://docs.arc42.org/section-' + n + '/';
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = 'arc42 section ' + n + ' ↗';
+  p.appendChild(a);
+  return p;
+}
+
+var helpSeq = 0;
+
+function injectSectionHelp(h, title) {
+  var help = window.ARCH_DOCS_HELP || {};
+  var page = h.closest('.page');
+  var kind = page && page.dataset.kind;
+  var entry = h.tagName === 'H1'
+    ? (help.companions || {})[kind]
+    : (kind === 'spine' ? (help.spine || {})[title] : null);
+  if (!entry) return;
+  var panel = helpPanel(entry);
+  /* aria-expanded says a state; aria-controls says what is in that state. The
+     panel's summary is hidden because the button drives it, so this pairing is
+     the only thing connecting the two for a screen reader. */
+  helpSeq += 1;
+  panel.id = 'help-' + helpSeq;
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'help-btn';
+  btn.textContent = '?';
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-controls', panel.id);
+  btn.setAttribute('aria-label', 'What belongs in ' + title);
+  h.appendChild(btn);
+  h.after(panel);
+  btn.addEventListener('click', function () {
+    panel.open = !panel.open;
+    btn.setAttribute('aria-expanded', String(panel.open));
+    /* Reading progress is measured from scroll offsets, so the panel changing
+       the section's height leaves the readout stale until the next scroll. */
+    tick();
+  });
+}
+
+/* h1 for a companion document's single explainer, h2 for the spine's sixteen.
+   h3 is out of scope, and only the spine gets per-heading explainers: §14
+   Decisions is itself a spine section and already the home for what a decision
+   record is, so a per-record explainer would be that guidance seventeen times. */
+document.querySelectorAll('.doc h1.doc-head, .doc h2[id], .doc h3[id]').forEach(function (h) {
+  var title = h.textContent.trim();
+  injectSectionHelp(h, title);
+  if (h.tagName === 'H1') return;
   var a = document.createElement('a');
   a.className = 'anchor';
   a.href = '#' + h.id;
   a.textContent = '#';
-  a.setAttribute('aria-label', 'Link to ' + h.textContent);
+  a.setAttribute('aria-label', 'Link to ' + title);
   h.prepend(a);
 });
 

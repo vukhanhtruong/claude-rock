@@ -1098,3 +1098,85 @@ test('a route change lands instantly and an in-page anchor still glides', () => 
   // that used to cover this no longer does on its own.
   assert.match(tpl, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
 });
+
+/* ---------- section explainers ---------- */
+
+// The viewer explains the system and never the sections themselves, so a reader
+// who lands on a heading they do not recognise has nowhere to turn. arc42 heads
+// each chapter with a fixed explanation; this is the same affordance.
+test('a spine heading gets a help toggle bound to a details panel', () => {
+  const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
+  // Keyed on heading text, not on the id: slugify keeps both spaces around a
+  // stripped "&", and h2/h3 share one dedupe registry, so the slug can shift
+  // under a heading without anything failing.
+  assert.match(fn, /textContent/);
+  assert.doesNotMatch(fn, /\.id\]/, 'keying on the id is the bug this avoids');
+  assert.match(fn, /ARCH_DOCS_HELP/);
+  assert.match(fn, /'details'/);
+});
+
+// The anchor loop prepends a '#' to the heading, so reading textContent after it
+// runs looks up "#Core Components" and finds nothing. Scoped to the loop body,
+// because `function injectSectionHelp(h, title)` also contains the call pattern
+// and sits above the loop — matching against the whole file would pass on the
+// declaration and prove nothing about the order things actually happen in.
+test('the heading text is read before the deep-link anchor is prepended', () => {
+  const loop = tpl.match(/document\.querySelectorAll\('\.doc h1[\s\S]*?\n\}\);/)[0];
+  const read = loop.indexOf('h.textContent');
+  const call = loop.indexOf('injectSectionHelp(');
+  const prepend = loop.indexOf('h.prepend(a)');
+  assert.ok(read >= 0, 'the loop never reads the heading text');
+  assert.ok(call >= 0, 'help is not injected in the heading pass');
+  assert.ok(read < prepend, 'the title is read after the anchor is prepended');
+  assert.ok(call < prepend, 'the explainer is injected after the anchor is prepended');
+});
+
+// A toggle that does not say which way it is set is unreadable to a screen
+// reader, and the viewer already holds this line for its other toggles.
+test('the help toggle reports its own state and names what it controls', () => {
+  const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
+  assert.match(fn, /aria-expanded/);
+  assert.match(fn, /aria-label/, 'the button needs an accessible name');
+  // The panel's summary is hidden because the button drives it, so aria-controls
+  // is the only thing tying the state to the thing in that state.
+  assert.match(fn, /aria-controls/);
+  assert.match(fn, /panel\.id/);
+});
+
+// Reading progress is derived from scroll offsets, so a panel opening under the
+// heading moves the readout. The move is reader-initiated, so recomputing is
+// enough — but nothing recomputes on its own.
+test('opening a panel resettles the reading progress readout', () => {
+  const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
+  assert.match(fn, /tick\(\)/, 'the progress readout keeps a stale span');
+});
+
+// Companion documents get one explainer under the h1, keyed by kind rather than
+// by heading text — the spec scopes per-heading explainers to the spine only.
+test('a companion document is explained once, at its title', () => {
+  const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
+  assert.match(fn, /companions/);
+  assert.match(tpl, /data-kind/);
+});
+
+// Excluded by the spec: §14 Decisions is already a spine section and already the
+// home for what an ADR is, so a per-record explainer is that guidance a second
+// time across seventeen records.
+test('only the spine gets per-heading explainers', () => {
+  const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
+  assert.match(fn, /\[data-kind="spine"\]|kind === 'spine'/);
+  assert.doesNotMatch(fn, /h3/, 'subheadings are out of scope');
+});
+
+// The button is chrome. Paper gets the prose, and a closed panel prints closed.
+test('print drops the help toggle', () => {
+  const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
+  assert.match(print, /\.help-btn/);
+});
+
+test('the help panel and its toggle are styled', () => {
+  assert.match(tpl, /\.help-btn \{/);
+  assert.match(tpl, /details\.help \{|\.help \{/);
+  // A 40px hit area is the standard this template already holds for icon buttons.
+  assert.match(tpl, /\.help-btn::after \{[^}]*inset:/);
+});

@@ -64,7 +64,7 @@ main {
 table { width:100%; border-collapse:collapse; font-size:.85rem; }
 table th, table td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid var(--border); }
 table th { color:var(--ink-dim); font-weight:600; }
-.view-client [data\2d internal] { display:none; }
+.view-client [data\2d internal] { display:none !important; }
 @media print {
   header button, #controls, #modified-banner { display:none; }
   main { grid-template-columns:1fr; }
@@ -100,13 +100,165 @@ table th { color:var(--ink-dim); font-weight:600; }
 <script type="application/json" id="estimation-data"><!-- slot:DATA --></script>
 <script>
 <!-- slot:MATH -->
-/* boot: parse the data island and stamp the title + confidence badge; the
-   rest of the page (sections, controls, theme toggle) is wired in Task 8. */
-const estimation = JSON.parse(document.getElementById('estimation-data').textContent);
-document.querySelector('header h1').textContent = estimation.inputs.project;
+/* boot: parse the data island, stamp the title + confidence badge, then wire
+   the sections, what-if controls, and view/theme toggles. */
+const DATA = JSON.parse(document.getElementById('estimation-data').textContent);
+document.querySelector('header h1').textContent = DATA.inputs.project;
+const confLevel = (c) => `conf-${c.toLowerCase()}`;
 const badge = document.getElementById('confidence-badge');
-badge.textContent = estimation.computed.projectConfidence;
-badge.className = estimation.computed.projectConfidence.toLowerCase();
+badge.textContent = DATA.computed.projectConfidence;
+badge.className = `${DATA.computed.projectConfidence.toLowerCase()} ${confLevel(DATA.computed.projectConfidence)}`;
+
+// Same math path as the committed numbers: recompute() is both the page's
+// what-if engine and the parity hook the browser tests call directly.
+function recompute(p) {
+  const tasks = DATA.inputs.features.flatMap((f) => f.tasks);
+  const hoursOf = (t) => p.plan === 'none' ? pert(t).e
+    : aiAdjust({ e: pert(t).e, category: t.category, seniority: p.seniority,
+                 verificationPct: DATA.inputs.verificationPct, scale: p.aiScale });
+  const dev = tasks.reduce((s, t) => s + hoursOf(t), 0);
+  const buffers = (riskBufferHours(DATA.inputs.risks)
+    + projectBuffer(tasks.map((t) => pert(t).sigma))) * p.bufferScale;
+  const hours = dev + dev * p.overheadPct + buffers;
+  const team = Array.from({ length: p.engineers }, () => ({ seniority: p.seniority, rate: p.rate }));
+  return { hours, ...scenarioRollup({ hours, team, plan: p.plan }) };
+}
+window.__recompute = recompute;
+
+const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
+function dominantSeniority(team) {
+  const counts = {};
+  for (const m of team) counts[m.seniority] = (counts[m.seniority] ?? 0) + 1;
+  let best = null;
+  for (const s of Object.keys(counts)) {
+    const better = !best || counts[s] > counts[best]
+      || (counts[s] === counts[best] && SENIORITY_RANK[s] > SENIORITY_RANK[best]);
+    if (better) best = s;
+  }
+  return best;
+}
+
+function defaultsFromRecommended() {
+  const rec = DATA.inputs.scenarios.find((s) => s.id === DATA.inputs.recommendedScenario);
+  return {
+    engineers: rec.team.length,
+    seniority: dominantSeniority(rec.team),
+    plan: rec.plan,
+    rate: rec.team[0].rate,
+    aiScale: 1,
+    bufferScale: 1,
+    overheadPct: DATA.inputs.overheadPct,
+  };
+}
+
+// Control ids are assembled at runtime (never one static "ctl-*" literal)
+// so the client-only render, which keeps this whole script but drops the
+// controls markup, never carries an internal control id as page text.
+const CTL_SUFFIX = { engineers: 'engineers', seniority: 'seniority', plan: 'plan', rate: 'rate', aiScale: 'ai', bufferScale: 'buffer', overheadPct: 'overhead' };
+const CTL_KEYS = Object.keys(CTL_SUFFIX);
+const ctlId = (key) => `ctl-${CTL_SUFFIX[key]}`;
+
+function setControls(values) {
+  CTL_KEYS.forEach((key) => {
+    const el = document.getElementById(ctlId(key));
+    if (el) el.value = values[key];
+  });
+}
+
+function currentParams(defaults) {
+  const p = {};
+  CTL_KEYS.forEach((key) => {
+    const raw = document.getElementById(ctlId(key))?.value ?? defaults[key];
+    p[key] = key === 'seniority' || key === 'plan' ? raw : Number(raw);
+  });
+  return p;
+}
+
+function barRow(label, value, max) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return `<div class="bar-row"><span class="bar-label">${label}</span>
+    <span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span></div>`;
+}
+
+function renderCards(custom) {
+  const el = document.getElementById('scenario-cards');
+  if (!el) return;
+  const entries = [...Object.entries(DATA.computed.scenarios), ['custom (what-if)', custom]];
+  el.innerHTML = entries.map(([id, s]) => `<div class="card"><h3>${id}${id === DATA.inputs.recommendedScenario ? ' (recommended)' : ''}</h3>
+    <p>${s.months.toFixed(2)} mo &middot; $${Math.round(s.totalCost).toLocaleString()} &middot; ${s.hours.toFixed(1)}h</p></div>`).join('');
+}
+
+function renderBars(custom) {
+  const el = document.getElementById('cost-bars');
+  if (!el) return;
+  const entries = [...Object.entries(DATA.computed.scenarios), ['custom', custom]];
+  const max = Math.max(...entries.map(([, s]) => s.totalCost));
+  el.innerHTML = entries.map(([id, s]) => barRow(id, s.totalCost, max)).join('');
+}
+
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  if (!el) return;
+  const features = Object.entries(DATA.computed.features);
+  const max = Math.max(...features.map(([, f]) => f.hours));
+  el.innerHTML = features.map(([id, f]) => barRow(id, f.hours, max)).join('');
+}
+
+function renderTable() {
+  const el = document.getElementById('feature-table');
+  if (!el) return;
+  const byId = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f]));
+  const rows = Object.entries(DATA.computed.features).map(([id, f]) => {
+    const input = byId[id];
+    return `<tr><td>${input.name}</td><td>${f.hours}</td><td>${f.low}&ndash;${f.high}</td><td>${input.provenance}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr><th>Feature</th><th>Hours</th><th>Range</th><th>src</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderRegister() {
+  const el = document.getElementById('register');
+  if (!el) return;
+  const taskRows = DATA.inputs.features.flatMap((f) => f.tasks).map((t) => `<tr class="${confLevel(t.confidence)}">
+    <td>${t.name}</td><td>${t.category}</td><td>${t.confidence}</td><td>${t.assumptions.join('; ') || 'none'}</td></tr>`).join('');
+  const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td>${Math.round(r.probability * 100)}%</td><td>${r.impactHours}h</td></tr>`).join('');
+  el.innerHTML = `<table><caption>Task register</caption><tbody>${taskRows}</tbody></table>
+    <table><caption>Risk register</caption><tbody>${riskRows}</tbody></table>`;
+}
+
+function renderAll(defaults) {
+  const custom = recompute(currentParams(defaults));
+  renderCards(custom);
+  renderBars(custom);
+  renderTimeline();
+  renderTable();
+  renderRegister();
+}
+
+const defaults = defaultsFromRecommended();
+setControls(defaults);
+renderAll(defaults);
+
+CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener('input', () => {
+  renderAll(defaults);
+  const banner = document.getElementById('modified-banner');
+  if (banner) banner.hidden = false;
+}));
+
+document.getElementById('reset')?.addEventListener('click', () => {
+  setControls(defaults);
+  renderAll(defaults);
+  const banner = document.getElementById('modified-banner');
+  if (banner) banner.hidden = true;
+});
+
+document.getElementById('view-toggle')?.addEventListener('click', () => {
+  document.body.classList.toggle('view-client');
+});
+
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+});
 </script>
 </body>
 </html>

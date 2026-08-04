@@ -26,6 +26,8 @@
     "primaryColor": "#0f766e",
     "primaryBorderColor": "#00524b",
     "primaryTextColor": "#c7ffff",
+    "rowOdd": "#0f766e",
+    "rowEven": "#0b5f59",
     "secondaryColor": "#475569",
     "secondaryBorderColor": "#263447",
     "secondaryTextColor": "#e8f7ff",

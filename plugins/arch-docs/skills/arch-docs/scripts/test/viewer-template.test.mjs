@@ -254,6 +254,12 @@ test('every diagram text pairing clears the WCAG AA ratio', () => {
   const pairs = [
     ['entity name on its fill', v.primaryColor, v.primaryTextColor],
     ['secondary node label', v.secondaryColor, v.secondaryTextColor],
+    // An ER attribute row is a second fill inside the entity, and the row text is
+    // locked to primaryTextColor with the entity name. Left unstated, mermaid
+    // derives the odd row by lightening primaryColor 75 points, which on a teal
+    // brand clamps to white and hides every other line of §8's ER diagram.
+    ['ER attribute row, odd', v.rowOdd, v.primaryTextColor],
+    ['ER attribute row, even', v.rowEven, v.primaryTextColor],
   ];
   // The chrome pairings are per mode, and a ratio that only holds in one of them
   // is the bug this pass exists to close.

@@ -217,6 +217,49 @@ text under the reader moves **48px**. Measured on the 20-document EOS set, with
 and without, twice. `scripts/test/browser.test.mjs` records that its own check
 cannot discriminate this, and why.
 
+### Section explainers
+
+Every spine heading, plus each companion's title, carries a `?` button that
+opens a `<details class="help">` panel: what belongs in the section, why it
+matters, and what a good instance of it looks like. The text lives in
+`assets/section-help.json`, keyed `spine` and `companions`, and is spliced
+into the template's `SECTION_HELP` slot at generation time
+(`scripts/lib/section-help.mjs`) as `window.ARCH_DOCS_HELP`. `injectSectionHelp`
+builds the button and the panel from that global at boot — none of it exists
+in the static template, so nothing about the affordance is visible to a test
+that only reads the template string.
+
+The lookup keys on the heading's own text, not its slug, for two reasons
+recorded next to `SPINE_TITLES` in `section-help.mjs`:
+
+- `slugify` (`scripts/lib/validate-links.mjs`) strips `&` but leaves both
+  surrounding spaces, so `Goals & Scope` slugifies to `goals--scope` — a shape
+  nobody would guess from the JSON key `"Goals & Scope"`.
+- `h2` and `h3` ids share one dedupe registry (`scripts/lib/slug-registry.mjs`)
+  across the whole document set. An `h3` named "Security" anywhere ahead of
+  §12 would take the plain `security` slug and demote the real Security
+  heading to `security-2`, with nothing to flag it. Heading text does not
+  move when an unrelated document changes; a slug can.
+
+Scope follows `kindOf()` (`scripts/lib/doc-kinds.mjs`): only the document at
+index 0 — the spine, whatever the caller names `ARCHITECTURE.md` — gets a
+per-`h2` explainer, one for each of its 16 headings. The three fixed-basename
+companions (`threat-model.md`, `estimation.md`, `domain-overview.md`) get
+exactly one, on their `h1`, because each is a single topic rather than 16.
+Everything else carries no `data-kind` at all and so gets nothing: ADRs,
+because §14 Decisions already explains what a decision record is, and
+repeating that at every one of fifteen records would be the same sentence
+fifteen times; `CONTEXT.md` and `CONTEXT-MAP.md`, which are not spine
+sections; and the interface contract, whose filename is stack-dependent
+(OpenAPI, a proto file, a wire doc) and may not even reach the markdown
+renderer. `h3` is out of scope everywhere, spine included.
+
+There is no link to arc42, though the wording tracks its structure. A
+`helpLink` pointed at `docs.arc42.org/section-N/` was built and then removed:
+the arc42 template is CC BY-SA 4.0, and the viewer's one hard rule is that no
+remote URL enters the generated page — an offline HTML file that phones out
+to fetch the source it borrowed wording from is no longer offline.
+
 ### What the text assertions cannot check
 
 `scripts/test/viewer-template.test.mjs` reads the template as a string. That

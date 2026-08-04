@@ -333,4 +333,74 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
     })()`);
     assert.equal(landed, 'main-content');
   });
+
+  // Template text says the loop is present. It cannot say the button was built,
+  // that the lookup hit, or that a click opens anything — the panel is created in
+  // script from a global, so a boot-order or key mistake shows up only here.
+  test('a spine heading offers an explainer that opens on click', async () => {
+    const found = await page.eval(`(() => {
+      var h = [].slice.call(document.querySelectorAll('[data-kind="spine"] h2'))
+        .filter(function (el) { return el.textContent.indexOf('Core Components') >= 0; })[0];
+      if (!h) return { err: 'no Core Components heading under a spine page' };
+      var btn = h.querySelector('.help-btn');
+      if (!btn) return { err: 'no help button in the heading' };
+      var panel = h.nextElementSibling;
+      return {
+        tag: panel && panel.tagName,
+        cls: panel && panel.className,
+        expanded: btn.getAttribute('aria-expanded'),
+        controls: btn.getAttribute('aria-controls'),
+        panelId: panel && panel.id,
+        open: panel && panel.open,
+      };
+    })()`);
+    assert.equal(found.err, undefined, found.err);
+    assert.equal(found.tag, 'DETAILS');
+    assert.equal(found.cls, 'help');
+    assert.equal(found.expanded, 'false', 'a closed panel must not report itself open');
+    assert.equal(found.controls, found.panelId, 'aria-controls does not reach the panel');
+    assert.equal(found.open, false);
+  });
+
+  // The reason the panel is a <details> driven by a button rather than a bare
+  // summary: the state has to be readable from the button, and both have to agree.
+  test('clicking the explainer toggles both the panel and the button state', async () => {
+    const cycle = await page.eval(`(() => {
+      var h = [].slice.call(document.querySelectorAll('[data-kind="spine"] h2'))
+        .filter(function (el) { return el.textContent.indexOf('Core Components') >= 0; })[0];
+      var btn = h.querySelector('.help-btn');
+      var panel = h.nextElementSibling;
+      btn.click();
+      var opened = { open: panel.open, aria: btn.getAttribute('aria-expanded'),
+        text: panel.textContent };
+      btn.click();
+      return { opened: opened, closed: { open: panel.open,
+        aria: btn.getAttribute('aria-expanded') } };
+    })()`);
+    assert.equal(cycle.opened.open, true);
+    assert.equal(cycle.opened.aria, 'true');
+    assert.match(cycle.opened.text, /What goes here/);
+    // The content is the asset's, not a label the loop invented.
+    assert.match(cycle.opened.text, /responsible for/);
+    assert.equal(cycle.closed.open, false);
+    assert.equal(cycle.closed.aria, 'false');
+  });
+
+  // A document with no kind renders exactly as it does today. The ADR fixture is
+  // the case the spec excludes by name: §14 is already the home for that guidance.
+  test('a document with no kind gets no explainer', async () => {
+    const count = await page.eval(
+      "document.querySelectorAll('.page:not([data-kind]) .help-btn').length");
+    assert.equal(count, 0, 'an excluded document grew an explainer');
+  });
+
+  // Subheadings are out of scope, and an h3 that happens to share a spine
+  // heading's text must not pick one up.
+  test('subheadings get no explainer', async () => {
+    assert.equal(await page.eval("document.querySelectorAll('.doc h3 .help-btn').length"), 0);
+  });
+
+  test('injecting the explainers logs no error', async () => {
+    assert.deepEqual(page.errors, []);
+  });
 });

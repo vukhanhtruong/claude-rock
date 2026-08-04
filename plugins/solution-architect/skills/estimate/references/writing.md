@@ -18,6 +18,12 @@ top-level `project`, `technique`, `depth`, `calibration`, `overheadPct`,
 enforced half of this contract (`checkInputs`) — this doc is the readable
 half; if the two ever disagree, the code wins.
 
+At `depth: QUICK`, each feature's `tasks` array holds exactly one synthetic
+task carrying the tiering technique's calibration band as its `o`/`m`/`p`
+(mid = the band's midpoint) — see `references/techniques.md` §2. That keeps
+`schema.mjs`'s at-least-one-task rule and `compute.mjs`'s PERT path
+unchanged; QUICK never bypasses the compute pipeline.
+
 ## 2. `estimation.md` — two-part skeleton
 
 Mirror `scripts/test/fixtures/estimation-pass.md` exactly. Two top-level

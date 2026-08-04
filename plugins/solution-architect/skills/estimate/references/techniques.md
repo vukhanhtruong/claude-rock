@@ -37,6 +37,16 @@ supplied during the interview, or the defaults `S 20-60h, M 60-160h, L
 160-400h` if not. The calibration table is what turns "this is an M" into a
 number; never assign hours from the tier letter directly.
 
+At QUICK depth this is the only technique in play, so the tier still has to
+reach `compute.mjs` through the normal task-shaped path: for each feature,
+write exactly one synthetic task whose `o`/`m`/`p` are the calibration
+band's low/mid/high (mid = `(low + high) / 2`), tagged with whichever AI
+category dominates the feature's expected work. The agent still does the
+judgment — scoring the five factors, picking the tier, reading the
+calibration table — the script only turns that one task's three numbers
+into an hour figure, so rule 3 (agent judges, script computes) holds even
+at the coarsest depth.
+
 ## 3. Three-point PERT
 
 Used for row 2 — a detailed backlog or an existing `ARCHITECTURE.md` gives

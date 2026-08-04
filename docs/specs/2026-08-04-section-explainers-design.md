@@ -121,15 +121,18 @@ or in the content asset. The constraint is older and broader than this feature,
 so the feature gives way: an explainer states what belongs in a section and
 stops. A reader who wants arc42 itself can search for it.
 
-**Separate open item.** `README.md` describes the spine as "arc42 + 2
-additions", but the 16 headings appear to contain three with no direct arc42
-chapter (Project Structure, Data Stores, and Security as a standalone chapter
-rather than folded into Crosscutting Concepts), while Architecture Model and
-Core Components look like a split of a single arc42 chapter — and a split is not
-an addition. `docs.arc42.org` was not fetched during design, so no mapping is
-asserted here. Establish it against the live site, then fix whichever statement
-is wrong and record the mapping in `references/writing.md`. Do not encode both
-readings.
+**Separate item, now settled.** This spec suspected `README.md`'s "arc42 + 2
+additions" of being wrong, guessing that three headings had no arc42 counterpart
+— Project Structure, Data Stores, and Security as a standalone chapter. Checked
+against the live site, the README is right and the guess was wrong: Security is
+a split of arc42's Crosscutting Concepts chapter, which lists security among its
+own examples, so it is not an addition. Three of our sections split an arc42
+chapter rather than adding one (Goals & Scope and External Integrations both
+derive from Context and Scope; Architecture Model and Core Components from
+Building Block View; Security from Crosscutting Concepts). Only Project
+Structure and Data Stores have no counterpart at all. The verified mapping is
+recorded in `references/writing.md` beneath the spine list — the point being
+that a split is not an addition, which is why the count is 2 and not 5.
 
 ### Keys
 

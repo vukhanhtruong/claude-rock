@@ -176,3 +176,22 @@ test('drawer pages keep their routes', () => {
   const html = buildDoc(pages, routes);
   assert.match(html, /id="page-r1"[^>]*data-route="0001"/);
 });
+
+// The injection loop selects [data-kind="spine"] h2, so the attribute is the
+// only thing telling the client which document is the spine and which of the
+// three companions each other document is. Absent, every explainer is missing.
+test('a page carries its document kind', () => {
+  const html = buildDoc([
+    { docId: 'a', title: 'Arch', html: '<h2>x</h2>', headings: [], kind: 'spine' },
+  ]);
+  assert.match(html, /data-kind="spine"/);
+});
+
+// A document with no kind renders exactly as it does today. An empty
+// data-kind="" would match [data-kind] selectors and is worse than absence.
+test('a page with no kind carries no kind attribute', () => {
+  const html = buildDoc([
+    { docId: 'b', title: 'ADR 1', html: '<h2>x</h2>', headings: [] },
+  ]);
+  assert.doesNotMatch(html, /data-kind/);
+});

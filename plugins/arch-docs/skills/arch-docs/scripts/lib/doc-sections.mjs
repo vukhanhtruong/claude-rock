@@ -33,7 +33,11 @@ export function landingOf(bucket) {
 function pageEl(page, route) {
   const title = escapeHtml(stripTitle(page.title));
   const at = route ? ` data-route="${route}"` : '';
-  return `<section class="page" id="page-${page.docId}"${at} data-title="${title}">`
+  // Omitted rather than emptied when there is no kind: data-kind="" still
+  // matches a [data-kind] selector, so an unclassified document would look
+  // classified to the injection loop.
+  const kind = page.kind ? ` data-kind="${escapeHtml(page.kind)}"` : '';
+  return `<section class="page" id="page-${page.docId}"${at}${kind} data-title="${title}">`
     + `\n${page.html}\n</section>`;
 }
 

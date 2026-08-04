@@ -1109,10 +1109,12 @@ test('a spine heading gets a help toggle bound to a details panel', () => {
   // Keyed on heading text, not on the id: slugify keeps both spaces around a
   // stripped "&", and h2/h3 share one dedupe registry, so the slug can shift
   // under a heading without anything failing.
-  assert.match(fn, /textContent/);
   assert.doesNotMatch(fn, /\.id\]/, 'keying on the id is the bug this avoids');
   assert.match(fn, /ARCH_DOCS_HELP/);
-  assert.match(fn, /'details'/);
+  // The <details> element itself is built in helpPanel, not injectSectionHelp.
+  const panel = tpl.match(/function helpPanel[\s\S]*?\n\}/)[0];
+  assert.match(panel, /'details'/);
+  assert.match(panel, /help__body/);
 });
 
 // The anchor loop prepends a '#' to the heading, so reading textContent after it
@@ -1156,7 +1158,10 @@ test('opening a panel resettles the reading progress readout', () => {
 test('a companion document is explained once, at its title', () => {
   const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
   assert.match(fn, /companions/);
-  assert.match(tpl, /data-kind/);
+  // Read via the DOM property, not the attribute string: data-kind itself is
+  // written by pageEl in doc-sections.mjs, not spelled out in the template.
+  assert.match(fn, /dataset\.kind/);
+  assert.match(fn, /tagName === 'H1'/);
 });
 
 // Excluded by the spec: §14 Decisions is already a spine section and already the

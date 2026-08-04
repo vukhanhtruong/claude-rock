@@ -1223,7 +1223,6 @@ function helpPanel(entry) {
   body.appendChild(helpRow('What goes here', entry.what));
   body.appendChild(helpRow('Why it matters', entry.why));
   body.appendChild(helpRow('What good looks like', entry.good));
-  if (entry.arc42) body.appendChild(helpLink(entry.arc42));
   d.appendChild(document.createElement('summary'));
   d.appendChild(body);
   return d;
@@ -1235,17 +1234,6 @@ function helpRow(label, text) {
   b.textContent = label + ' — ';
   p.appendChild(b);
   p.appendChild(document.createTextNode(text));
-  return p;
-}
-
-function helpLink(n) {
-  var p = document.createElement('p');
-  var a = document.createElement('a');
-  a.href = 'https://docs.arc42.org/section-' + n + '/';
-  a.target = '_blank';
-  a.rel = 'noopener';
-  a.textContent = 'arc42 section ' + n + ' ↗';
-  p.appendChild(a);
   return p;
 }
 

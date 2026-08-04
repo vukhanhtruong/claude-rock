@@ -33,6 +33,38 @@ frontmatter: name · repo · team · updated · mode · projectType · docVersio
 16  Glossary                     generated from all CONTEXT.md files; omitted if <5 terms, and says so
 ```
 
+### 1a. Why "arc42 + 2", not more
+
+arc42 has 12 chapters. Three of them — Context and Scope, Building Block View,
+and Crosscutting Concepts — each cover two things arc42 itself already treats
+as separable, so we give each half its own numbered heading. That's a split,
+not new content, and it doesn't count toward the "+2": both halves still trace
+back to the same arc42 chapter, they just aren't squeezed into one heading.
+Only two of our sixteen have no arc42 chapter behind them at all — those two
+are what `README.md`'s "arc42 + 2 additions" means.
+
+| # | our heading | arc42 chapter | relationship |
+|---|---|---|---|
+| 1 | Goals & Scope | Ch1 Introduction and Goals + Ch3 Context and Scope (business half) | merge |
+| 2 | Constraints | Ch2 Constraints | direct |
+| 3 | Project Structure | none | **addition** — no arc42 chapter documents repo/filesystem layout |
+| 4 | Solution Strategy | Ch4 Solution Strategy | direct |
+| 5 | Architecture Model | Ch5 Building Block View (diagram half) | split, shares Ch5 with §6 |
+| 6 | Core Components | Ch5 Building Block View (component-table half) | split, shares Ch5 with §5 |
+| 7 | Runtime Behaviour | Ch6 Runtime View | direct |
+| 8 | Data Stores | none | **addition** — arc42's building-block view explicitly excludes data models |
+| 9 | External Integrations | Ch3 Context and Scope (technical half) | split, shares Ch3 with §1 |
+| 10 | Deployment & Infrastructure | Ch7 Deployment View | direct |
+| 11 | Crosscutting Concepts | Ch8 Crosscutting Concepts (minus security) | split, shares Ch8 with §12 |
+| 12 | Security | Ch8 Crosscutting Concepts (one of its own worked examples) | split, shares Ch8 with §11 |
+| 13 | Quality Requirements & SLOs | Ch10 Quality Requirements | direct |
+| 14 | Decisions | Ch9 Architecture Decisions | direct |
+| 15 | Risks & Technical Debt | Ch11 Risks and Technical Debt | direct |
+| 16 | Glossary | Ch12 Glossary | direct |
+
+Count: 16 headings, 3 splits (Ch3, Ch5, Ch8 each backing two), 2 with no
+counterpart (Project Structure, Data Stores) → arc42's 12 + 2 additions.
+
 Contract notes, verbatim:
 
 - The ER diagram is not the domain model. ER = persistence shape; domain =

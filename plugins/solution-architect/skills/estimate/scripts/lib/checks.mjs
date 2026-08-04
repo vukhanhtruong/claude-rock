@@ -71,8 +71,9 @@ function checkTaskRows(detail, out) {
 // src column — every scope row's src must be stated|proposed.
 function checkScopeRows(summary, out) {
   const table = tables(summary).find((t) => t.header.includes('src') && !t.header.includes('Task'));
-  const idx = table?.header.indexOf('src');
-  for (const row of table?.rows ?? []) {
+  if (!table) { out.push('summary scope table missing'); return; }
+  const idx = table.header.indexOf('src');
+  for (const row of table.rows) {
     if (!['stated', 'proposed'].includes(row[idx])) out.push(`scope row "${row[0]}": src must be stated|proposed`);
   }
 }
@@ -95,7 +96,7 @@ function checkNumbers(estimation) {
     out.push('computed block does not match recomputed totals (hand-edited JSON?)');
   }
   for (const [id, f] of Object.entries(estimation.computed.features)) {
-    const zeroSpread = f.low === f.hours && f.hours === f.high;
+    const zeroSpread = f.low === f.hours && f.hours === f.high && f.hours > 0;
     if (!zeroSpread && !(f.low < f.hours && f.hours < f.high)) {
       out.push(`feature ${id}: expected low < hours < high (got ${f.low}, ${f.hours}, ${f.high})`);
     }

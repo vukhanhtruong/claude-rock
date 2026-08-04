@@ -49,6 +49,20 @@ test('anything compute would turn into NaN is refused up front', () => {
   assert.ok(findings.some((f) => f.includes('probability')));
 });
 
+test('a string estimate is refused, not silently coerced by pert()', () => {
+  const bad = fixture();
+  bad.features[0].tasks[0].o = '16';
+  const findings = checkInputs(bad);
+  assert.ok(findings.some((f) => f.includes('booking-api') && f.includes('numbers')));
+});
+
+test('a feature with no tasks is refused — the zero-spread exemption must not be reachable', () => {
+  const bad = fixture();
+  bad.features[1].tasks = [];
+  const findings = checkInputs(bad);
+  assert.ok(findings.some((f) => f.includes('reminders') && f.includes('task')));
+});
+
 test('inherited object keys do not pass the enum checks', () => {
   const bad = fixture();
   bad.features[0].tasks[0].category = 'toString';

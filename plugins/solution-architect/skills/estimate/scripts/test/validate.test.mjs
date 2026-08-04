@@ -26,3 +26,19 @@ test('hand-edited totals are refused', () => {
   const findings = checkDeliverables({ md: read('estimation-pass.md'), estimation: est });
   assert.ok(findings.some((f) => f.includes('recomputed')));
 });
+
+test('an all-zero feature does not pass via the zero-spread exemption', () => {
+  const bad = inputs();
+  bad.features.push({ id: 'empty-feat', name: 'Nothing here', provenance: 'stated', tasks: [] });
+  const findings = checkDeliverables({ md: read('estimation-pass.md'), estimation: computeEstimation(bad) });
+  assert.ok(findings.some((f) => f.includes('empty-feat') && f.includes('low < hours < high')));
+});
+
+test('a Summary without a scope table is refused, not vacuously accepted', () => {
+  const md = read('estimation-pass.md').replace(
+    /\| Feature \| Tier \| Range \(h\) \| src \|\n\| --- \| --- \| --- \| --- \|\n(?:\|.*\|\n)+\n/,
+    '',
+  );
+  const findings = checkDeliverables({ md, estimation: computeEstimation(inputs()) });
+  assert.ok(findings.some((f) => f.includes('summary scope table missing')));
+});

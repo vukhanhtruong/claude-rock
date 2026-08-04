@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -52,4 +52,27 @@ test('--client-only strips every internal range', () => {
   const html = renderedPage(['--client-only']);
   assert.doesNotMatch(html, /data-internal|internal:start|ctl-engineers/);
   assert.match(stripInternal('a<!-- internal:start -->X<!-- internal:end -->b'), /^ab$/);
+});
+
+test('--client-only redacts rates and cost breakdown unless exposeRatesToClient is set', () => {
+  // Matched as quoted JSON keys, not bare identifiers: estimate-math.mjs is
+  // inlined verbatim for the what-if engine and legitimately declares
+  // `laborCost`/`planCost` as plain JS locals in every render, client or not.
+  const html = renderedPage(['--client-only']);
+  assert.doesNotMatch(html, /"rate":/);
+  assert.doesNotMatch(html, /"laborCost":/);
+  assert.doesNotMatch(html, /"planCost":/);
+});
+
+test('--client-only keeps rates when exposeRatesToClient is true', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-render-'));
+  const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
+  inputs.exposeRatesToClient = true;
+  const inputsPath = join(dir, 'inputs.json');
+  writeFileSync(inputsPath, JSON.stringify(inputs));
+  const json = join(dir, 'estimation.json');
+  execFileSync('node', [computeCli, '--inputs', inputsPath, '--out', json]);
+  execFileSync('node', [cli, '--json', json, '--md', passMd, '--out', dir, '--client-only']);
+  const html = readFileSync(join(dir, 'estimate.html'), 'utf8');
+  assert.match(html, /"rate":/);
 });

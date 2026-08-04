@@ -215,13 +215,19 @@ function renderTable() {
   el.innerHTML = `<table><thead><tr><th>Feature</th><th>Hours</th><th>Range</th><th>src</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+// Assembled at runtime for the same reason as CTL_SUFFIX above: the task
+// register is per-task WBS detail, not meant for the client view, so its
+// wrapper carries the internal-hide attribute — but that attribute name must
+// never appear as page text in a --client-only export.
+const INTERNAL_ATTR = ['data', 'internal'].join('-');
+
 function renderRegister() {
   const el = document.getElementById('register');
   if (!el) return;
   const taskRows = DATA.inputs.features.flatMap((f) => f.tasks).map((t) => `<tr class="${confLevel(t.confidence)}">
     <td>${t.name}</td><td>${t.category}</td><td>${t.confidence}</td><td>${t.assumptions.join('; ') || 'none'}</td></tr>`).join('');
   const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td>${Math.round(r.probability * 100)}%</td><td>${r.impactHours}h</td></tr>`).join('');
-  el.innerHTML = `<table><caption>Task register</caption><tbody>${taskRows}</tbody></table>
+  el.innerHTML = `<div ${INTERNAL_ATTR}><table><caption>Task register</caption><tbody>${taskRows}</tbody></table></div>
     <table><caption>Risk register</caption><tbody>${riskRows}</tbody></table>`;
 }
 

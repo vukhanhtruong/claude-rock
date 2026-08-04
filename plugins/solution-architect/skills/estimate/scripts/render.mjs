@@ -4,6 +4,7 @@ import { embed } from '../../arch-docs/scripts/lib/embed.mjs';
 import { buildFontFaces } from '../../arch-docs/scripts/lib/fonts.mjs';
 import { checkDeliverables } from './lib/checks.mjs';
 import { inlineModule, stripInternal } from './lib/inline.mjs';
+import { redactForClient } from './lib/redact.mjs';
 
 function parseArgs(argv) {
   const args = {};
@@ -34,6 +35,7 @@ if (findings.length) {
   process.exit(1);
 }
 
+const dataForEmbed = args['client-only'] ? redactForClient(estimation) : estimation;
 const template = readFileSync(templatePath, 'utf8');
 const html = embed({
   template,
@@ -41,7 +43,7 @@ const html = embed({
     TITLE: estimation.inputs.project,
     FONTS: buildFontFaces(archFontsDir),
     // Escaped so a literal </script in the JSON can't close the data tag early.
-    DATA: JSON.stringify(estimation).replaceAll('</script', '<\\/script'),
+    DATA: JSON.stringify(dataForEmbed).replaceAll('</script', '<\\/script'),
     MATH: inlineModule(readFileSync(mathPath, 'utf8')),
   },
 });

@@ -8,6 +8,7 @@ const CONFIDENCE = ['HIGH', 'MED', 'LOW'];
 const pct = (v) => typeof v === 'number' && v >= 0 && v < 1;
 
 function checkTask(task, out) {
+  if (!['o', 'm', 'p'].every((k) => typeof task[k] === 'number')) out.push(`task ${task.id}: o, m, p must be numbers`);
   if (!(task.o > 0 && task.m > 0 && task.p > 0)) out.push(`task ${task.id}: estimates are never 0`);
   if (!(task.o <= task.m && task.m <= task.p)) out.push(`task ${task.id}: expected o <= m <= p`);
   // Object.hasOwn, never `in`: "toString" is `in` every object, and an inherited
@@ -24,6 +25,7 @@ function checkFeature(feature, out) {
   if (!['stated', 'proposed'].includes(feature.provenance)) {
     out.push(`feature ${feature.id}: scope provenance must be stated|proposed`);
   }
+  if (!(feature.tasks?.length > 0)) out.push(`feature ${feature.id}: must have at least one task`);
   for (const task of feature.tasks ?? []) checkTask(task, out);
 }
 

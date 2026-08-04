@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!-- slot:TITLE --> — Estimate</title>
+<style>
+<!-- slot:FONTS -->
+:root {
+  --bg:#faf9f6; --ink:#1a1a1a; --accent:#0f766e; --warn:#b45309; --bad:#b91c1c; --ok:#15803d; --card:#fff;
+  --border:#e3dfd5; --border-strong:#cec8b9; --ink-dim:#6b675e;
+}
+:root[data-theme="dark"] {
+  --bg:#111312; --ink:#e8e6e1; --card:#1c1f1e;
+  --border:#22302e; --border-strong:#354743; --ink-dim:#97a29e;
+}
+* { box-sizing: border-box; }
+body {
+  font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink);
+  margin:0; line-height:1.5;
+}
+/* layout: header bar, two-column grid (main charts | controls rail), full-width feature table */
+header {
+  display:flex; align-items:center; gap:.75rem; padding:.9rem 1.5rem;
+  border-bottom:1px solid var(--border); background:var(--card);
+}
+header h1 { font-size:1.1rem; margin:0; flex:1; }
+#confidence-badge {
+  font-family:'IBM Plex Mono',monospace; font-size:.75rem; text-transform:uppercase;
+  padding:.15rem .5rem; border-radius:.25rem; border:1px solid var(--border-strong);
+}
+#confidence-badge.high { color:var(--ok); border-color:var(--ok); }
+#confidence-badge.med { color:var(--warn); border-color:var(--warn); }
+#confidence-badge.low { color:var(--bad); border-color:var(--bad); }
+header button {
+  font-family:inherit; font-size:.8rem; padding:.35rem .7rem; border-radius:.3rem;
+  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
+}
+#modified-banner {
+  margin:0; padding:.5rem 1.5rem; background:var(--warn); color:#fff; font-size:.85rem;
+}
+#modified-banner button { margin-left:.5rem; }
+main {
+  display:grid; grid-template-columns:1fr 280px; gap:1.25rem; padding:1.25rem 1.5rem;
+}
+#scenario-cards, #cost-bars, #timeline { grid-column:1; }
+#feature-table, #register { grid-column:1 / -1; }
+#controls {
+  grid-column:2; grid-row:1 / span 3; align-self:start;
+  background:var(--card); border:1px solid var(--border); border-radius:.5rem;
+  padding:1rem; display:flex; flex-direction:column; gap:.75rem;
+}
+#controls label { display:flex; flex-direction:column; font-size:.8rem; gap:.25rem; color:var(--ink-dim); }
+#controls input, #controls select { font:inherit; padding:.3rem; border:1px solid var(--border-strong); border-radius:.3rem; background:var(--bg); color:var(--ink); }
+.card {
+  background:var(--card); border:1px solid var(--border); border-radius:.5rem;
+  padding:1rem; margin-bottom:.75rem;
+}
+/* bars and gantt rows are styled divs — width set inline from data, no canvas, printable */
+.bar-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem; }
+.bar-label { flex:0 0 140px; font-size:.8rem; color:var(--ink-dim); }
+.bar-track { flex:1; height:.9rem; background:var(--border); border-radius:.25rem; overflow:hidden; }
+.bar-fill { height:100%; background:var(--accent); }
+table { width:100%; border-collapse:collapse; font-size:.85rem; }
+table th, table td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid var(--border); }
+table th { color:var(--ink-dim); font-weight:600; }
+<!-- internal:start -->.view-client [data-internal] { display:none; }<!-- internal:end -->
+@media print {
+  header button, #controls, #modified-banner { display:none; }
+  main { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1><!-- slot:TITLE --></h1>
+  <span id="confidence-badge"></span>
+  <button id="theme-toggle" type="button">theme</button>
+  <!-- internal:start --><button id="view-toggle" type="button" data-internal>client view</button><!-- internal:end -->
+</header>
+<p id="modified-banner" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
+<main>
+  <section id="scenario-cards"></section>
+  <!-- internal:start -->
+  <aside id="controls" data-internal>
+    <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
+    <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
+    <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
+    <label>hourly rate <input id="ctl-rate" type="number" min="10" max="300" step="5"></label>
+    <label>AI multiplier <input id="ctl-ai" type="range" min="0" max="1.5" step="0.05"></label>
+    <label>risk buffer <input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
+    <label>overhead % <input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
+  </aside>
+  <!-- internal:end -->
+  <section id="cost-bars"></section>
+  <section id="timeline"></section>
+  <section id="feature-table"></section>
+  <section id="register"></section>
+</main>
+<script type="application/json" id="estimation-data"><!-- slot:DATA --></script>
+<script>
+<!-- slot:MATH -->
+/* boot: parse the data island and stamp the title + confidence badge; the
+   rest of the page (sections, controls, theme toggle) is wired in Task 8. */
+const estimation = JSON.parse(document.getElementById('estimation-data').textContent);
+document.querySelector('header h1').textContent = estimation.inputs.project;
+const badge = document.getElementById('confidence-badge');
+badge.textContent = estimation.computed.projectConfidence;
+badge.className = estimation.computed.projectConfidence.toLowerCase();
+</script>
+</body>
+</html>

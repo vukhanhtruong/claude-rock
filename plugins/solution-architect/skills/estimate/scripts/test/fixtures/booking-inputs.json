@@ -1,0 +1,48 @@
+{
+  "project": "Booking App",
+  "currency": "USD",
+  "technique": "three-point-pert",
+  "depth": "STANDARD",
+  "calibration": { "S": [20, 60], "M": [60, 160], "L": [160, 400] },
+  "overheadPct": 0.35,
+  "verificationPct": 0.12,
+  "exposeRatesToClient": false,
+  "features": [
+    {
+      "id": "booking",
+      "name": "User can book appointment",
+      "provenance": "stated",
+      "tasks": [
+        { "id": "booking-api", "name": "Booking CRUD API", "category": "boilerplate",
+          "o": 16, "m": 24, "p": 40, "confidence": "HIGH",
+          "assumptions": ["single timezone"], "provenance": "stated" },
+        { "id": "booking-rules", "name": "Slot conflict + cancellation rules", "category": "logic",
+          "o": 24, "m": 40, "p": 80, "confidence": "MED",
+          "assumptions": ["no recurring bookings in v1"], "provenance": "proposed" }
+      ]
+    },
+    {
+      "id": "reminders",
+      "name": "Email reminders",
+      "provenance": "proposed",
+      "tasks": [
+        { "id": "reminder-jobs", "name": "Scheduled reminder jobs", "category": "logic",
+          "o": 12, "m": 20, "p": 36, "confidence": "MED",
+          "assumptions": ["transactional email provider already chosen"], "provenance": "proposed" }
+      ]
+    }
+  ],
+  "risks": [
+    { "name": "payment gateway sandbox delays", "probability": 0.3, "impactHours": 40 }
+  ],
+  "assumptions": [
+    { "text": "single timezone", "impactIfWrong": "recompute booking-api at logic category, +30%" }
+  ],
+  "scenarios": [
+    { "id": "3eng-noai", "plan": "none",
+      "team": [{ "seniority": "mid", "rate": 45 }, { "seniority": "mid", "rate": 45 }, { "seniority": "junior", "rate": 30 }] },
+    { "id": "2eng-max5x", "plan": "max5x",
+      "team": [{ "seniority": "senior", "rate": 60 }, { "seniority": "mid", "rate": 45 }] }
+  ],
+  "recommendedScenario": "2eng-max5x"
+}

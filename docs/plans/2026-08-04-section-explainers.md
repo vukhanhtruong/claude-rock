@@ -693,7 +693,7 @@ In `assets/viewer-template.html`, insert after line 455 (the closing brace of `.
   width: 1.15em; height: 1.15em; vertical-align: .06em;
   border: 1px solid var(--border); border-radius: 50%;
   background: none; color: var(--text-faint);
-  font: 600 .62em/1.15 var(--font-sans); cursor: pointer;
+  font: 600 .62em/1.15 var(--font-body); cursor: pointer;
   transition: color .13s, border-color .13s;
 }
 .help-btn:hover { color: var(--text); border-color: var(--text-faint); }
@@ -703,14 +703,14 @@ details.help { margin: 0 0 18px; }
 details.help > summary { display: none; }
 .help__body {
   border-left: 2px solid var(--border); padding: 2px 0 2px 14px;
-  color: var(--text-muted); font-size: .94em;
+  color: var(--text-dim); font-size: .94em;
 }
 .help__body p { margin: 0 0 6px; }
 .help__body b { color: var(--text); font-weight: 600; }
 .help__body a { font-size: .92em; }
 ```
 
-If any of `--border`, `--text-faint`, `--text-muted`, `--accent`, or `--font-sans` is not a variable this template already defines, grep for the nearest equivalent and use that instead — do not introduce a new custom property, and do not hardcode a hex.
+All five custom properties used above are ones this template already defines. The full set available to you is `--text`, `--text-dim`, `--text-faint`, `--border`, `--border-strong`, `--accent`, `--accent-soft`, `--accent-line`, `--surface`, `--surface-2`, `--surface-3`, `--font-body`, `--font-display`, `--font-mono`. Do not introduce a new custom property and do not hardcode a hex — both themes are driven off this set, and a literal colour would not flip with the toggle.
 
 - [ ] **Step 4: Add the print rule**
 

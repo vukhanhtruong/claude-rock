@@ -1240,6 +1240,33 @@ function helpRow(label, text) {
 }
 
 var helpSeq = 0;
+var helpSpine = null;
+
+/* The markdown is the source of truth and it varies: a real set writes
+   "## 1 Goals and Scope" where the asset's key is "Goals & Scope". Matched raw,
+   all sixteen lookups missed and the page drew no buttons at all. Mirrors
+   normTitle in scripts/lib/section-help.mjs — the leading number is dropped
+   rather than matched on, because §3 is brownfield-only and a greenfield set
+   renumbers everything after it. */
+function helpKey(title) {
+  return String(title)
+    .replace(/^\s*\d+[.)]?\s+/, '')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function spineEntry(title) {
+  if (!helpSpine) {
+    helpSpine = {};
+    var src = (window.ARCH_DOCS_HELP || {}).spine || {};
+    for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) {
+      helpSpine[helpKey(k)] = src[k];
+    }
+  }
+  return helpSpine[helpKey(title)];
+}
 
 function injectSectionHelp(h, title) {
   var help = window.ARCH_DOCS_HELP || {};
@@ -1247,7 +1274,7 @@ function injectSectionHelp(h, title) {
   var kind = page && page.dataset.kind;
   var entry = h.tagName === 'H1'
     ? (help.companions || {})[kind]
-    : (h.tagName === 'H2' && kind === 'spine' ? (help.spine || {})[title] : null);
+    : (h.tagName === 'H2' && kind === 'spine' ? spineEntry(title) : null);
   if (!entry) return;
   var panel = helpPanel(entry);
   /* aria-expanded says a state; aria-controls says what is in that state. The

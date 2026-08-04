@@ -1,10 +1,31 @@
 import { readFileSync } from 'node:fs';
 
-// Verbatim from references/writing.md's 16-heading spine, in spine order. The
-// lookup keys on this text rather than on a slug for two reasons: slugify keeps
-// both spaces around a stripped "&", so "Goals & Scope" becomes goals--scope;
-// and h2/h3 ids share one dedupe registry, so an h3 named Security under
-// Crosscutting Concepts would take `security` and demote §12's h2 to security-2.
+// The lookup keys on heading text rather than on a slug for two reasons: slugify
+// keeps both spaces around a stripped "&", so "Goals & Scope" becomes
+// goals--scope; and h2/h3 ids share one dedupe registry, so an h3 named Security
+// under Crosscutting Concepts would take `security` and demote §12's h2 to
+// security-2.
+//
+// It matches on a normalised form because the markdown is the source of truth and
+// the markdown varies. A real set writes "## 1 Goals and Scope" — number folded
+// into the heading, "and" spelled out — while this list and the fixture write
+// "Goals & Scope". Keyed on the raw string, all 16 lookups missed and the viewer
+// drew nothing, with every test still green because the fixture shared the
+// mistake.
+//
+// The leading number is dropped rather than matched on: §3 Project Structure is
+// brownfield-only, so a greenfield set renumbers every section after it, and a
+// number-keyed lookup would then hand §13's explainer to §12.
+export function normTitle(title) {
+  return String(title)
+    .replace(/^\s*\d+[.)]?\s+/, '')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// The 16 spine headings, title only — see references/writing.md §1.
 export const SPINE_TITLES = Object.freeze([
   'Goals & Scope', 'Constraints', 'Project Structure', 'Solution Strategy',
   'Architecture Model', 'Core Components', 'Runtime Behaviour', 'Data Stores',

@@ -10,6 +10,14 @@ Copied verbatim from spec §3.1 — this is the fixed structure. Headings never
 change; a non-applicable section renders `Not applicable — <reason>`
 (`project-types.md` owns per-type table-column variants and elections):
 
+**How to write these as markdown.** The table below separates the number from the
+title for readability; the heading itself carries both, as `## 1 Goals and Scope`.
+Real sets also spell out "and" where this table prints "&". Both spellings are
+accepted — the viewer's section explainers normalise the heading before looking up
+their text (`scripts/lib/section-help.mjs`, `normTitle`), dropping the leading
+number and folding `&` to `and`, so numbering that shifts when a section is
+omitted cannot misalign them. The number is presentation, never a key.
+
 ```
 frontmatter: name · repo · team · updated · mode · projectType · docVersion · electedDocs
 

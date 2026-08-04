@@ -35,28 +35,36 @@ frontmatter: name · repo · team · updated · mode · projectType · docVersio
 
 ### 1a. Why "arc42 + 2", not more
 
-arc42 has 12 chapters. Three of them — Context and Scope, Building Block View,
-and Crosscutting Concepts — each cover two things arc42 itself already treats
-as separable, so we give each half its own numbered heading. That's a split,
-not new content, and it doesn't count toward the "+2": both halves still trace
-back to the same arc42 chapter, they just aren't squeezed into one heading.
-Only two of our sixteen have no arc42 chapter behind them at all — those two
-are what `README.md`'s "arc42 + 2 additions" means.
+arc42 has 12 chapters. Only one of them draws a seam that matches ours: Context
+and Scope (Ch3) has two named subsections in arc42 itself, 3.1 Business context
+and 3.2 Technical context, and we give each its own heading (§1, §9) — that
+split is arc42's, not ours. Building Block View (Ch5) and Crosscutting Concepts
+(Ch8) are different: arc42 subsections Ch5 by decomposition level (5.1/5.2/5.3),
+each level mixing diagram and blackbox description together, not by a
+diagram-vs-table seam; and Ch8 mentions security only in one inline example
+sentence next to a topic diagram, never as a named subsection. Pulling
+Architecture Model apart from Core Components, and Security out of Crosscutting
+Concepts, are choices *we* made, not seams arc42 drew. They're still splits and
+not new content — both halves of each still trace back to the same arc42
+chapter — so neither counts toward the "+2", but say so plainly rather than
+implying arc42 pre-split them for us. Only two of our sixteen have no arc42
+chapter behind them at all — those two are what `README.md`'s "arc42 + 2
+additions" means.
 
 | # | our heading | arc42 chapter | relationship |
 |---|---|---|---|
-| 1 | Goals & Scope | Ch1 Introduction and Goals + Ch3 Context and Scope (business half) | merge |
+| 1 | Goals & Scope | Ch1 Introduction and Goals + Ch3 Context and Scope (3.1 Business context) | merge |
 | 2 | Constraints | Ch2 Constraints | direct |
 | 3 | Project Structure | none | **addition** — no arc42 chapter documents repo/filesystem layout |
 | 4 | Solution Strategy | Ch4 Solution Strategy | direct |
-| 5 | Architecture Model | Ch5 Building Block View (diagram half) | split, shares Ch5 with §6 |
-| 6 | Core Components | Ch5 Building Block View (component-table half) | split, shares Ch5 with §5 |
+| 5 | Architecture Model | Ch5 Building Block View | split (ours — Ch5's own subsections are decomposition levels, not diagram vs. table); shares Ch5 with §6 |
+| 6 | Core Components | Ch5 Building Block View | split (ours), shares Ch5 with §5 |
 | 7 | Runtime Behaviour | Ch6 Runtime View | direct |
-| 8 | Data Stores | none | **addition** — arc42's building-block view explicitly excludes data models |
-| 9 | External Integrations | Ch3 Context and Scope (technical half) | split, shares Ch3 with §1 |
+| 8 | Data Stores | none | **addition** — no arc42 chapter addresses data stores or ER models at all |
+| 9 | External Integrations | Ch3 Context and Scope (3.2 Technical context) | split (arc42's own seam), shares Ch3 with §1 |
 | 10 | Deployment & Infrastructure | Ch7 Deployment View | direct |
-| 11 | Crosscutting Concepts | Ch8 Crosscutting Concepts (minus security) | split, shares Ch8 with §12 |
-| 12 | Security | Ch8 Crosscutting Concepts (one of its own worked examples) | split, shares Ch8 with §11 |
+| 11 | Crosscutting Concepts | Ch8 Crosscutting Concepts | split (ours — security is one inline example here, not a subsection), shares Ch8 with §12 |
+| 12 | Security | Ch8 Crosscutting Concepts | split (ours), shares Ch8 with §11 |
 | 13 | Quality Requirements & SLOs | Ch10 Quality Requirements | direct |
 | 14 | Decisions | Ch9 Architecture Decisions | direct |
 | 15 | Risks & Technical Debt | Ch11 Risks and Technical Debt | direct |

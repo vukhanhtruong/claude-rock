@@ -64,7 +64,14 @@ const REFLOW_DOC = [
     'A partner needing more than the settlement tier is moved to the batch interface'
     + ' instead of having the limit raised. The synchronous path is sized for interactive'
     + ' traffic, and seven thousand writes a minute is not interactive.',
-  ].flatMap((p) => [p, ''])).join('\n');
+  ].flatMap((p) => [p, ''])).concat(
+    // Heading text that collides with a spine key on purpose: this document is
+    // unclassified (reflow.md is not docs[0] and isn't a companion basename), so
+    // an explainer must not appear here. Without this, deleting the kind gate in
+    // injectSectionHelp still leaves "an excluded document grew an explainer"
+    // green, because none of this fixture's real headings matches a lookup key.
+    ['## Security', ''],
+  ).join('\n');
 
 function buildViewer() {
   const out = mkdtempSync(join(tmpdir(), 'arch-docs-browser-'));
@@ -365,15 +372,21 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
   // The reason the panel is a <details> driven by a button rather than a bare
   // summary: the state has to be readable from the button, and both have to agree.
   test('clicking the explainer toggles both the panel and the button state', async () => {
-    const cycle = await page.eval(`(() => {
+    // aria-expanded is set from the <details> element's own "toggle" event,
+    // which the HTML spec queues as a task rather than firing inline with the
+    // click — so a tick has to pass before the button's attribute catches up.
+    const cycle = await page.eval(`(async () => {
+      var tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
       var h = [].slice.call(document.querySelectorAll('[data-kind="spine"] h2'))
         .filter(function (el) { return el.textContent.indexOf('Core Components') >= 0; })[0];
       var btn = h.querySelector('.help-btn');
       var panel = h.nextElementSibling;
       btn.click();
+      await tick();
       var opened = { open: panel.open, aria: btn.getAttribute('aria-expanded'),
         text: panel.textContent };
       btn.click();
+      await tick();
       return { opened: opened, closed: { open: panel.open,
         aria: btn.getAttribute('aria-expanded') } };
     })()`);

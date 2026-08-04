@@ -808,10 +808,15 @@ test('a diagram that fails to render says so instead of going blank', () => {
   assert.match(tpl, /\.diagram-error/);
 });
 
-// The 2px accent ring is a deliberate treatment, applied to four of the ten
-// things a keyboard reader can land on. The rest fall back to the UA default.
+// The 2px accent ring is the one focus treatment every interactive surface
+// gets. Each entry here is a real tab stop with its own :focus-visible rule.
 test('every interactive surface shows the same focus ring', () => {
-  for (const sel of ['.nav-link', '.view-tab', '.page-chip', '.record-row', '.record-hit']) {
+  const surfaces = [
+    '.nav-link', '.icon-btn', '.view-tab', '.page-chip', '.record-row',
+    '.record-hit', '.nav-sec__head', '.nav-group__head',
+    '.diagram-toolbar button', '.diagram-viewport', '.help-btn',
+  ];
+  for (const sel of surfaces) {
     assert.match(tpl, new RegExp(`\\${sel}[^{]*:focus-visible`), `${sel} has no focus ring`);
   }
 });
@@ -1183,6 +1188,14 @@ test('only the spine gets per-heading explainers', () => {
 test('print drops the help toggle', () => {
   const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
   assert.match(print, /\.help-btn/);
+});
+
+// The <details> stays in the flow even with its toggle hidden, and it still
+// carries its own margin — hiding only the button leaves a blank box the
+// height of a collapsed panel behind every heading.
+test('print drops the whole help panel, not just its toggle', () => {
+  const print = tpl.match(/@media print \{[\s\S]*?\n\}/)[0];
+  assert.match(print, /details\.help[^{]*\{[^}]*display:\s*none/);
 });
 
 test('the help panel and its toggle are styled', () => {

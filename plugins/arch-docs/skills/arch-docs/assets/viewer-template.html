@@ -124,7 +124,8 @@ body {
 .view-tab:focus-visible,
 .page-chip:focus-visible,
 .record-row:focus-visible,
-.record-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.record-hit:focus-visible,
+.help-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* One scrollbar treatment for every scroll container: the rail, a code block, a
    wide table, a tab strip. The platform default is a ~15px grey slab, which
@@ -476,7 +477,6 @@ details.help > summary { display: none; }
 }
 .help__body p { margin: 0 0 6px; }
 .help__body b { color: var(--text); font-weight: 600; }
-.help__body a { font-size: .92em; }
 
 code {
   font-family: var(--font-mono); font-size: .855em;
@@ -1025,8 +1025,10 @@ c4-view { display: block; width: 100%; height: 460px; }
   }
   .drawer__body { overflow: visible; padding: 0; }
   /* A control on paper is a control nobody can press. The panel is a closed
-     <details> and prints closed, which leaves the document as authored. */
-  .help-btn { display: none; }
+     <details> and prints closed, which leaves the document as authored — but
+     the <details> itself still carries its margin, so it must hide too or
+     every heading leaves a blank box the height of a collapsed panel. */
+  .help-btn, details.help { display: none; }
 }
 </style>
 </head>
@@ -1264,6 +1266,11 @@ function injectSectionHelp(h, title) {
   h.after(panel);
   btn.addEventListener('click', function () {
     panel.open = !panel.open;
+  });
+  /* Read from the <details> element's own event rather than set inside the
+     click handler above, so anything that opens the panel without a click —
+     not just this button — still leaves aria-expanded matching panel.open. */
+  panel.addEventListener('toggle', function () {
     btn.setAttribute('aria-expanded', String(panel.open));
     /* Reading progress is measured from scroll offsets, so the panel changing
        the section's height leaves the readout stale until the next scroll. */

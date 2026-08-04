@@ -7,6 +7,8 @@ import { buildDoc } from './lib/doc-sections.mjs';
 import { routeMap } from './lib/doc-routes.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
+import { kindOf } from './lib/doc-kinds.mjs';
+import { sectionHelp, serialiseHelp } from './lib/section-help.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
 import { buildFontFaces } from './lib/fonts.mjs';
 import { validatePalette } from './lib/validate-palette.mjs';
@@ -66,6 +68,7 @@ const pages = docPaths.map((p, i) => ({
   path: resolve(p),
   spine: i === 0,
   drawer: drawerOf(p, i),
+  kind: kindOf(p, i),
 }));
 
 // Second pass, because a link's target id is only known once every document has
@@ -104,6 +107,7 @@ const html = embed({
     LIKEC4_BUNDLE: stripRemoteAssets(likec4Bundle),
     MERMAID_BUNDLE: stripRemoteAssets(readFileSync(args['mermaid-bundle'], 'utf8')),
     THEME: themeJson,
+    SECTION_HELP: serialiseHelp(sectionHelp()),
   },
 });
 

@@ -1089,6 +1089,10 @@ document.getElementById('rail-title').textContent = document.title;
 
 <script type="module">
 window.ARCH_DOCS_THEME = <!-- slot:THEME -->;
+/* Guidance about the template, not claims about the documented system, so it
+   sits outside the observed/stated/researched/proposed provenance rules. Data
+   only: the loop below decides what to render from it. */
+window.ARCH_DOCS_HELP = <!-- slot:SECTION_HELP -->;
 <!-- slot:MERMAID_BUNDLE -->
 var root = document.documentElement;
 /* Live, not sampled once: a reader can turn reduced motion on mid-session and

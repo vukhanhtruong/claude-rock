@@ -1245,7 +1245,7 @@ function injectSectionHelp(h, title) {
   var kind = page && page.dataset.kind;
   var entry = h.tagName === 'H1'
     ? (help.companions || {})[kind]
-    : (kind === 'spine' ? (help.spine || {})[title] : null);
+    : (h.tagName === 'H2' && kind === 'spine' ? (help.spine || {})[title] : null);
   if (!entry) return;
   var panel = helpPanel(entry);
   /* aria-expanded says a state; aria-controls says what is in that state. The

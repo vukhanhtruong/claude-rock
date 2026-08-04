@@ -15,6 +15,13 @@ Minimal fixture repo for validator tests. See the [components](#core-components)
 | API | Serves REST endpoints for checkout | observed |
 | Web App | Renders the storefront UI for shoppers | observed |
 
+### Core Components
+
+A per-service breakdown lives in the linked runbook. This subheading exists
+only to prove a heading that repeats its own parent's title picks up no
+explainer of its own — subheadings are out of scope regardless of what they
+are named.
+
 ## External Integrations
 
 | System | Method | src |

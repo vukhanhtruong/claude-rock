@@ -33,6 +33,10 @@ Use `--force` to overwrite collisions.
 |---|---|---|
 | `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, plus AI-aware project estimation. | 1.0.0 |
 
+`solution-architect` ships two skills: `arch-docs` (architecture documentation)
+and `estimate` (interview-driven, AI-aware project estimation with an
+interactive what-if page). `-p solution-architect` installs both.
+
 ## Repo conventions
 
 Each plugin follows the same layout:

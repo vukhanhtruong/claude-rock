@@ -1,0 +1,101 @@
+{
+  "spine": {
+    "Goals & Scope": {
+      "what": "The two or three outcomes this system exists to deliver, who it serves, and an explicit list of what it will not do.",
+      "why": "Without a stated boundary every later section drifts. The out-of-scope half is the one that prevents argument later.",
+      "good": "A reader can name something plausible that the system deliberately does not do."
+    },
+    "Constraints": {
+      "what": "Fixed conditions the design had no freedom over: mandated technology, budget, deadlines, compliance regimes, team skills, existing systems it must interoperate with.",
+      "why": "A constraint recorded as a decision invites someone to relitigate it. Recorded as a constraint, it tells them who to go and ask instead.",
+      "good": "Every entry names who or what imposes it, not merely that it holds."
+    },
+    "Project Structure": {
+      "what": "The directory tree to depth two, and which architectural boundary each top-level directory maps to.",
+      "why": "The tree is the first thing a new contributor reads and the last thing anyone documents. Left implicit, folder names become the de facto architecture.",
+      "good": "Someone can map a feature request to a directory without resorting to grep."
+    },
+    "Solution Strategy": {
+      "what": "The handful of decisions that shaped everything else, each pointing at the decision record that argued it.",
+      "why": "This is what a reader consults to learn why the system is like this at all, before spending an hour in the detail.",
+      "good": "Five bullets or fewer, each linking a decision record, none restating the rationale."
+    },
+    "Architecture Model": {
+      "what": "The C4 views of the system, from context down through containers to components, as diagrams rather than prose.",
+      "why": "A structural claim buried in a paragraph cannot be checked. In a diagram, a missing dependency is visible.",
+      "good": "The diagrams answer what talks to what without a sentence of help."
+    },
+    "Core Components": {
+      "what": "Each significant building block: what it is responsible for, what it is built with, where it deploys, which paths hold it, and what must always be true of it.",
+      "why": "Responsibility is the thing people actually disagree about. Written down, a component that has quietly acquired three jobs becomes visible.",
+      "good": "Every row states one responsibility. A row that needs the word \"and\" is either two components or a problem."
+    },
+    "Runtime Behaviour": {
+      "what": "Two to four named flows through the system as dynamic views: request paths, scheduled work, failure handling.",
+      "why": "Structure says what exists, never what happens. Most defects live in an ordering that no structure diagram can show.",
+      "good": "Each flow is named for something a stakeholder would recognise, not for the components it happens to touch."
+    },
+    "Data Stores": {
+      "what": "Every persistent store: a diagram of its shape, plus type, purpose, retention, whether it holds personal data, and how it is migrated.",
+      "why": "Data outlives the code that wrote it. Retention and personal-data flags are the two facts nobody can reconstruct afterwards.",
+      "good": "Every store names a retention period and a migration tool, including where the honest answer is none. The shape here is how data is stored, which is not the same thing as what the business means by it."
+    },
+    "External Integrations": {
+      "what": "Every system across the boundary: how it is called, how it is authenticated and where that credential lives, what happens when it fails, its rate limit and cost, what data leaves, and how hard it would be to replace.",
+      "why": "External dependencies are where availability and compliance are really decided, and they are usually recorded as a name and a URL.",
+      "good": "Every entry states a failure mode, so \"it is down, then what\" has an answer for each row."
+    },
+    "Deployment & Infrastructure": {
+      "what": "Where the system runs, per environment, and the pipeline stages that put it there.",
+      "why": "The gap between the documented architecture and the deployed reality is where incidents come from.",
+      "good": "A reader can tell which environments exist and what differs between them."
+    },
+    "Crosscutting Concepts": {
+      "what": "The patterns that apply everywhere rather than in one place: observability, error handling, validation, configuration and secrets, authentication mechanics, testing strategy.",
+      "why": "A concern documented per component gets documented inconsistently. One home means one answer.",
+      "good": "A contributor adding a component knows what it must do about logging and errors without having to ask."
+    },
+    "Security": {
+      "what": "The trust boundaries as a data-flow diagram, the authorisation model, and a link to the threat model.",
+      "why": "Security stated as an intention is not reviewable. Boundaries and an authorisation model are.",
+      "good": "Every boundary crossing on the diagram has a stated authentication mechanism."
+    },
+    "Quality Requirements & SLOs": {
+      "what": "The quality attributes that matter here, each with a number and a way of measuring it.",
+      "why": "Fast, reliable and scalable are unfalsifiable. A number is something a test can fail against.",
+      "good": "No entry is an adjective. Each carries a value and a measurement method."
+    },
+    "Decisions": {
+      "what": "The index of architecture decision records: what was decided, its current status, and where the full record lives.",
+      "why": "The reasoning behind a decision decays faster than the code implementing it. A decision record is what stops the same debate recurring every year.",
+      "good": "Every record states the options that were considered, not only the one chosen."
+    },
+    "Risks & Technical Debt": {
+      "what": "Known weaknesses: what could go wrong, what is already wrong, and what has been deliberately deferred.",
+      "why": "Debt nobody wrote down is indistinguishable from a design choice, and eventually gets defended as one.",
+      "good": "Each entry says what would trigger acting on it."
+    },
+    "Glossary": {
+      "what": "The domain and technical terms these documents use, defined once.",
+      "why": "Two people using one word for two things is the most expensive ambiguity a project can carry and the cheapest to fix.",
+      "good": "Every term a newcomer would have to ask about appears exactly once, here."
+    }
+  },
+  "companions": {
+    "threat-model": {
+      "what": "A data-flow diagram with its trust boundaries, the threats identified against it, and the mitigation for each.",
+      "why": "A threat list without a diagram cannot be checked for completeness, and a diagram without a list is decoration.",
+      "good": "Every threat has either a mitigation or an explicit note that the risk was accepted."
+    },
+    "estimation": {
+      "what": "Effort estimates per scope item, each carrying a confidence level and the assumptions it rests on.",
+      "why": "An estimate without its assumptions is a number that gets held against you once the assumptions change.",
+      "good": "Nothing unestimated reads as zero. It reads as not estimated."
+    },
+    "domain-overview": {
+      "what": "Three parts and nothing else: the actors, the processes they drive, and the business rules that govern them.",
+      "why": "A data model shows how information is stored, never what the business means by it. The two legitimately differ.",
+      "good": "Every rule links the component that enforces it and the decision it came from."
+    }
+  }
+}

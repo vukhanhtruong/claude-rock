@@ -1,0 +1,108 @@
+// Deliverable gate: the estimation.md a human reads must actually reflect the
+// estimation.json a machine computed. Rules 1-4/9 check structure, 5-6 check
+// table rows, 7-8 cross-check the JSON against a fresh recompute.
+import { computeEstimation } from './rollup.mjs';
+
+const PROVENANCE = ['observed', 'stated', 'researched', 'proposed'];
+const CONFIDENCE = ['HIGH', 'MED', 'LOW'];
+
+// Returns the text of the section/subsection starting at heading `name`, up
+// to (not including) the next heading of the same or shallower level.
+function heading(md, name) {
+  const m = new RegExp(`^(#{2,4})\\s*${name}\\b.*$`, 'm').exec(md);
+  if (!m) return null;
+  const rest = md.slice(m.index + m[0].length);
+  const next = rest.search(new RegExp(`^#{1,${m[1].length}}\\s`, 'm'));
+  return rest.slice(0, next === -1 ? undefined : next);
+}
+
+function cells(line) {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+}
+
+// Groups contiguous `| ... |` lines into tables, dropping the `| --- |`
+// separator row, and returns each as { header, rows } of trimmed cells.
+function tables(text) {
+  const groups = [];
+  let cur = [];
+  for (const line of (text ?? '').split('\n')) {
+    if (/^\s*\|/.test(line)) cur.push(line);
+    else if (cur.length) { groups.push(cur); cur = []; }
+  }
+  if (cur.length) groups.push(cur);
+  return groups
+    .map((g) => g.filter((l) => !/^\s*\|?[\s:|-]+\|?\s*$/.test(l)))
+    .map((g) => ({ header: cells(g[0]), rows: g.slice(1).map(cells) }));
+}
+
+function checkStructure(md) {
+  const out = [];
+  const summary = heading(md, 'Summary');
+  const detail = heading(md, 'Estimation detail');
+  if (summary === null) out.push('missing ## Summary section');
+  if (detail === null) out.push('missing ## Estimation detail section');
+  if (!/^###?\s*Out of scope\b/im.test(summary ?? '')) out.push('Out of scope heading missing from Summary');
+  const assumptionRows = tables(heading(md, 'Assumptions')).flatMap((t) => t.rows);
+  if (assumptionRows.length < 1) out.push('assumptions register is empty (### Assumptions needs >= 1 row)');
+  if (!/\|.*buffer.*\|/i.test(summary ?? '')) out.push('no buffer line item found in Summary (/buffer/i)');
+  const scenarioTable = tables(detail ?? '').find((t) => t.header.includes('Scenario'));
+  if (!scenarioTable || scenarioTable.rows.length < 2) out.push('scenario comparison table missing or has fewer than 2 rows');
+  if (!/calibration/i.test(detail ?? '')) out.push('no calibration line found in Estimation detail');
+  return out;
+}
+
+// Rule 5: the task table, found by its header (not position), row-checked
+// for provenance, confidence, non-blank assumptions, and no bare 0.
+function checkTaskRows(detail, out) {
+  const table = tables(detail).find((t) => ['Task', 'Confidence', 'Assumptions', 'src'].every((h) => t.header.includes(h)));
+  if (!table) { out.push('task table not found by header (need Task, Confidence, Assumptions, src)'); return; }
+  const srcIdx = table.header.indexOf('src');
+  const confIdx = table.header.indexOf('Confidence');
+  const assumeIdx = table.header.indexOf('Assumptions');
+  for (const row of table.rows) {
+    if (row.some((c) => c === '0')) out.push(`task row "${row[0]}": estimate cell is never 0 (use "not estimated")`);
+    if (!PROVENANCE.includes(row[srcIdx])) out.push(`task row "${row[0]}": src cell must be one of ${PROVENANCE.join('|')}`);
+    if (!CONFIDENCE.includes(row[confIdx])) out.push(`task row "${row[0]}": confidence cell must be HIGH|MED|LOW`);
+    if (!row[assumeIdx]) out.push(`task row "${row[0]}": assumptions cell must be non-empty (use literal "none")`);
+  }
+}
+
+// Rule 6: the Summary's feature/tier table — the only Summary table with a
+// src column — every scope row's src must be stated|proposed.
+function checkScopeRows(summary, out) {
+  const table = tables(summary).find((t) => t.header.includes('src') && !t.header.includes('Task'));
+  const idx = table?.header.indexOf('src');
+  for (const row of table?.rows ?? []) {
+    if (!['stated', 'proposed'].includes(row[idx])) out.push(`scope row "${row[0]}": src must be stated|proposed`);
+  }
+}
+
+function checkRows(md) {
+  const out = [];
+  checkTaskRows(heading(md, 'Estimation detail') ?? '', out);
+  checkScopeRows(heading(md, 'Summary') ?? '', out);
+  return out;
+}
+
+// Rules 7-8: the JSON side. A fresh recompute from the same inputs must
+// deep-equal the stored computed block (catches hand-edits), and every
+// feature's low/hours/high must be strictly ordered (or all equal, for the
+// degenerate zero-spread case).
+function checkNumbers(estimation) {
+  const out = [];
+  const recomputed = computeEstimation(estimation.inputs).computed;
+  if (JSON.stringify(recomputed) !== JSON.stringify(estimation.computed)) {
+    out.push('computed block does not match recomputed totals (hand-edited JSON?)');
+  }
+  for (const [id, f] of Object.entries(estimation.computed.features)) {
+    const zeroSpread = f.low === f.hours && f.hours === f.high;
+    if (!zeroSpread && !(f.low < f.hours && f.hours < f.high)) {
+      out.push(`feature ${id}: expected low < hours < high (got ${f.low}, ${f.hours}, ${f.high})`);
+    }
+  }
+  return out;
+}
+
+export function checkDeliverables({ md, estimation }) {
+  return [...checkStructure(md), ...checkRows(md), ...checkNumbers(estimation)];
+}

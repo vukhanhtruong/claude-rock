@@ -16,8 +16,15 @@
 - **Offline:** `scripts/test/offline.test.mjs` and `viewer-template.test.mjs` fail the build if any remote URL survives in the template. The one permitted host is `www.w3.org` (SVG namespaces). A `docs.arc42.org` link inside the JSON asset is *content*, injected at render time, and is not matched by the template scan — but never hardcode it into the template itself.
 - **Commit style:** Conventional Commits. Imperative subject, lowercase after the colon, no trailing period, 50 chars max. Never credit Claude, Claude Code, or any AI tool as author or co-author; no `Co-Authored-By`, `Claude-Session`, or "Generated with" lines.
 - **Branch:** `feat/section-explainers`, already checked out. The spec is already committed as `8da5cf7`.
-- **Test baseline — record this before you start.** On a clean `develop`, `node --test scripts/test/*.test.mjs` from `plugins/arch-docs/skills/arch-docs/` gives **381 tests, 360 pass, 6 fail**. The 6 failures are pre-existing and environment-gated (they need the `npx likec4` CLI and a real Chrome): `the viewer in a real browser`, `CLI exits 0 on the passing fixture`, `the CLI writes likec4.config.json beside the model`, `a model that validates clean is generated`, `a model that fails validation is never generated`, `render.mjs produces a self-contained index.html`, `render.mjs refuses a likec4 bundle with no palette`. Run the suite once at the start and keep the output. You have broken something only if a test outside that list fails.
-- **Working directory** for every command in this plan: `plugins/arch-docs/skills/arch-docs/`.
+- **Run the tests from the repository root, and expect zero failures.**
+
+  ```
+  cd <repo-root> && node --test plugins/arch-docs/skills/arch-docs/scripts/test/*.test.mjs
+  ```
+
+  Several tests spawn `render.mjs` with fixture paths resolved relative to the repo root, so running the suite from inside `plugins/arch-docs/skills/arch-docs/` makes 7 of them fail on paths alone — nothing to do with the code under test. An earlier revision of this plan mistook those for pre-existing environment gates and told implementers to ignore them. It was wrong: from the repo root the suite is **green, and any failure is yours**. Do not treat any failure as pre-existing.
+
+- **Working directory:** run test commands from the repository root as above. Paths given elsewhere in this plan (`assets/…`, `scripts/lib/…`) are relative to `plugins/arch-docs/skills/arch-docs/` — join them yourself rather than `cd`-ing.
 - **House test style:** tests in this repo assert against the template *source string* with regexes, and each test carries a comment naming the concrete failure it prevents. Match that. Do not add a DOM library.
 
 ---

@@ -126,6 +126,33 @@ test('a paragraph is not swallowed into a list that follows it', () => {
   assert.match(html, /<p>Lead in:<\/p>\n<ul><li>item<\/li><\/ul>/);
 });
 
+// §4 Solution Strategy is specified as "≤5 bullets, each links an ADR"
+// (references/writing.md), so its bullets are long enough to wrap in the source.
+// A wrapped bullet used to end the list at the unmatched second line: the item
+// closed, the continuation became an indented <p> carrying the ADR link on its
+// own, and the next bullet opened a fresh <ul>. Five bullets rendered as five
+// one-item lists interleaved with five stray paragraphs.
+test('a wrapped bullet stays one list item', () => {
+  const { html } = renderMarkdown('- first line\n  second line\n- next item');
+  assert.match(html, /<ul><li>first line second line<\/li><li>next item<\/li><\/ul>/);
+  assert.doesNotMatch(html, /<p>\s*second line/, 'the continuation broke out into a paragraph');
+});
+
+test('a wrapped bullet keeps the link that lives on its second line', () => {
+  const { html } = renderMarkdown('- adopt event sourcing\n  ([ADR 2](docs/adr/2.md))');
+  assert.match(html, /<li>adopt event sourcing \(<a href="docs\/adr\/2\.md">ADR 2<\/a>\)<\/li>/);
+});
+
+// The continuation rule keys on indentation, so a block that follows a list
+// without a blank line is still its own block. Absorbing it would flatten a
+// table into the text of the bullet above it.
+test('a table after a list is not absorbed into the last item', () => {
+  const { html } = renderMarkdown('- item\n| a | b |\n| --- | --- |\n| 1 | 2 |');
+  assert.match(html, /<\/ul>/);
+  assert.match(html, /<table>/);
+  assert.doesNotMatch(html, /<li>item \|/, 'the table was swallowed into the item');
+});
+
 // A two-column table whose right column runs to prose is a definition list
 // wearing a table costume: 19 rows of hairline dividers where a card grid reads
 // in one pass. Two columns of short values is real data and stays a table.

@@ -602,10 +602,13 @@ test('a spine heading gets a help toggle bound to a details panel', () => {
   // Keyed on heading text, not on the id: slugify keeps both spaces around a
   // stripped "&", and h2/h3 share one dedupe registry, so the slug can shift
   // under a heading without anything failing.
-  assert.match(fn, /textContent/);
   assert.doesNotMatch(fn, /\.id\]/, 'keying on the id is the bug this avoids');
   assert.match(fn, /ARCH_DOCS_HELP/);
-  assert.match(fn, /'details'/);
+  // The panel is built in helpPanel, so scope that assertion to helpPanel — a
+  // regex window over injectSectionHelp cannot see it.
+  const panel = tpl.match(/function helpPanel[\s\S]*?\n\}/)[0];
+  assert.match(panel, /'details'/);
+  assert.match(panel, /help__body/);
 });
 
 // The anchor loop prepends a '#' to the heading, so reading textContent after it
@@ -649,7 +652,11 @@ test('opening a panel resettles the reading progress readout', () => {
 test('a companion document is explained once, at its title', () => {
   const fn = tpl.match(/function injectSectionHelp[\s\S]*?\n\}/)[0];
   assert.match(fn, /companions/);
-  assert.match(tpl, /data-kind/);
+  // The kind is read as a property, so assert on the access the code performs.
+  // Grepping the template for the literal "data-kind" finds nothing: the
+  // attribute is written by pageEl in scripts/lib/doc-sections.mjs, not here.
+  assert.match(fn, /dataset\.kind/);
+  assert.match(fn, /tagName === 'H1'/, 'a companion is explained at its title');
 });
 
 // Excluded by the spec: §14 Decisions is already a spine section and already the
@@ -739,7 +746,6 @@ function helpPanel(entry) {
   body.appendChild(helpRow('What goes here', entry.what));
   body.appendChild(helpRow('Why it matters', entry.why));
   body.appendChild(helpRow('What good looks like', entry.good));
-  if (entry.arc42) body.appendChild(helpLink(entry.arc42));
   d.appendChild(document.createElement('summary'));
   d.appendChild(body);
   return d;
@@ -751,17 +757,6 @@ function helpRow(label, text) {
   b.textContent = label + ' — ';
   p.appendChild(b);
   p.appendChild(document.createTextNode(text));
-  return p;
-}
-
-function helpLink(n) {
-  var p = document.createElement('p');
-  var a = document.createElement('a');
-  a.href = 'https://docs.arc42.org/section-' + n + '/';
-  a.target = '_blank';
-  a.rel = 'noopener';
-  a.textContent = 'arc42 section ' + n + ' ↗';
-  p.appendChild(a);
   return p;
 }
 
@@ -835,76 +830,45 @@ git commit -m "feat(arch-docs): toggle explainers in the viewer"
 
 ---
 
-### Task 6: Resolve the arc42 mapping and the README count
+### Task 6: Settle the README's arc42 count
 
 **Files:**
-- Modify: `assets/section-help.json` (add `arc42` numbers)
-- Modify: `scripts/test/section-help.test.mjs`
 - Modify: `plugins/arch-docs/skills/arch-docs/README.md:8` **or** nothing, depending on what you find
 
 **Interfaces:**
-- Consumes: the JSON from Task 2, the `helpLink` renderer from Task 5.
-- Produces: no new interface. `entry.arc42` is already optional in Task 5's `helpPanel`.
+- Consumes: nothing. Produces: nothing. This task changes no code.
 
-The spec deliberately left this open: `docs.arc42.org` was not fetched during design, so no mapping was asserted rather than invented.
+**Scope changed mid-execution — read this before the steps.** The original plan had each explainer carry an `arc42` chapter number and render a link to `docs.arc42.org`. That is cancelled. Both `scripts/test/viewer-template.test.mjs` and `scripts/test/render.test.mjs:42` assert `doesNotMatch(..., /https?:\/\/(?!www\.w3\.org)/)` — the second one against the **generated HTML**, so an outbound URL cannot live in the template *or* in `assets/section-help.json`. The explainers carry `what`, `why`, `good` and nothing else. **Do not add an `arc42` field to the JSON, do not add a link, and do not add a text pointer.**
+
+What survives is the documentation question underneath it, which is worth settling on its own: `README.md:8` describes the spine as "a fixed 16-section spine (arc42 + 2 additions)", and that count looks wrong.
 
 - [ ] **Step 1: Read the arc42 chapter list from the source**
 
-Fetch `https://docs.arc42.org/home/` and list the twelve chapter numbers and titles. Do not work from memory — the whole point of this task is that the mapping is verified.
+Fetch `https://docs.arc42.org/home/` and write down the twelve chapter numbers and titles. Do not work from memory — a verified list is the whole point.
 
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 2: Map our 16 headings against those 12 chapters**
 
-Append to `scripts/test/section-help.test.mjs`:
+The 16 are listed in `plugins/arch-docs/skills/arch-docs/references/writing.md:16-33`. For each, record whether it has a direct arc42 counterpart, and note where one of our sections splits an arc42 chapter or merges two.
 
-```js
-// Verified against docs.arc42.org rather than recalled. A wrong number sends the
-// reader to a chapter about something else, which is worse than no link.
-test('every arc42 reference is a real chapter number', () => {
-  const all = [...Object.values(help.spine), ...Object.values(help.companions)];
-  const cited = all.filter((e) => e.arc42 !== undefined);
-  assert.ok(cited.length >= 10, 'most spine sections have an arc42 counterpart');
-  for (const entry of cited) {
-    assert.ok(Number.isInteger(entry.arc42), 'arc42 must be a chapter number');
-    assert.ok(entry.arc42 >= 1 && entry.arc42 <= 12, `arc42 ${entry.arc42} is not a chapter`);
-  }
-});
+Expect ambiguity, and resolve it explicitly rather than silently: our "Architecture Model" and "Core Components" look like a split of a single arc42 chapter, and "Security" may be a standalone section where arc42 folds the same material into Crosscutting Concepts. A split is not an addition. State which reading you took.
 
-// Our own additions have no arc42 chapter, and pointing them at the nearest one
-// would misattribute our content to arc42.
-test('a section with no arc42 counterpart cites none', () => {
-  for (const [title, entry] of Object.entries(help.spine)) {
-    if (entry.arc42 === undefined) continue;
-    assert.notEqual(title, 'Project Structure', 'a brownfield tree is not an arc42 chapter');
-  }
-});
-```
+- [ ] **Step 3: Settle the README**
 
-- [ ] **Step 3: Run the test to verify it fails**
+Count the headings with no arc42 counterpart. If that count is 2, the README is already right and this task changes nothing — say so in your report and skip to Step 5.
 
-Run: `node --test scripts/test/section-help.test.mjs`
-Expected: FAIL — `most spine sections have an arc42 counterpart`, because no entry carries `arc42` yet.
+If it is not 2, correct the clause in `README.md:8` to the number you counted. Keep the edit to that clause; do not restructure the file, and do not touch the 16-item list beneath it.
 
-- [ ] **Step 4: Add the verified numbers**
+- [ ] **Step 4: Record the mapping where it will be found again**
 
-Add `"arc42": <n>` to each spine entry that has a counterpart in the list you fetched in Step 1. Omit the field entirely where there is none. Do not add it to the three companion entries — arc42 has no threat model, estimation or domain overview chapter.
+Add the mapping as a short table in `references/writing.md`, under the existing spine list — which of our 16 map to which arc42 chapter, and which are ours. This is the artifact that stops the next person re-deriving it.
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [ ] **Step 5: Commit**
 
-Run: `node --test scripts/test/section-help.test.mjs`
-Expected: PASS.
-
-- [ ] **Step 6: Settle the README discrepancy**
-
-`plugins/arch-docs/skills/arch-docs/README.md:8` calls the spine "a fixed 16-section spine (arc42 + 2 additions)". Count how many of the 16 ended up with no `arc42` field. If that count is not 2, one of the two statements is wrong.
-
-Fix whichever is wrong — most likely the README's count, since the mapping is now verified against the live site. Do not leave both readings in the repo. If the README is the one that changes, keep the edit to that clause; do not restructure the file.
-
-- [ ] **Step 7: Commit**
+Skip this step entirely if nothing changed.
 
 ```bash
-git add assets/section-help.json scripts/test/section-help.test.mjs
-git add plugins/arch-docs/skills/arch-docs/README.md   # only if Step 6 changed it
-git commit -m "feat(arch-docs): cite verified arc42 chapters"
+git add plugins/arch-docs/skills/arch-docs/README.md plugins/arch-docs/skills/arch-docs/references/writing.md
+git commit -m "docs(arch-docs): map the spine to arc42 chapters"
 ```
 
 ---

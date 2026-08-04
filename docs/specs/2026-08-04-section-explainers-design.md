@@ -98,39 +98,38 @@ the viewer to annotate. Excluded rather than guessed at.
 
 ## Content
 
-19 explainers, four fields each, compressing arc42's structure:
+19 explainers, three fields each, compressing arc42's structure:
 
 | Field | Corresponds to | Notes |
 |---|---|---|
 | `what` | arc42 *Contents* | What belongs in this section |
 | `why` | arc42 *Motivation* | What goes wrong when it is missing |
 | `good` | arc42 *Form* | Stated as a concrete test, not a format rule |
-| `arc42` | arc42 *Further Information* | Chapter number; omitted when no twin exists |
 
 Written in our own words. The arc42 template text is CC BY-SA 4.0 (Starke &
 Hruschka); copying its wording verbatim would attach share-alike obligations to
 every document set the viewer emits, which is a licensing decision for our
 users rather than ours to make on their behalf. Meaning is preserved; wording
-is not borrowed. Where a section has an arc42 counterpart, the explainer links
-out to `docs.arc42.org` so the original stays one click away and properly
-credited.
+is not borrowed.
 
-Sections with no arc42 counterpart are written fresh with the same four fields,
-omitting `arc42`.
+**No arc42 link, and no `arc42` field.** arc42's fourth heading — *Further
+Information* — has no equivalent here, because the viewer cannot carry an
+outbound URL. Both `scripts/test/viewer-template.test.mjs` and
+`scripts/test/render.test.mjs` assert `doesNotMatch(..., /https?:\/\/(?!www\.w3\.org)/)`,
+the second against the **generated HTML**, so a link cannot live in the template
+or in the content asset. The constraint is older and broader than this feature,
+so the feature gives way: an explainer states what belongs in a section and
+stops. A reader who wants arc42 itself can search for it.
 
-**Open item for implementation.** The section-to-arc42-chapter mapping is not
-asserted here: `docs.arc42.org` was not fetched during design. It must be
-established against the live site while writing the content, and it settles two
-things at once — which sections carry an `arc42` link, and which are written
-fresh.
-
-That work also needs to resolve a discrepancy in our own docs. `README.md`
-describes the spine as "arc42 + 2 additions", but the 16 headings appear to
-contain three with no direct arc42 chapter (Project Structure, Data Stores, and
-Security as a standalone chapter rather than folded into Crosscutting Concepts),
-while Architecture Model and Core Components look like a split of a single arc42
-chapter. Either the README count or that reading is wrong. Whichever it is, fix
-the loser — do not encode both.
+**Separate open item.** `README.md` describes the spine as "arc42 + 2
+additions", but the 16 headings appear to contain three with no direct arc42
+chapter (Project Structure, Data Stores, and Security as a standalone chapter
+rather than folded into Crosscutting Concepts), while Architecture Model and
+Core Components look like a split of a single arc42 chapter — and a split is not
+an addition. `docs.arc42.org` was not fetched during design, so no mapping is
+asserted here. Establish it against the live site, then fix whichever statement
+is wrong and record the mapping in `references/writing.md`. Do not encode both
+readings.
 
 ### Keys
 

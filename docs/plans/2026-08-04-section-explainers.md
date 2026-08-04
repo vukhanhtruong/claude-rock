@@ -830,7 +830,7 @@ Expected: the recorded baseline failures only. Pay attention to `no rule is decl
 
 ```bash
 git add assets/viewer-template.html scripts/test/viewer-template.test.mjs
-git commit -m "feat(arch-docs): toggle section explainers in the viewer"
+git commit -m "feat(arch-docs): toggle explainers in the viewer"
 ```
 
 ---
@@ -1026,7 +1026,7 @@ Expected: compare against the baseline recorded at the start. Only the pre-exist
 
 ```bash
 git add scripts/test/browser.test.mjs references/viewer.md
-git commit -m "test(arch-docs): drive section explainers in a browser"
+git commit -m "test(arch-docs): drive explainers in a browser"
 ```
 
 ---

@@ -1,0 +1,9 @@
+{
+  "name": "solution-architect",
+  "version": "1.0.0",
+  "description": "Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, plus AI-aware project estimation.",
+  "author": {
+    "name": "Truong Vu",
+    "email": "vukhanhtruong@gmail.com"
+  }
+}

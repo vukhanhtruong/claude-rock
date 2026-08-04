@@ -5,7 +5,7 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync, chmodSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CLI = 'plugins/arch-docs/skills/arch-docs/scripts/likec4-gen.mjs';
+const CLI = 'plugins/solution-architect/skills/arch-docs/scripts/likec4-gen.mjs';
 
 // A stub `npx` on PATH, so the gate is tested without reaching the network and
 // without depending on which likec4 the machine happens to resolve. It logs

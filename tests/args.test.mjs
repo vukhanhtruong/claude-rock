@@ -16,8 +16,8 @@ test('parses long flags, repeatable', () => {
 });
 
 test('parses short aliases', () => {
-  const r = parseCliArgs(['-p', 'arch-docs', '-a', 'claude', '-f']);
-  assert.deepEqual(r.plugins, ['arch-docs']);
+  const r = parseCliArgs(['-p', 'solution-architect', '-a', 'claude', '-f']);
+  assert.deepEqual(r.plugins, ['solution-architect']);
   assert.deepEqual(r.agents, ['claude']);
   assert.equal(r.force, true);
 });

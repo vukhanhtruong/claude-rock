@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CLI = 'plugins/arch-docs/skills/arch-docs/scripts/likec4-config.mjs';
+const CLI = 'plugins/solution-architect/skills/arch-docs/scripts/likec4-config.mjs';
 const theme = JSON.parse(readFileSync(
   new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
 

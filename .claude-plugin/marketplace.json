@@ -11,15 +11,15 @@
   },
   "plugins": [
     {
-      "name": "arch-docs",
-      "source": "./plugins/arch-docs",
-      "description": "Interview + research driven architecture documentation with interactive diagrams, provenance-tagged facts, offline viewer, and cross-consistency validation.",
+      "name": "solution-architect",
+      "source": "./plugins/solution-architect",
+      "description": "Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, plus AI-aware project estimation.",
       "version": "1.0.0",
       "author": {
         "name": "Truong Vu",
         "email": "vukhanhtruong@gmail.com"
       },
-      "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr"],
+      "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr", "estimation"],
       "category": "documentation",
       "strict": false
     }

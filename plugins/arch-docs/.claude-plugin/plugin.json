@@ -1,9 +1,0 @@
-{
-  "name": "arch-docs",
-  "version": "1.0.0",
-  "description": "Interview + research driven architecture documentation with interactive LikeC4/mermaid diagrams, provenance-tagged facts, offline localhost viewer, and a cross-consistency validator.",
-  "author": {
-    "name": "Truong Vu",
-    "email": "vukhanhtruong@gmail.com"
-  }
-}

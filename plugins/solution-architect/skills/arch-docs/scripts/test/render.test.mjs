@@ -21,13 +21,13 @@ test('render.mjs produces a self-contained index.html', () => {
   const out = mkdtempSync(join(tmpdir(), 'arch-docs-render-'));
   const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
   execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/render.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--docs', `${fixtures}docs/adr/0001-sample.md`,
     '--out', out,
     '--likec4-bundle', stub('l.js', LIKEC4_STUB),
     '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
-    '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
+    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
   ]);
   const html = readFileSync(join(out, 'index.html'), 'utf8');
   assert.match(html, /<h2 id="core-components">/);
@@ -53,11 +53,11 @@ test('render.mjs produces a self-contained index.html', () => {
 
 test('render.mjs fails loudly on a missing bundle', () => {
   assert.throws(() => execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/render.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--out', mkdtempSync(join(tmpdir(), 'arch-docs-render-')),
     '--likec4-bundle', '/nope/l.js', '--mermaid-bundle', '/nope/m.js',
-    '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
+    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
   ]));
 });
 
@@ -65,12 +65,12 @@ test('render.mjs throws loudly if a bundle contains a literal </script>', () => 
   const out = mkdtempSync(join(tmpdir(), 'arch-docs-render-'));
   const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
   assert.throws(() => execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/render.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--out', out,
     '--likec4-bundle', stub('l.js', LIKEC4_STUB + 'var s = "</script>";'),
     '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
-    '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
+    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
   ]));
 });
 
@@ -80,11 +80,11 @@ test('render.mjs refuses a likec4 bundle with no palette', () => {
   const out = mkdtempSync(join(tmpdir(), 'arch-docs-render-'));
   const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
   assert.throws(() => execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/render.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--out', out,
     '--likec4-bundle', stub('l.js', '/*likec4*/;shape:`rectangle`,color:`primary`'),
     '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
-    '--theme', 'plugins/arch-docs/skills/arch-docs/assets/mermaid-theme.json',
+    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
   ]), /palette|likec4\.config\.json/i);
 });

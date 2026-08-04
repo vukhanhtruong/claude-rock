@@ -35,7 +35,7 @@ test('buildInputs assembles root-relative validator inputs', async () => {
 
 test('CLI exits 0 on the passing fixture', () => {
   const out = execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/validate.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/validate.mjs',
     '--root', dir,
     '--arch', `${dir}ARCHITECTURE.md`, '--model', `${dir}model.json`,
     '--docs', `${dir}docs/adr/0001-sample.md`,
@@ -45,7 +45,7 @@ test('CLI exits 0 on the passing fixture', () => {
 
 test('CLI exits 1 when a check fails', () => {
   assert.throws(() => execFileSync('node', [
-    'plugins/arch-docs/skills/arch-docs/scripts/validate.mjs',
+    'plugins/solution-architect/skills/arch-docs/scripts/validate.mjs',
     '--root', dir,
     '--arch', `${dir}ARCHITECTURE.md`, '--model', `${dir}model-broken.json`,
     '--docs', `${dir}docs/adr/0001-sample.md`,

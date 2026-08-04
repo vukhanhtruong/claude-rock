@@ -26,9 +26,9 @@ function tmpProject(t) {
   return dir;
 }
 
-test('installs arch-docs for both agents via flags', (t) => {
+test('installs solution-architect for both agents via flags', (t) => {
   const cwd = tmpProject(t);
-  const res = run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
+  const res = run(['-p', 'solution-architect', '-a', 'claude', '-a', 'codex'], cwd);
   assert.equal(res.status, 0, res.stderr);
   assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs/SKILL.md')));
   assert.ok(lstatSync(path.join(cwd, '.claude/skills/arch-docs')).isSymbolicLink());
@@ -38,12 +38,12 @@ test('installs arch-docs for both agents via flags', (t) => {
 
 test('uninstall for one agent keeps canonical, for all removes it', (t) => {
   const cwd = tmpProject(t);
-  run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
-  let res = run(['uninstall', '-p', 'arch-docs', '-a', 'codex'], cwd);
+  run(['-p', 'solution-architect', '-a', 'claude', '-a', 'codex'], cwd);
+  let res = run(['uninstall', '-p', 'solution-architect', '-a', 'codex'], cwd);
   assert.equal(res.status, 0, res.stderr);
   assert.ok(!existsSync(path.join(cwd, '.codex/skills/arch-docs')));
   assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs')));
-  res = run(['uninstall', '-p', 'arch-docs'], cwd);
+  res = run(['uninstall', '-p', 'solution-architect'], cwd);
   assert.equal(res.status, 0, res.stderr);
   assert.ok(!existsSync(path.join(cwd, '.claude/skills/arch-docs')));
   assert.ok(!existsSync(path.join(cwd, '.agents/skills/arch-docs')));
@@ -53,7 +53,7 @@ test('unknown plugin errors with valid names listed', (t) => {
   const cwd = tmpProject(t);
   const res = run(['-p', 'nope', '-a', 'claude'], cwd);
   assert.equal(res.status, 1);
-  assert.match(res.stderr, /arch-docs/);
+  assert.match(res.stderr, /solution-architect/);
 });
 
 test('missing flags in non-TTY errors instead of hanging', (t) => {
@@ -65,11 +65,11 @@ test('missing flags in non-TTY errors instead of hanging', (t) => {
 
 test('collision without force exits 1 and reports skip', (t) => {
   const cwd = tmpProject(t);
-  run(['-p', 'arch-docs', '-a', 'claude'], cwd);
+  run(['-p', 'solution-architect', '-a', 'claude'], cwd);
   rmSync(path.join(cwd, '.claude/skills/arch-docs'));
   const mk = spawnSync('mkdir', ['-p', path.join(cwd, '.claude/skills/arch-docs')]);
   assert.equal(mk.status, 0);
-  const res = run(['-p', 'arch-docs', '-a', 'claude'], cwd);
+  const res = run(['-p', 'solution-architect', '-a', 'claude'], cwd);
   assert.equal(res.status, 1);
   assert.match(res.stderr, /force/);
 });
@@ -90,7 +90,7 @@ test('read-only cwd prints a clean single-line error, no stack trace', (t) => {
   } catch {
     // expected: write blocked, proceed with the read-only assertions
   }
-  const res = spawnSync(process.execPath, [BIN, '-p', 'arch-docs', '-a', 'claude'], {
+  const res = spawnSync(process.execPath, [BIN, '-p', 'solution-architect', '-a', 'claude'], {
     cwd: dir,
     encoding: 'utf8',
     env: { ...process.env, DEBUG: '' },

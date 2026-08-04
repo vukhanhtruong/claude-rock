@@ -1,23 +1,23 @@
 import { inline } from './md-inline.mjs';
+import { ITEM, shapeOf } from './md-shape.mjs';
 
-const ITEM = /^(\s*)([-*]|\d+[.)])\s+(.*)$/;
 const INDENTED = /^\s+\S/;
-// A fence, table row or heading is its own block whether or not it is indented,
-// so it ends the list rather than joining the item above it. Without this an
-// unblanked table after a bullet is flattened into that bullet's text.
-const BLOCK = /^(```|~~~|\||#)/;
-
-export function isListItem(line) {
-  return ITEM.test(line);
-}
 
 // A long bullet wraps in the source, and its second line matches nothing. Ending
 // the list there is what turned §4 Solution Strategy — five bullets, each with a
 // trailing ADR link — into five one-item lists interleaved with five indented
 // paragraphs, one per orphaned link. An indented continuation belongs to the item
-// above it, which is what CommonMark calls a lazy continuation.
-function isContinuation(line) {
-  return INDENTED.test(line) && !BLOCK.test(line.trim());
+// above it, which is what CommonMark calls a lazy continuation — only the
+// indented half of it: an unindented continuation is left alone, because this
+// renderer needs no blank line before a paragraph, so absorbing it would swallow
+// the next block instead of just the item's own wrapped text.
+//
+// Whether an indented line still counts as a continuation, rather than a block
+// of its own, is read from shapeOf — the one place that already answers that
+// question for every other shape a line can be. A fence, table, heading or
+// marker stays its own block, indented or not; only a plain line joins.
+function isContinuation(lines, i) {
+  return INDENTED.test(lines[i]) && shapeOf(lines, i) === 'paragraph';
 }
 
 // Indent width varies (2 or 4 spaces), so depth is only ever compared against
@@ -29,7 +29,7 @@ function itemsFrom(lines, start) {
     const m = lines[i].match(ITEM);
     if (m) {
       items.push({ depth: Math.floor(m[1].length / 2), ordered: /\d/.test(m[2]), text: m[3] });
-    } else if (items.length && isContinuation(lines[i])) {
+    } else if (items.length && isContinuation(lines, i)) {
       items[items.length - 1].text += ` ${lines[i].trim()}`;
     } else break;
     i += 1;

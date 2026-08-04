@@ -143,6 +143,16 @@ test('a wrapped bullet keeps the link that lives on its second line', () => {
   assert.match(html, /<li>adopt event sourcing \(<a href="docs\/adr\/2\.md">ADR 2<\/a>\)<\/li>/);
 });
 
+// The continuation rule only absorbs an indented second line: CommonMark's
+// lazy continuation also allows an unindented one, which this renderer does
+// not implement, because it needs no blank line before a paragraph and
+// absorbing an unindented line would break the case above. Pinned here so
+// the limit is a documented boundary rather than an accident.
+test('an unindented line after a bullet stays its own paragraph', () => {
+  const { html } = renderMarkdown('- item\nnot indented\n- next');
+  assert.match(html, /<ul><li>item<\/li><\/ul>\n<p>not indented<\/p>\n<ul><li>next<\/li><\/ul>/);
+});
+
 // The continuation rule keys on indentation, so a block that follows a list
 // without a blank line is still its own block. Absorbing it would flatten a
 // table into the text of the bullet above it.
@@ -151,6 +161,16 @@ test('a table after a list is not absorbed into the last item', () => {
   assert.match(html, /<\/ul>/);
   assert.match(html, /<table>/);
   assert.doesNotMatch(html, /<li>item \|/, 'the table was swallowed into the item');
+});
+
+// An indented marker under a bullet is a natural shape for §7's "2-4 dynamic
+// views, named flows only": one flow named per bullet, its view embedded
+// beneath. The continuation rule keyed on indentation alone would swallow it
+// into the bullet's text, escape the comment, and silently drop the diagram.
+test('an indented likec4 marker under a bullet still renders its diagram', () => {
+  const { html } = renderMarkdown('- checkout flow\n  <!-- likec4:view checkout -->\n- refund flow');
+  assert.match(html, /<c4-view view-id="checkout">/);
+  assert.doesNotMatch(html, /likec4:view/, 'the marker was swallowed and escaped into the item');
 });
 
 // A two-column table whose right column runs to prose is a definition list

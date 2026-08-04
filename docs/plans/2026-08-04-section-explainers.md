@@ -13,7 +13,7 @@
 - **Spec:** `docs/specs/2026-08-04-section-explainers-design.md`. Read it before Task 1.
 - **Quality gates** (`scripts/test/quality-gates.test.mjs` enforces these on every file in `scripts/`, `scripts/lib/`, `workflows/`): max 200 lines per file, max 10 functions per file, max 22 lines per function, max 3 parameters per function. `assets/` is exempt.
 - **No new dependencies.** `package.json` declares no runtime deps and must keep none.
-- **Offline:** `scripts/test/offline.test.mjs` and `viewer-template.test.mjs` fail the build if any remote URL survives in the template. The one permitted host is `www.w3.org` (SVG namespaces). A `docs.arc42.org` link inside the JSON asset is *content*, injected at render time, and is not matched by the template scan — but never hardcode it into the template itself.
+- **Offline:** `scripts/test/offline.test.mjs` and `viewer-template.test.mjs` fail the build if any remote URL survives in the template. The one permitted host is `www.w3.org` (SVG namespaces). `scripts/test/render.test.mjs:42` runs the same check against the **generated HTML**, so a `docs.arc42.org` link inside `assets/section-help.json` would be caught too — see Task 6, which cancels that link outright.
 - **Commit style:** Conventional Commits. Imperative subject, lowercase after the colon, no trailing period, 50 chars max. Never credit Claude, Claude Code, or any AI tool as author or co-author; no `Co-Authored-By`, `Claude-Session`, or "Generated with" lines.
 - **Branch:** `feat/section-explainers`, already checked out. The spec is already committed as `8da5cf7`.
 - **Run the tests from the repository root, and expect zero failures.**
@@ -173,7 +173,7 @@ git commit -m "feat(arch-docs): classify documents by kind"
 - Consumes: nothing.
 - Produces: `SPINE_TITLES` — a frozen array of the 16 canonical heading strings, in spine order. `sectionHelp()` → the parsed object `{ spine: {...}, companions: {...} }`. `serialiseHelp(help)` → a JS-embeddable string with `<` escaped as `<`.
 
-Each explainer has three required string fields — `what`, `why`, `good` — and an optional `arc42` number added in Task 6.
+Each explainer has three required string fields — `what`, `why`, `good` — and no other fields. Task 6 considers and cancels an `arc42` field; see its scope note.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1010,4 +1010,4 @@ git commit -m "test(arch-docs): drive explainers in a browser"
 
 **Do not** give ADRs, `CONTEXT.md`, `CONTEXT-MAP.md`, or the interface contract an explainer. Each exclusion has a stated reason in the spec.
 
-**Do not** copy wording from `docs.arc42.org`. The arc42 template is CC BY-SA 4.0; copying it verbatim would attach share-alike obligations to every document set this viewer emits. Link to it, do not quote it.
+**Do not** copy wording from `docs.arc42.org`. The arc42 template is CC BY-SA 4.0; copying it verbatim would attach share-alike obligations to every document set this viewer emits. Write the explanation in our own words instead — and per Task 6, do not link to arc42 either; a reader who wants it can search for it.

@@ -46,10 +46,9 @@ sentence next to a topic diagram, never as a named subsection. Pulling
 Architecture Model apart from Core Components, and Security out of Crosscutting
 Concepts, are choices *we* made, not seams arc42 drew. They're still splits and
 not new content — both halves of each still trace back to the same arc42
-chapter — so neither counts toward the "+2", but say so plainly rather than
-implying arc42 pre-split them for us. Only two of our sixteen have no arc42
-chapter behind them at all — those two are what `README.md`'s "arc42 + 2
-additions" means.
+chapter — so neither counts toward the "+2": both splits are ours, not arc42's.
+Only two of our sixteen have no arc42 chapter behind them at all — those two
+are what `README.md`'s "arc42 + 2 additions" means.
 
 | # | our heading | arc42 chapter | relationship |
 |---|---|---|---|
@@ -57,7 +56,7 @@ additions" means.
 | 2 | Constraints | Ch2 Constraints | direct |
 | 3 | Project Structure | none | **addition** — no arc42 chapter documents repo/filesystem layout |
 | 4 | Solution Strategy | Ch4 Solution Strategy | direct |
-| 5 | Architecture Model | Ch5 Building Block View | split (ours — Ch5's own subsections are decomposition levels, not diagram vs. table); shares Ch5 with §6 |
+| 5 | Architecture Model | Ch5 Building Block View | split (ours); Ch5's own subsections are its decomposition levels (5.1/5.2/5.3); shares Ch5 with §6 |
 | 6 | Core Components | Ch5 Building Block View | split (ours), shares Ch5 with §5 |
 | 7 | Runtime Behaviour | Ch6 Runtime View | direct |
 | 8 | Data Stores | none | **addition** — no arc42 chapter addresses data stores or ER models at all |

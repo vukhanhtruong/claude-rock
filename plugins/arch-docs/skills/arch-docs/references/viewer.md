@@ -254,11 +254,15 @@ sections; and the interface contract, whose filename is stack-dependent
 (OpenAPI, a proto file, a wire doc) and may not even reach the markdown
 renderer. `h3` is out of scope everywhere, spine included.
 
-There is no link to arc42, though the wording tracks its structure. A
-`helpLink` pointed at `docs.arc42.org/section-N/` was built and then removed:
-the arc42 template is CC BY-SA 4.0, and the viewer's one hard rule is that no
-remote URL enters the generated page — an offline HTML file that phones out
-to fetch the source it borrowed wording from is no longer offline.
+There is no link to arc42, though the wording tracks its structure. That is
+separate from why the wording is written fresh rather than quoted — the arc42
+template is CC BY-SA 4.0, and copying it would attach share-alike obligations
+to every document set the viewer emits. The link is missing for a narrower,
+checkable reason: `scripts/test/viewer-template.test.mjs` and
+`scripts/test/render.test.mjs` both assert `doesNotMatch(...,
+/https?:\/\/(?!www\.w3\.org)/)`, the second against the generated HTML, so no
+URL may appear in the output at all, however it clicks or navigates. A reader
+who wants arc42 itself can search for it.
 
 ### What the text assertions cannot check
 

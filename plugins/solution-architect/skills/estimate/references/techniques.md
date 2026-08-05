@@ -89,3 +89,23 @@ Two applications, both anchored to a comparable past delivered item:
   touched code is boilerplate vs logic vs novel). The same >30% divergence
   flag-and-reconcile rule applies between the analogy's hours and the
   code-scan's implied hours before the number ships.
+
+## Sources
+
+Cite these when stating a recommendation (step 4) — attribution + link only,
+never quoted text:
+
+- Three-point weighting `E = (O + 4M + P) / 6` and `σ = (P − O) / 6` — PERT
+  (US Navy Special Projects Office, 1958). Applied to software estimates per
+  Atomic Object, *Better Custom Software Estimates*
+  (atomicobject.com/client-resources/better-custom-software-estimates).
+- Project buffer `√Σσ²`, range estimates, decomposition, discrete buckets,
+  risk = probability × impact, assumptions register — same Atomic Object
+  article.
+- Factor-scored tiering — this team's own delivery practice (5-factor
+  spreadsheet); tier breaks calibrated to it.
+- Depth tiers and per-row confidence ratings — Modular-Earth
+  solutions-architecture-agent, `skills/estimate/SKILL.md` (github.com).
+- AI-adjusted sizing — Kmino, *Software Estimation with AI*
+  (kmino.io/blog/software-estimation-with-ai); details and constants in
+  `ai-multipliers.md` Sources.

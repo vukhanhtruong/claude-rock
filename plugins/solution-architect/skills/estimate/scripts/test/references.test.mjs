@@ -45,3 +45,17 @@ test('writing.md states every validator rule family', () => {
     assert.ok(doc.includes(needle), `writing.md missing: ${needle}`);
   }
 });
+
+test('method sources are cited where techniques are recommended', () => {
+  const SOURCES = {
+    'techniques.md': ['atomicobject.com', 'kmino.io', 'Modular-Earth'],
+    'ai-multipliers.md': ['kmino.io'],
+  };
+  for (const [f, needles] of Object.entries(SOURCES)) {
+    const doc = ref(f);
+    assert.ok(/## Sources/.test(doc), `${f} missing Sources section`);
+    for (const needle of needles) {
+      assert.ok(doc.includes(needle), `${f} missing source: ${needle}`);
+    }
+  }
+});

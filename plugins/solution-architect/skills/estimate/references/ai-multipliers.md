@@ -74,3 +74,15 @@ project level erases that mix and produces a number nobody can defend.
 
 Prices are a manually maintained snapshot. When they change, update BOTH this
 table and PLAN_PRICES in scripts/lib/estimate-math.mjs in the same commit.
+
+## Sources
+
+- Formula `(AO + 2×AR + TR) / 4`, per-category reduction ranges, seniority
+  gain variation, and the non-uniform-acceleration warning — Kmino,
+  *Software Estimation with AI* (kmino.io/blog/software-estimation-with-ai).
+  Published practitioner observations, not peer-reviewed data.
+- Blanket-multiplier prohibition — Kmino's caveat, promoted to hard rule here.
+- Capacity and calibration constants (`HOURS_PER_MONTH`, `COORDINATION_TAX`,
+  seniority factors, 12% verification overhead) — this skill's own defaults,
+  not sourced; tune against real delivery history.
+- Plan prices — manual snapshot, see the dated table above.

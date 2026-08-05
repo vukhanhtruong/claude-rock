@@ -27,7 +27,9 @@ interactive what-if page served on localhost.
 2. **Depth**: ask QUICK / STANDARD / DEEP first.
 3. **Interview**: follow `references/interview.md` — pre-fill from evidence,
    ask only holes, run the clear-vs-assumed gate before sizing.
-4. **Technique**: recommend from `references/techniques.md`, state why, confirm.
+4. **Technique**: recommend from `references/techniques.md`, state why,
+   cite the method's sources (its §Sources — attribution + link, never
+   quoted text), confirm.
 5. **Size**: write judgments to `estimation-inputs.json`
    (`references/writing.md` — the booking fixture is the canonical shape).
 6. **Compute**: `node scripts/compute.mjs --inputs estimation-inputs.json --out estimation.json`

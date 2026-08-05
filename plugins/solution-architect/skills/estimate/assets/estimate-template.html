@@ -3,93 +3,212 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive project estimate with scenario comparison">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
 <title><!-- slot:TITLE --> — Estimate</title>
 <style>
 <!-- slot:FONTS -->
 :root {
-  --bg:#faf9f6; --ink:#1a1a1a; --accent:#0f766e; --warn:#b45309; --bad:#b91c1c; --ok:#15803d; --card:#fff;
-  --border:#e3dfd5; --border-strong:#cec8b9; --ink-dim:#6b675e;
+  --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
+  --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
+  --warn:#b45309; --warn-soft:rgba(180,83,9,.1);
+  --bad:#b91c1c; --ok:#15803d; --card:#fffdf9;
+  --border:#e6e1d5; --border-strong:#cfc8b8;
+  --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
 }
 :root[data-theme="dark"] {
-  --bg:#111312; --ink:#e8e6e1; --card:#1c1f1e;
-  --border:#22302e; --border-strong:#354743; --ink-dim:#97a29e;
+  --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
+  --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
+  --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
+  --bad:#e5726b; --ok:#5dbb7a; --card:#181d1c;
+  --border:#263230; --border-strong:#3a4a46;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
 }
 * { box-sizing: border-box; }
 body {
   font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink);
   margin:0; line-height:1.5;
 }
-/* layout: header bar, two-column grid (main charts | controls rail), full-width feature table */
+button {
+  font-family:inherit; font-size:.8rem; padding:.35rem .75rem; border-radius:.35rem;
+  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
+  transition:background-color .15s ease, border-color .15s ease, transform .1s ease;
+}
+button:hover { border-color:var(--accent); color:var(--accent-ink); }
+button:active { transform:translateY(1px); }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+/* header bar: constrained to the same column as main via padding math */
 header {
-  display:flex; align-items:center; gap:.75rem; padding:.9rem 1.5rem;
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; gap:.6rem;
+  padding:.8rem max(1.25rem, calc((100% - 1160px) / 2));
   border-bottom:1px solid var(--border); background:var(--card);
 }
-header h1 { font-size:1.1rem; margin:0; flex:1; }
+.titles { flex:1; min-width:0; }
+.eyebrow {
+  margin:0; font-family:'IBM Plex Mono',monospace; font-size:.62rem;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim);
+}
+header h1 {
+  font-size:1.05rem; font-weight:600; letter-spacing:-.01em; margin:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 #confidence-badge {
-  font-family:'IBM Plex Mono',monospace; font-size:.75rem; text-transform:uppercase;
-  padding:.15rem .5rem; border-radius:.25rem; border:1px solid var(--border-strong);
+  font-family:'IBM Plex Mono',monospace; font-size:.72rem; text-transform:uppercase;
+  padding:.18rem .5rem; border-radius:.3rem; border:1px solid var(--border-strong);
 }
-#confidence-badge.high { color:var(--ok); border-color:var(--ok); }
-#confidence-badge.med { color:var(--warn); border-color:var(--warn); }
-#confidence-badge.low { color:var(--bad); border-color:var(--bad); }
-header button {
-  font-family:inherit; font-size:.8rem; padding:.35rem .7rem; border-radius:.3rem;
-  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
-}
+#confidence-badge.high { color:var(--ok); border-color:var(--ok); background:rgba(21,128,61,.08); }
+#confidence-badge.med { color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+#confidence-badge.low { color:var(--bad); border-color:var(--bad); background:rgba(185,28,28,.08); }
 #modified-banner {
-  margin:0; padding:.5rem 1.5rem; background:var(--warn); color:#fff; font-size:.85rem;
+  margin:0; padding:.5rem max(1.25rem, calc((100% - 1160px) / 2));
+  background:var(--warn-soft); color:var(--warn); font-size:.85rem;
+  border-bottom:1px solid var(--border);
 }
 #modified-banner button { margin-left:.5rem; }
 main {
-  display:grid; grid-template-columns:1fr 280px; gap:1.25rem; padding:1.25rem 1.5rem;
+  display:grid; grid-template-columns:1fr; gap:1.1rem;
+  max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem;
 }
 #scenario-cards, #cost-bars, #timeline { grid-column:1; }
 #feature-table, #register { grid-column:1 / -1; }
-#controls {
-  grid-column:2; grid-row:1 / span 3; align-self:start;
-  background:var(--card); border:1px solid var(--border); border-radius:.5rem;
-  padding:1rem; display:flex; flex-direction:column; gap:.75rem;
+main > section:empty { display:none; }
+main section h2 {
+  font-size:.82rem; font-weight:600; color:var(--ink-dim);
+  margin:0 0 .8rem; letter-spacing:.01em;
 }
-#controls label { display:flex; flex-direction:column; font-size:.8rem; gap:.25rem; color:var(--ink-dim); }
-#controls input, #controls select { font:inherit; padding:.3rem; border:1px solid var(--border-strong); border-radius:.3rem; background:var(--bg); color:var(--ink); }
+/* panels: every section except the scenario card grid reads as one surface */
+main > section {
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
+  padding:1.1rem 1.2rem; box-shadow:var(--shadow);
+}
+#scenario-cards {
+  background:none; border:none; box-shadow:none; padding:0;
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:.9rem;
+}
 .card {
-  background:var(--card); border:1px solid var(--border); border-radius:.5rem;
-  padding:1rem; margin-bottom:.75rem;
+  position:relative; background:var(--card); border:1px solid var(--border);
+  border-radius:.6rem; padding:1rem 1.1rem; box-shadow:var(--shadow);
 }
-/* bars and gantt rows are styled divs — width set inline from data, no canvas, printable */
-.bar-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem; }
-.bar-label { flex:0 0 140px; font-size:.8rem; color:var(--ink-dim); }
-.bar-track { flex:1; height:.9rem; background:var(--border); border-radius:.25rem; overflow:hidden; }
-.bar-fill { height:100%; background:var(--accent); }
+.scenario h3 {
+  font-family:'IBM Plex Mono',monospace; font-size:.78rem; font-weight:600;
+  color:var(--ink-dim); margin:0 0 .5rem; overflow-wrap:anywhere;
+}
+.scenario.recommended { border-color:var(--accent); background:linear-gradient(var(--accent-soft), transparent 55%) var(--card); }
+.scenario.custom { border-style:dashed; }
+.flag {
+  position:absolute; top:.7rem; right:.8rem; font-size:.62rem; font-weight:600;
+  letter-spacing:.04em; color:var(--accent-ink); background:var(--accent-soft);
+  padding:.14rem .4rem; border-radius:.25rem;
+}
+.months { margin:.1rem 0 .7rem; font-size:.8rem; color:var(--ink-dim); }
+.months .num {
+  display:block; font-size:1.9rem; font-weight:600; line-height:1.15;
+  color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+}
+.scenario dl { display:flex; gap:1.2rem; margin:0; }
+.scenario dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+.scenario dd { margin:0; font-family:'IBM Plex Mono',monospace; font-size:.88rem; }
+/* bars are styled divs — width set inline from data, no canvas, printable */
+.bar-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.45rem; }
+.bar-label {
+  flex:0 0 170px; font-size:.78rem; color:var(--ink-dim);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.bar-track { flex:1; height:.8rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
+.bar-fill { display:block; height:100%; background:var(--accent); opacity:.5; border-radius:.3rem; }
+.bar-fill.is-rec { opacity:1; }
+.bar-fill.is-custom {
+  opacity:.8;
+  background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 4px, transparent 4px 8px);
+}
+.bar-val {
+  flex:0 0 auto; min-width:5.5rem; text-align:right;
+  font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
+}
 table { width:100%; border-collapse:collapse; font-size:.85rem; }
-table th, table td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid var(--border); }
-table th { color:var(--ink-dim); font-weight:600; }
+table th, table td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--border); }
+table th { color:var(--ink-dim); font-weight:600; font-size:.76rem; }
+table caption {
+  caption-side:top; text-align:left; font-size:.82rem; font-weight:600;
+  color:var(--ink-dim); padding:0 0 .6rem;
+}
+tbody tr { transition:background-color .15s ease; }
+tbody tr:hover { background:var(--accent-soft); }
+td.num, th.num { text-align:right; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+.tag {
+  font-size:.68rem; font-weight:600; padding:.12rem .4rem; border-radius:.25rem;
+  background:var(--border); color:var(--ink-dim);
+}
+.tag.proposed { background:var(--warn-soft); color:var(--warn); }
+.conf { font-weight:600; font-size:.78rem; }
+tr.conf-high .conf { color:var(--ok); }
+tr.conf-med .conf { color:var(--warn); }
+tr.conf-low .conf { color:var(--bad); }
+#register > div + table, #register > table + table { margin-top:1.4rem; }
+#controls {
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
+  padding:1.1rem 1.2rem; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; gap:.8rem;
+}
+#controls h2 { margin:0; }
+#controls .hint { margin:-.3rem 0 .1rem; font-size:.74rem; color:var(--ink-dim); }
+#controls label { display:flex; flex-direction:column; font-size:.76rem; gap:.3rem; color:var(--ink-dim); }
+#controls .lab { display:flex; justify-content:space-between; align-items:baseline; }
+#controls output { font-family:'IBM Plex Mono',monospace; font-size:.74rem; color:var(--ink); }
+#controls input, #controls select {
+  font:inherit; padding:.35rem .45rem; border:1px solid var(--border-strong);
+  border-radius:.35rem; background:var(--bg); color:var(--ink);
+}
+#controls input:hover, #controls select:hover { border-color:var(--accent); }
+#controls input[type="range"] { padding:0; border:none; background:none; accent-color:var(--accent); }
 .view-client [data\2d internal] { display:none !important; }
 @media print {
+  header { position:static; }
   header button, #controls, #modified-banner { display:none; }
   main { grid-template-columns:1fr; }
+  main > section, .card { box-shadow:none; }
 }
 </style>
 </head>
 <body>
 <header>
-  <h1><!-- slot:TITLE --></h1>
+  <div class="titles">
+    <p class="eyebrow">Project estimate</p>
+    <h1><!-- slot:TITLE --></h1>
+  </div>
   <span id="confidence-badge"></span>
   <button id="theme-toggle" type="button">theme</button>
   <!-- internal:start --><button id="view-toggle" type="button" data-internal>client view</button><!-- internal:end -->
 </header>
-<p id="modified-banner" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
+<p id="modified-banner" role="status" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
 <main>
   <section id="scenario-cards"></section>
   <!-- internal:start -->
+  <style>
+  /* internal-only layout: two columns with a sticky what-if rail. Lives in the
+     internal range so the client-only render collapses back to one column.
+     @media screen so the print rules in the head keep winning on paper. */
+  @media screen {
+    main { grid-template-columns:minmax(0, 1fr) 300px; }
+    #controls { grid-column:2; grid-row:1 / span 3; align-self:start; position:sticky; top:4.2rem; }
+    .view-client main { grid-template-columns:1fr; }
+  }
+  @media screen and (max-width:900px) {
+    main { grid-template-columns:1fr; }
+    #controls { grid-column:1; grid-row:auto; position:static; }
+  }
+  </style>
   <aside id="controls" data-internal>
+    <h2>What-if</h2>
+    <p class="hint">Adjust the levers; the dashed custom card and bars update live.</p>
     <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
     <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
     <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
     <label>hourly rate <input id="ctl-rate" type="number" min="10" max="300" step="5"></label>
-    <label>AI multiplier <input id="ctl-ai" type="range" min="0" max="1.5" step="0.05"></label>
-    <label>risk buffer <input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
-    <label>overhead % <input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
+    <label><span class="lab">AI multiplier <output></output></span><input id="ctl-ai" type="range" min="0" max="1.5" step="0.05"></label>
+    <label><span class="lab">risk buffer <output></output></span><input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
+    <label><span class="lab">overhead % <output></output></span><input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
   </aside>
   <!-- internal:end -->
   <section id="cost-bars"></section>
@@ -165,6 +284,14 @@ function setControls(values) {
   });
 }
 
+function syncOutputs() {
+  CTL_KEYS.forEach((key) => {
+    const el = document.getElementById(ctlId(key));
+    const out = el?.parentElement.querySelector('output');
+    if (out) out.textContent = el.value;
+  });
+}
+
 function currentParams(defaults) {
   const p = {};
   CTL_KEYS.forEach((key) => {
@@ -174,34 +301,61 @@ function currentParams(defaults) {
   return p;
 }
 
-function barRow(label, value, max) {
+const fmtMoney = (v) => `$${Math.round(v).toLocaleString()}`;
+
+function barRow({ label, value, max, text, cls }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return `<div class="bar-row"><span class="bar-label">${label}</span>
-    <span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span></div>`;
+  return `<div class="bar-row"><span class="bar-label" title="${label}">${label}</span>
+    <span class="bar-track"><span class="bar-fill${cls ? ` ${cls}` : ''}" style="width:${pct}%"></span></span>
+    <span class="bar-val">${text}</span></div>`;
+}
+
+function scenarioCard(id, s) {
+  const rec = id === DATA.inputs.recommendedScenario;
+  const custom = id.startsWith('custom');
+  return `<article class="card scenario${rec ? ' recommended' : ''}${custom ? ' custom' : ''}">
+    ${rec ? '<span class="flag">recommended</span>' : ''}<h3>${id}</h3>
+    <p class="months"><span class="num">${s.months.toFixed(2)}</span>months</p>
+    <dl><div><dt>total cost</dt><dd>${fmtMoney(s.totalCost)}</dd></div>
+    <div><dt>effort</dt><dd>${s.hours.toFixed(1)}h</dd></div></dl></article>`;
+}
+
+// The custom entry is skipped when its rollup is not finite: the client-only
+// render redacts rates, so the what-if defaults cannot price a custom
+// scenario there — rendering "$NaN" would violate the honesty rules.
+function withCustom(entries, custom, label) {
+  return Number.isFinite(custom.totalCost) ? [...entries, [label, custom]] : entries;
 }
 
 function renderCards(custom) {
   const el = document.getElementById('scenario-cards');
   if (!el) return;
-  const entries = [...Object.entries(DATA.computed.scenarios), ['custom (what-if)', custom]];
-  el.innerHTML = entries.map(([id, s]) => `<div class="card"><h3>${id}${id === DATA.inputs.recommendedScenario ? ' (recommended)' : ''}</h3>
-    <p>${s.months.toFixed(2)} mo &middot; $${Math.round(s.totalCost).toLocaleString()} &middot; ${s.hours.toFixed(1)}h</p></div>`).join('');
+  const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom (what-if)');
+  el.innerHTML = entries.map(([id, s]) => scenarioCard(id, s)).join('');
+}
+
+function barClass(id) {
+  if (id === DATA.inputs.recommendedScenario) return 'is-rec';
+  return id.startsWith('custom') ? 'is-custom' : '';
 }
 
 function renderBars(custom) {
   const el = document.getElementById('cost-bars');
   if (!el) return;
-  const entries = [...Object.entries(DATA.computed.scenarios), ['custom', custom]];
+  const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom');
   const max = Math.max(...entries.map(([, s]) => s.totalCost));
-  el.innerHTML = entries.map(([id, s]) => barRow(id, s.totalCost, max)).join('');
+  el.innerHTML = '<h2>Total cost by scenario</h2>' + entries.map(([id, s]) =>
+    barRow({ label: id, value: s.totalCost, max, text: fmtMoney(s.totalCost), cls: barClass(id) })).join('');
 }
 
 function renderTimeline() {
   const el = document.getElementById('timeline');
   if (!el) return;
-  const features = Object.entries(DATA.computed.features);
+  const features = Object.entries(DATA.computed.features)
+    .slice().sort(([, a], [, b]) => b.hours - a.hours);
   const max = Math.max(...features.map(([, f]) => f.hours));
-  el.innerHTML = features.map(([id, f]) => barRow(id, f.hours, max)).join('');
+  el.innerHTML = '<h2>Effort by feature (expected hours)</h2>' + features.map(([id, f]) =>
+    barRow({ label: id, value: f.hours, max, text: `${f.hours}h` })).join('');
 }
 
 function renderTable() {
@@ -210,9 +364,11 @@ function renderTable() {
   const byId = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f]));
   const rows = Object.entries(DATA.computed.features).map(([id, f]) => {
     const input = byId[id];
-    return `<tr><td>${input.name}</td><td>${f.hours}</td><td>${f.low}&ndash;${f.high}</td><td>${input.provenance}</td></tr>`;
+    return `<tr><td>${input.name}</td><td class="num">${f.hours}</td><td class="num">${f.low}&ndash;${f.high}</td>
+      <td><span class="tag ${input.provenance}">${input.provenance}</span></td></tr>`;
   }).join('');
-  el.innerHTML = `<table><thead><tr><th>Feature</th><th>Hours</th><th>Range</th><th>src</th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML = `<h2>Feature breakdown</h2><table><thead><tr><th>Feature</th><th class="num">Hours</th>
+    <th class="num">Range</th><th>Source</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // Assembled at runtime for the same reason as CTL_SUFFIX above: the task
@@ -225,10 +381,15 @@ function renderRegister() {
   const el = document.getElementById('register');
   if (!el) return;
   const taskRows = DATA.inputs.features.flatMap((f) => f.tasks).map((t) => `<tr class="${confLevel(t.confidence)}">
-    <td>${t.name}</td><td>${t.category}</td><td>${t.confidence}</td><td>${t.assumptions.join('; ') || 'none'}</td></tr>`).join('');
-  const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td>${Math.round(r.probability * 100)}%</td><td>${r.impactHours}h</td></tr>`).join('');
-  el.innerHTML = `<div ${INTERNAL_ATTR}><table><caption>Task register</caption><tbody>${taskRows}</tbody></table></div>
-    <table><caption>Risk register</caption><tbody>${riskRows}</tbody></table>`;
+    <td>${t.name}</td><td><span class="tag">${t.category}</span></td><td><span class="conf">${t.confidence}</span></td>
+    <td>${t.assumptions.join('; ') || 'none'}</td></tr>`).join('');
+  const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td class="num">${Math.round(r.probability * 100)}%</td><td class="num">${r.impactHours}h</td></tr>`).join('');
+  el.innerHTML = `<div ${INTERNAL_ATTR}><table><caption>Task register</caption>
+    <thead><tr><th>Task</th><th>Category</th><th>Confidence</th><th>Assumptions</th></tr></thead>
+    <tbody>${taskRows}</tbody></table></div>
+    <table><caption>Risk register</caption>
+    <thead><tr><th>Risk</th><th class="num">Probability</th><th class="num">Impact</th></tr></thead>
+    <tbody>${riskRows}</tbody></table>`;
 }
 
 function renderAll(defaults) {
@@ -242,9 +403,11 @@ function renderAll(defaults) {
 
 const defaults = defaultsFromRecommended();
 setControls(defaults);
+syncOutputs();
 renderAll(defaults);
 
 CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener('input', () => {
+  syncOutputs();
   renderAll(defaults);
   const banner = document.getElementById('modified-banner');
   if (banner) banner.hidden = false;
@@ -252,6 +415,7 @@ CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener(
 
 document.getElementById('reset')?.addEventListener('click', () => {
   setControls(defaults);
+  syncOutputs();
   renderAll(defaults);
   const banner = document.getElementById('modified-banner');
   if (banner) banner.hidden = true;

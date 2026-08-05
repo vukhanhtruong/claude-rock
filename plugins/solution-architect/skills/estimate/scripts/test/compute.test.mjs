@@ -49,3 +49,26 @@ test('CLI refuses invalid inputs, naming findings', () => {
     (err) => /recommendedScenario/.test(err.stderr ?? err.stdout ?? String(err)),
   );
 });
+
+test('scenarios carry a roadmap when features have milestones', () => {
+  const { computed } = computeEstimation(fixture());
+  const roadmap = computed.scenarios['2eng-max5x'].roadmap;
+  assert.deepEqual(roadmap.map((b) => b.milestone), ['M1 - Booking core', 'M2 - Notifications']);
+  assert.deepEqual(roadmap[0].features, ['booking']);
+  assert.deepEqual(roadmap[1].features, ['reminders']);
+  assert.equal(roadmap[0].startMonths, 0);
+  assert.equal(roadmap[1].startMonths, roadmap[0].endMonths); // bands tile, no gap
+  assert.equal(roadmap[1].endMonths, computed.scenarios['2eng-max5x'].months);
+  // AI-adjusted shares: booking (M1) carries most of the hours
+  assert.ok(roadmap[0].endMonths - roadmap[0].startMonths
+    > roadmap[1].endMonths - roadmap[1].startMonths);
+});
+
+test('no milestones → no roadmap key at all', () => {
+  const bare = fixture();
+  for (const f of bare.features) delete f.milestone;
+  const { computed } = computeEstimation(bare);
+  for (const s of Object.values(computed.scenarios)) {
+    assert.ok(!('roadmap' in s), 'roadmap key must be absent, not empty');
+  }
+});

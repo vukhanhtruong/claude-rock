@@ -76,7 +76,7 @@ test('inherited object keys do not pass the enum checks', () => {
 
 test('milestones are all-or-nothing across features', () => {
   const bad = fixture();
-  bad.features[0].milestone = 'M1 - Booking core';   // features[1] has none
+  delete bad.features[1].milestone;   // features[0] has one, features[1] doesn't
   const findings = checkInputs(bad);
   assert.ok(findings.some((f) => f.includes('reminders') && f.includes('milestone missing')));
 });

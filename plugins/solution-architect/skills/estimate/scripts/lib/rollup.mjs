@@ -4,6 +4,7 @@
 import {
   pert, projectBuffer, taskHours, riskBufferHours, scenarioRollup,
 } from './estimate-math.mjs';
+import { roadmapFor } from './roadmap.mjs';
 
 const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
 
@@ -45,6 +46,8 @@ export function scenarioBlock(scenario, ctx) {
   const sumTaskHours = Object.values(taskHours).reduce((a, b) => a + b, 0);
   const hours = sumTaskHours + sumTaskHours * ctx.overheadPct + ctx.spreadBufferHours + ctx.riskBufferHours;
   const rollup = scenarioRollup({ hours, team: scenario.team, plan: scenario.plan });
+  const roadmap = roadmapFor({ features: ctx.features, taskHours, months: rollup.months })
+    ?.map((b) => ({ ...b, startMonths: round2(b.startMonths), endMonths: round2(b.endMonths) }));
   const notes = [];
   if (scenario.team.length === 1) notes.push('bus factor: single engineer');
   if (scenario.team.length > 3) notes.push('coordination overhead grows past 3 engineers');
@@ -56,6 +59,7 @@ export function scenarioBlock(scenario, ctx) {
     planCost: round2(rollup.planCost),
     totalCost: round2(rollup.totalCost),
     notes,
+    ...(roadmap ? { roadmap } : {}),
   };
 }
 
@@ -112,7 +116,7 @@ export function computeEstimation(inputs) {
   const tasks = buildTasks(inputs);
   const { features, summaries } = buildFeatures(inputs, tasks);
   const buffers = globalBuffers(tasks, inputs.risks);
-  const ctx = { tasks, overheadPct: inputs.overheadPct, ...buffers };
+  const ctx = { tasks, features: inputs.features, overheadPct: inputs.overheadPct, ...buffers };
   const scenarios = sortedMap(inputs.scenarios.map((s) => [s.id, scenarioBlock(s, ctx)]));
   const roundedTasks = sortedMap(Object.entries(tasks).map(([id, t]) => [id, { e: round2(t.e), sigma: round2(t.sigma) }]));
   return {

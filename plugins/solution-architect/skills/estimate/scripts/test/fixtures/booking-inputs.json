@@ -12,6 +12,7 @@
       "id": "booking",
       "name": "User can book appointment",
       "provenance": "stated",
+      "milestone": "M1 - Booking core",
       "tasks": [
         { "id": "booking-api", "name": "Booking CRUD API", "category": "boilerplate",
           "o": 16, "m": 24, "p": 40, "confidence": "HIGH",
@@ -25,6 +26,7 @@
       "id": "reminders",
       "name": "Email reminders",
       "provenance": "proposed",
+      "milestone": "M2 - Notifications",
       "tasks": [
         { "id": "reminder-jobs", "name": "Scheduled reminder jobs", "category": "logic",
           "o": 12, "m": 20, "p": 36, "confidence": "MED",

@@ -86,5 +86,7 @@ test('a blank milestone is refused; none at all is fine', () => {
   bad.features[0].milestone = '  ';
   bad.features[1].milestone = 'M2';
   assert.ok(checkInputs(bad).some((f) => f.includes('booking') && f.includes('non-empty')));
-  assert.deepEqual(checkInputs(fixture()), []);      // no milestones → still valid
+  const bare = fixture();
+  for (const f of bare.features) delete f.milestone;
+  assert.deepEqual(checkInputs(bare), []);           // no milestones at all → still valid
 });

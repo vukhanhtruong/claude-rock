@@ -56,7 +56,7 @@ test('the page carries a method section with source attributions', () => {
 });
 
 test('the method section comes first — how before how-much', () => {
-  assert.match(tpl(), /<div class="col">\s*<section id="method">/);
+  assert.match(tpl(), /<main>\s*<div class="col col-wide">\s*<section id="method">/);
 });
 
 test('--client-only strips every internal range', () => {

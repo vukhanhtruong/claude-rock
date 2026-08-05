@@ -80,10 +80,10 @@ test('every section explains itself: help icons plus a rendered method section',
     assert.match(method, /three-point-pert/); // technique named from inputs
     assert.match(method, /PERT/);
     assert.match(method, /atomicobject\.com/);
-    // collapsed by default: title row visible, body folded until clicked
-    assert.equal(await page.eval(`document.querySelector('#method details.method-fold').open`), false);
-    await page.eval(`document.querySelector('#method details.method-fold summary').click()`);
+    // open by default: the method explains the page up front; still collapsible
     assert.equal(await page.eval(`document.querySelector('#method details.method-fold').open`), true);
+    await page.eval(`document.querySelector('#method details.method-fold summary').click()`);
+    assert.equal(await page.eval(`document.querySelector('#method details.method-fold').open`), false);
   } finally { page.close(); }
 });
 
@@ -117,10 +117,145 @@ test('the --client-only page boots clean without its stripped controls', skip, a
   try {
     assert.deepEqual(page.errors, []); // stripped nodes must be null-guarded, not assumed
     assert.equal(await page.eval(`document.getElementById('ctl-engineers')`), null);
-    for (const id of ['scenario-cards', 'timeline', 'register', 'method', 'roadmap']) {
+    for (const id of ['scenario-cards', 'feature-table', 'register', 'method', 'roadmap']) {
       assert.ok(await page.eval(`document.getElementById('${id}').children.length > 0`),
         `${id} empty on client-only page`);
     }
+  } finally { page.close(); }
+});
+
+test('feature breakdown absorbs the effort chart and the task register', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.equal(await page.eval(`document.getElementById('timeline')`), null);
+    const names = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row td:first-child')].map((c) => c.textContent.trim())`);
+    assert.equal(names.length, 2);
+    assert.match(names[0], /book appointment/); // hours desc by default
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table .bd-fill').length`), 2);
+    // per-feature confidence chip is the worst task confidence (booking: HIGH+MED → MED)
+    const conf = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row .conf')].map((c) => c.textContent)`);
+    assert.deepEqual(conf, ['MED', 'MED']);
+    // the flat task register is gone; the risk register keeps its own section
+    const captions = await page.eval(
+      `[...document.querySelectorAll('#register caption')].map((c) => c.textContent)`);
+    assert.equal(captions.length, 1);
+    assert.match(captions[0], /Risk register/);
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+test('breakdown headers sort: effort toggles to ascending on click', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const firstRow = () => page.eval(
+      `document.querySelector('#feature-table tr.feat-row td:first-child').textContent.trim()`);
+    assert.match(await firstRow(), /book appointment/);
+    await page.eval(`document.querySelector('#feature-table th button[data-sort="hours"]').click()`);
+    assert.match(await firstRow(), /Email reminders/);
+    assert.equal(await page.eval(
+      `document.querySelector('#feature-table th button[data-sort="hours"]').closest('th').getAttribute('aria-sort')`),
+    'ascending');
+  } finally { page.close(); }
+});
+
+test('expanding a feature reveals its tasks; client view hides the drill-down', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.task-row').length`), 0);
+    await page.eval(`document.querySelector('#feature-table tr.feat-row .expand').click()`);
+    const tasks = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.task-row td:first-child')].map((c) => c.textContent.trim())`);
+    assert.deepEqual(tasks, ['Booking CRUD API', 'Slot conflict + cancellation rules']);
+    await page.eval(`document.getElementById('view-toggle').click()`);
+    assert.equal(await page.eval(
+      `getComputedStyle(document.querySelector('#feature-table tr.task-row')).display`), 'none');
+    assert.equal(await page.eval(
+      `getComputedStyle(document.querySelector('#feature-table .expand')).display`), 'none');
+  } finally { page.close(); }
+});
+
+test('scenario cards carry a month gauge, facts grid, and delta on non-recommended', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.equal(await page.eval(
+      `document.querySelectorAll('#scenario-cards .scenario .gauge span').length`), 2);
+    const widths = await page.eval(
+      `[...document.querySelectorAll('#scenario-cards .gauge span')].map((s) => s.style.width)`);
+    assert.ok(widths.includes('100%'), `longest scenario must fill its gauge: ${widths}`);
+    assert.equal(await page.eval(
+      `document.querySelectorAll('#scenario-cards .scenario.recommended .facts dt').length`), 4);
+    const facts = await page.eval(
+      `[...document.querySelectorAll('#scenario-cards .scenario:not(.recommended) .facts dd')].map((d) => d.textContent)`);
+    assert.ok(facts.some((t) => t.includes('2× mid · 1× junior')), `team summary missing: ${facts}`);
+    assert.equal(await page.eval(
+      `document.querySelectorAll('#scenario-cards .scenario.recommended .delta').length`), 0);
+    assert.match(await page.eval(
+      `document.querySelector('#scenario-cards .scenario:not(.recommended) .delta').textContent`),
+    /mo · [+-]\$[\d,]+ vs recommended/);
+  } finally { page.close(); }
+});
+
+test('expand all / collapse all toggle every task row and stay internal-only', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    await page.eval(`document.querySelector('#feature-table button[data-expand="all"]').click()`);
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.task-row').length`), 3);
+    await page.eval(`document.querySelector('#feature-table button[data-expand="none"]').click()`);
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.task-row').length`), 0);
+    await page.eval(`document.getElementById('view-toggle').click()`);
+    assert.equal(await page.eval(
+      `getComputedStyle(document.querySelector('#feature-table button[data-expand="all"]').closest('.bd-filter-group')).display`), 'none');
+  } finally { page.close(); }
+});
+
+test('the what-if rail is not sticky and lower sections span the full width', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.notEqual(await page.eval(
+      `getComputedStyle(document.getElementById('controls')).position`), 'sticky');
+    const width = (id) => page.eval(
+      `document.getElementById('${id}').getBoundingClientRect().width`);
+    const narrow = await width('cost-bars');
+    for (const id of ['method', 'roadmap', 'feature-table', 'register']) {
+      assert.ok(await width(id) > narrow + 100,
+        `${id} should outspan the rail-adjacent sections (${await width(id)} vs ${narrow})`);
+    }
+    // no hole under the cost bars: the left column stretches to the rail's end
+    const bottom = (id) => page.eval(
+      `document.getElementById('${id}').getBoundingClientRect().bottom`);
+    assert.ok(await bottom('cost-bars') >= await bottom('controls') - 1,
+      `left column ends above the rail (${await bottom('cost-bars')} vs ${await bottom('controls')})`);
+    // the rail panel starts level with the scenario cards, not their heading
+    const railTop = await page.eval(
+      `document.getElementById('controls').getBoundingClientRect().top`);
+    const cardTop = await page.eval(
+      `document.querySelector('#scenario-cards .scenario').getBoundingClientRect().top`);
+    assert.ok(Math.abs(railTop - cardTop) < 2, `rail top ${railTop} != card top ${cardTop}`);
+    // the scenario cards own the tall row; the cost bars stay content-sized
+    const height = (id) => page.eval(
+      `document.getElementById('${id}').getBoundingClientRect().height`);
+    assert.ok(await height('scenario-cards') > await height('cost-bars'),
+      'scenario cards should be the taller section');
+  } finally { page.close(); }
+});
+
+test('milestone and provenance filters scope rows without rescaling bars', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const width = () => page.eval(
+      `document.querySelector('#feature-table tr.feat-row[data-id="reminders"] .bd-fill').style.width`);
+    const before = await width();
+    await page.eval(`document.querySelector('#feature-table button[data-milestone="M2 - Notifications"]').click()`);
+    const visible = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`);
+    assert.deepEqual(visible, ['reminders']);
+    assert.equal(await width(), before, 'bar must keep its global scale under filters');
+    await page.eval(`document.querySelector('#feature-table button[data-milestone=""]').click()`);
+    await page.eval(`document.querySelector('#feature-table button[data-prov="stated"]').click()`);
+    assert.deepEqual(await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['booking']);
   } finally { page.close(); }
 });
 

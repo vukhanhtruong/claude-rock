@@ -24,6 +24,11 @@ task carrying the tiering technique's calibration band as its `o`/`m`/`p`
 `schema.mjs`'s at-least-one-task rule and `compute.mjs`'s PERT path
 unchanged; QUICK never bypasses the compute pipeline.
 
+Features may each carry an optional `milestone` string (e.g. `"M1 - Booking
+core"`). Milestones are all-or-nothing: if any feature has one, every feature
+must, or `schema.mjs` refuses the inputs. Features sharing a label form one
+milestone; label order of first appearance in `features` = delivery order.
+
 ## 2. `estimation.md` — two-part skeleton
 
 Mirror `scripts/test/fixtures/estimation-pass.md` exactly. Two top-level
@@ -46,6 +51,17 @@ Recommended delivery: <team + plan summary> — see detail.
 | Overhead (<pct>%) | <hours> |
 | Risk buffer | <hours> |
 | Estimate-spread buffer | <hours> |
+
+### Roadmap
+
+(only when features carry milestones — omit the heading entirely otherwise)
+
+| Milestone | Features | Months (from start) |
+| --- | --- | --- |
+| <label> | <feature names> | <start>–<end> |
+
+Sequential delivery by the recommended scenario team. Bands are relative
+months, not calendar dates. Ordering: <stated|proposed>.
 
 ### Assumptions
 
@@ -120,6 +136,17 @@ JSON-side (checked against `estimation.json`, not the prose):
 13. Every feature's `low < hours < high` strictly (equal only in the
     degenerate all-equal case) — a feature where that ordering breaks means
     the PERT inputs for its tasks are inconsistent.
+
+Roadmap (mirrors `checkRoadmap` in `scripts/lib/checks.mjs`):
+
+14. Inputs carry milestones → Summary must contain a `### Roadmap` heading
+    with a table of at least one row; no milestones → the heading must be
+    absent.
+15. The Roadmap section must contain a line matching `/not calendar dates/i`
+    — the bands claim sequence and rough size, never dates.
+16. Band numbers come from
+    `computed.scenarios[recommendedScenario].roadmap` — covered by the
+    recompute rule 12, same as every other number.
 
 ## 4. File placement
 

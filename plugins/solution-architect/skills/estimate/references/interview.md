@@ -54,16 +54,22 @@ Ask one thing at a time, in this order:
 
 1. **Scope confirm** — walk the clear-vs-assumed gate; get sign-off or
    corrections.
-2. **Factor scores per feature** — five factors, each scored 1-5: tech
+2. **Milestone grouping** (STANDARD/DEEP only) — propose a grouping of the
+   confirmed features into ordered milestones ("M1 - <name>", "M2 - …");
+   the user confirms, reorders, or declines. Declining skips the roadmap
+   entirely (the `milestone` field stays off every feature). Ordering
+   provenance is `proposed` unless the client stated the order — then
+   `stated`, recorded in the deliverable's Roadmap section.
+3. **Factor scores per feature** — five factors, each scored 1-5: tech
    complexity, feature size, dependencies, uncertainty, risk. (STANDARD/DEEP
    also want task-level O/M/P — see `techniques.md`.)
-3. **Team options + rates + seniority mix** — how many engineers, what they
+4. **Team options + rates + seniority mix** — how many engineers, what they
    cost per hour, and whether each is junior/mid/senior.
-4. **Claude plan availability** — none / Max 5x / Max 20x, per scenario.
-5. **Deadline / constraints** — any hard date or budget ceiling.
-6. **calibration table** — ask for the org's own tier → hour-band history; if
+5. **Claude plan availability** — none / Max 5x / Max 20x, per scenario.
+6. **Deadline / constraints** — any hard date or budget ceiling.
+7. **calibration table** — ask for the org's own tier → hour-band history; if
    none exists, offer the defaults `S 20-60h, M 60-160h, L 160-400h`.
-7. **Expose-rates-to-client** — y/n; controls whether the client-facing render
+8. **Expose-rates-to-client** — y/n; controls whether the client-facing render
    shows labor rates or only totals.
 
 ## 5. Loop rule

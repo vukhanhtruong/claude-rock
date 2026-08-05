@@ -13,7 +13,7 @@ test('no reference doc carries placeholders', () => {
 test('interview.md carries its five required parts', () => {
   const doc = ref('interview.md');
   for (const needle of ['stated', 'proposed', 'QUICK', 'STANDARD', 'DEEP',
-    'confirmed scope', 'impact-if-wrong', 'calibration']) {
+    'confirmed scope', 'impact-if-wrong', 'calibration', 'milestone']) {
     assert.ok(doc.includes(needle), `interview.md missing: ${needle}`);
   }
 });
@@ -41,7 +41,7 @@ test('ai-multipliers.md agrees with the code constants', () => {
 test('writing.md states every validator rule family', () => {
   const doc = ref('writing.md');
   for (const needle of ['not estimated', 'stated', 'proposed', 'Out of scope',
-    'assumptions', 'buffer', 'elected', 'docs/estimate/']) {
+    'assumptions', 'buffer', 'elected', 'docs/estimate/', 'Roadmap', 'not calendar dates']) {
     assert.ok(doc.includes(needle), `writing.md missing: ${needle}`);
   }
 });

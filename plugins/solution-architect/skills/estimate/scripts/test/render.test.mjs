@@ -87,3 +87,9 @@ test('--client-only keeps rates when exposeRatesToClient is true', () => {
   const html = readFileSync(join(dir, 'estimate.html'), 'utf8');
   assert.match(html, /"rate":/);
 });
+
+test('the rendered page carries the roadmap section markup', () => {
+  const html = renderedPage();
+  assert.match(html, /id="roadmap"/);
+  assert.match(html, /roadmapRow|roadmap-row/); // renderer present, not stripped
+});

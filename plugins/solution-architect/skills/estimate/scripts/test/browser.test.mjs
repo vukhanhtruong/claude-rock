@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -117,9 +117,45 @@ test('the --client-only page boots clean without its stripped controls', skip, a
   try {
     assert.deepEqual(page.errors, []); // stripped nodes must be null-guarded, not assumed
     assert.equal(await page.eval(`document.getElementById('ctl-engineers')`), null);
-    for (const id of ['scenario-cards', 'timeline', 'register', 'method']) {
+    for (const id of ['scenario-cards', 'timeline', 'register', 'method', 'roadmap']) {
       assert.ok(await page.eval(`document.getElementById('${id}').children.length > 0`),
         `${id} empty on client-only page`);
     }
+  } finally { page.close(); }
+});
+
+test('roadmap renders committed bands and ignores the what-if rail', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const labels = await page.eval(
+      `[...document.querySelectorAll('#roadmap .roadmap-label')].map((l) => l.textContent)`);
+    assert.equal(labels.length, 2);
+    assert.match(labels[0], /M1 - Booking core/);
+    assert.match(labels[1], /M2 - Notifications/);
+    const before = await page.eval(`document.getElementById('roadmap').innerHTML`);
+    await page.eval(`(() => {
+      const ctl = document.getElementById('ctl-engineers');
+      ctl.value = '5'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    assert.equal(await page.eval(`document.getElementById('roadmap').innerHTML`), before,
+      'roadmap must stay frozen at the committed estimate');
+  } finally { page.close(); }
+});
+
+test('no milestones → the roadmap section is absent, no placeholder', skip, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-browser-'));
+  const scripts = new URL('..', import.meta.url).pathname;
+  const bare = JSON.parse(readFileSync(fixture, 'utf8'));
+  for (const f of bare.features) delete f.milestone;
+  writeFileSync(join(dir, 'inputs.json'), JSON.stringify(bare));
+  const md = readFileSync(join(scripts, 'test/fixtures/estimation-pass.md'), 'utf8')
+    .replace(/### Roadmap[\s\S]*?(?=### Assumptions)/, '');
+  writeFileSync(join(dir, 'bare.md'), md);
+  execFileSync('node', [join(scripts, 'compute.mjs'), '--inputs', join(dir, 'inputs.json'), '--out', join(dir, 'estimation.json')]);
+  execFileSync('node', [join(scripts, 'render.mjs'), '--json', join(dir, 'estimation.json'), '--md', join(dir, 'bare.md'), '--out', dir]);
+  const page = await openPage(pathToFileURL(join(dir, 'estimate.html')).href);
+  try {
+    assert.equal(await page.eval(`document.getElementById('roadmap')`), null);
+    assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });

@@ -152,6 +152,32 @@ details.help > p {
   flex:0 0 auto; min-width:5.5rem; text-align:right;
   font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
 }
+/* roadmap: same proportional-bar language as the bars above, but each row is
+   a start/end band rather than a bar growing from zero. */
+.roadmap-row { margin:0 0 1rem; }
+.roadmap-row:last-child { margin-bottom:0; }
+.roadmap-label {
+  display:flex; justify-content:space-between; align-items:baseline; gap:1rem;
+  margin:0 0 .35rem; font-size:.82rem;
+}
+.roadmap-months {
+  flex:0 0 auto; font-family:'IBM Plex Mono',monospace; font-size:.76rem;
+  color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.roadmap-track { position:relative; height:.8rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
+.roadmap-band { position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem; }
+.roadmap-features { margin:.35rem 0 0; font-size:.76rem; color:var(--ink-dim); }
+/* the tick strip and the "months" unit label are separate flex items, not
+   one relatively-positioned box — a tick always sits at 100% (the total),
+   so sharing a box with a right-floated label would collide with it. */
+.roadmap-axis {
+  display:flex; align-items:flex-end; gap:.5rem; height:1rem; margin-top:.6rem;
+  padding-top:.4rem; border-top:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--ink-dim);
+}
+.roadmap-axis-ticks { position:relative; flex:1; min-width:0; height:100%; }
+.roadmap-axis-ticks span { position:absolute; transform:translateX(-50%); }
+.roadmap-axis-label { flex:0 0 auto; }
 table { width:100%; border-collapse:collapse; font-size:.85rem; }
 table th, table td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--border); }
 table th { color:var(--ink-dim); font-weight:600; font-size:.76rem; }
@@ -213,6 +239,7 @@ tr.conf-low .conf { color:var(--bad); }
     <section id="method"></section>
     <section id="scenario-cards"></section>
     <section id="cost-bars"></section>
+    <section id="roadmap"></section>
     <section id="timeline"></section>
     <section id="feature-table"></section>
     <section id="register"></section>
@@ -393,6 +420,47 @@ function renderTimeline() {
       barRow({ label: id, value: f.hours, max, text: `${f.hours}h` })).join('');
 }
 
+function roadmapRow(band, total, names) {
+  const left = (band.startMonths / total) * 100;
+  const width = ((band.endMonths - band.startMonths) / total) * 100;
+  return `<div class="roadmap-row">
+    <p class="roadmap-label"><span>${band.milestone}</span>
+      <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></p>
+    <div class="roadmap-track"><span class="roadmap-band" style="left:${left}%;width:${width}%"></span></div>
+    <p class="roadmap-features">${band.features.map((id) => names[id]).join(' &middot; ')}</p></div>`;
+}
+
+// Ticks sit at each band's real start/end (not fixed whole-month steps) so
+// the axis stays legible whether the roadmap spans days or years, and the
+// two edge ticks are pinned to the track's own edges instead of centered,
+// so they never overhang the section.
+function roadmapAxis(total, roadmap) {
+  const points = [...new Set(roadmap.flatMap((b) => [b.startMonths, b.endMonths]))].sort((a, b) => a - b);
+  const tick = (m) => {
+    const pct = (m / total) * 100;
+    const style = pct <= 0 ? 'left:0;transform:none'
+      : pct >= 100 ? 'right:0;transform:none' : `left:${pct}%`;
+    return `<span style="${style}">${m}</span>`;
+  };
+  return `<div class="roadmap-axis"><div class="roadmap-axis-ticks">${points.map(tick).join('')}</div>`
+    + `<span class="roadmap-axis-label">months</span></div>`;
+}
+
+// Committed numbers only: the roadmap draws the recommended scenario as
+// computed — the what-if rail owns every live number on this page.
+function renderRoadmap() {
+  const el = document.getElementById('roadmap');
+  if (!el) return;
+  const roadmap = DATA.computed.scenarios[DATA.inputs.recommendedScenario]?.roadmap;
+  if (!roadmap) { el.remove(); return; }
+  const total = roadmap[roadmap.length - 1].endMonths;
+  const names = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.name]));
+  el.innerHTML = secHead('Roadmap',
+    'Sequential delivery by the recommended scenario team. Bands are relative months from '
+    + 'kickoff, not calendar dates; each milestone\'s width is its share of the work.')
+    + roadmap.map((b) => roadmapRow(b, total, names)).join('') + roadmapAxis(total, roadmap);
+}
+
 function renderTable() {
   const el = document.getElementById('feature-table');
   if (!el) return;
@@ -484,6 +552,7 @@ function renderReadout(custom) {
 function renderAll(defaults) {
   renderCards();
   renderBars();
+  renderRoadmap();
   renderTimeline();
   renderTable();
   renderRegister();

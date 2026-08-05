@@ -152,32 +152,39 @@ details.help > p {
   flex:0 0 auto; min-width:5.5rem; text-align:right;
   font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
 }
-/* roadmap: same proportional-bar language as the bars above, but each row is
-   a start/end band rather than a bar growing from zero. */
-.roadmap-row { margin:0 0 1rem; }
-.roadmap-row:last-child { margin-bottom:0; }
-.roadmap-label {
-  display:flex; justify-content:space-between; align-items:baseline; gap:1rem;
-  margin:0 0 .35rem; font-size:.82rem;
+/* roadmap: Gantt-style shared axis. Every row is a flex triple (label |
+   track | months) with the same label/months widths as the axis strip below
+   it, so a given month lines up under the same x-position in every row's
+   track and in the axis ticks — one shared coordinate system, not a
+   per-row axis. */
+.roadmap-chart { display:flex; flex-direction:column; }
+.roadmap-row { display:flex; align-items:center; gap:.7rem; padding:.4rem 0; }
+.roadmap-row + .roadmap-row { border-top:1px solid var(--border); }
+.roadmap-label { flex:0 0 150px; min-width:0; display:flex; flex-direction:column; gap:.15rem; }
+.roadmap-name { font-size:.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.roadmap-feature-names { font-size:.7rem; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.roadmap-track {
+  position:relative; flex:1; min-width:0; height:.8rem;
+  background:var(--border); border-radius:.3rem; overflow:hidden;
 }
+.roadmap-gridline { position:absolute; top:0; bottom:0; width:1px; background:var(--border-strong); opacity:.55; }
+.roadmap-band { position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem; }
 .roadmap-months {
-  flex:0 0 auto; font-family:'IBM Plex Mono',monospace; font-size:.76rem;
+  flex:0 0 auto; min-width:4.6rem; text-align:right;
+  font-family:'IBM Plex Mono',monospace; font-size:.72rem;
   color:var(--ink-dim); font-variant-numeric:tabular-nums;
 }
-.roadmap-track { position:relative; height:.8rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
-.roadmap-band { position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem; }
-.roadmap-features { margin:.35rem 0 0; font-size:.76rem; color:var(--ink-dim); }
-/* the tick strip and the "months" unit label are separate flex items, not
-   one relatively-positioned box — a tick always sits at 100% (the total),
-   so sharing a box with a right-floated label would collide with it. */
+/* the axis mirrors the row's flex geometry (same label/months widths) so its
+   ticks land under the matching month position in every track above. */
 .roadmap-axis {
-  display:flex; align-items:flex-end; gap:.5rem; height:1rem; margin-top:.6rem;
+  display:flex; align-items:flex-end; gap:.7rem; height:1rem; margin-top:.6rem;
   padding-top:.4rem; border-top:1px solid var(--border);
   font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--ink-dim);
 }
+.roadmap-axis-spacer { flex:0 0 150px; }
 .roadmap-axis-ticks { position:relative; flex:1; min-width:0; height:100%; }
 .roadmap-axis-ticks span { position:absolute; transform:translateX(-50%); }
-.roadmap-axis-label { flex:0 0 auto; }
+.roadmap-axis-unit { flex:0 0 auto; min-width:4.6rem; text-align:right; }
 table { width:100%; border-collapse:collapse; font-size:.85rem; }
 table th, table td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--border); }
 table th { color:var(--ink-dim); font-weight:600; font-size:.76rem; }
@@ -420,30 +427,49 @@ function renderTimeline() {
       barRow({ label: id, value: f.hours, max, text: `${f.hours}h` })).join('');
 }
 
-function roadmapRow(band, total, names) {
-  const left = (band.startMonths / total) * 100;
-  const width = ((band.endMonths - band.startMonths) / total) * 100;
-  return `<div class="roadmap-row">
-    <p class="roadmap-label"><span>${band.milestone}</span>
-      <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></p>
-    <div class="roadmap-track"><span class="roadmap-band" style="left:${left}%;width:${width}%"></span></div>
-    <p class="roadmap-features">${band.features.map((id) => names[id]).join(' &middot; ')}</p></div>`;
+// Ticks are whole months (0, 1, 2…) once the span is long enough for that to
+// read as a timeline; below that a whole-month grid would be a bare "0", so
+// fall back to each band's own start/end. Either way ticks are computed once
+// and shared by every row's gridlines and the axis strip below them — one
+// coordinate system, not a per-row axis.
+function roadmapTicks(total, roadmap) {
+  if (total >= 2) {
+    const whole = [];
+    for (let m = 0; m <= Math.floor(total); m++) whole.push(m);
+    return whole;
+  }
+  return [...new Set(roadmap.flatMap((b) => [b.startMonths, b.endMonths]))].sort((a, b) => a - b);
 }
 
-// Ticks sit at each band's real start/end (not fixed whole-month steps) so
-// the axis stays legible whether the roadmap spans days or years, and the
-// two edge ticks are pinned to the track's own edges instead of centered,
+const tickPct = (m, total) => (total > 0 ? (m / total) * 100 : 0);
+
+function roadmapRow(band, total, names, ticks) {
+  const left = (band.startMonths / total) * 100;
+  const width = ((band.endMonths - band.startMonths) / total) * 100;
+  const gridlines = ticks.map((m) => {
+    const pct = tickPct(m, total);
+    const style = pct <= 0 ? 'left:0' : pct >= 100 ? 'right:0' : `left:${pct}%`;
+    return `<span class="roadmap-gridline" style="${style}"></span>`;
+  }).join('');
+  return `<div class="roadmap-row">
+    <div class="roadmap-label"><span class="roadmap-name">${band.milestone}</span>
+      <span class="roadmap-feature-names">${band.features.map((id) => names[id]).join(' &middot; ')}</span></div>
+    <div class="roadmap-track">${gridlines}<span class="roadmap-band" style="left:${left}%;width:${width}%"></span></div>
+    <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></div>`;
+}
+
+// The two edge ticks are pinned to the track's own edges instead of centered,
 // so they never overhang the section.
-function roadmapAxis(total, roadmap) {
-  const points = [...new Set(roadmap.flatMap((b) => [b.startMonths, b.endMonths]))].sort((a, b) => a - b);
+function roadmapAxis(total, ticks) {
   const tick = (m) => {
-    const pct = (m / total) * 100;
+    const pct = tickPct(m, total);
     const style = pct <= 0 ? 'left:0;transform:none'
       : pct >= 100 ? 'right:0;transform:none' : `left:${pct}%`;
     return `<span style="${style}">${m}</span>`;
   };
-  return `<div class="roadmap-axis"><div class="roadmap-axis-ticks">${points.map(tick).join('')}</div>`
-    + `<span class="roadmap-axis-label">months</span></div>`;
+  return `<div class="roadmap-axis"><span class="roadmap-axis-spacer"></span>
+    <div class="roadmap-axis-ticks">${ticks.map(tick).join('')}</div>
+    <span class="roadmap-axis-unit">months</span></div>`;
 }
 
 // Committed numbers only: the roadmap draws the recommended scenario as
@@ -455,10 +481,12 @@ function renderRoadmap() {
   if (!roadmap) { el.remove(); return; }
   const total = roadmap[roadmap.length - 1].endMonths;
   const names = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.name]));
+  const ticks = roadmapTicks(total, roadmap);
   el.innerHTML = secHead('Roadmap',
     'Sequential delivery by the recommended scenario team. Bands are relative months from '
     + 'kickoff, not calendar dates; each milestone\'s width is its share of the work.')
-    + roadmap.map((b) => roadmapRow(b, total, names)).join('') + roadmapAxis(total, roadmap);
+    + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, total, names, ticks)).join('')}`
+    + `${roadmapAxis(total, ticks)}</div>`;
 }
 
 function renderTable() {

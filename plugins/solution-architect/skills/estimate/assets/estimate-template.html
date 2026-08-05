@@ -81,10 +81,33 @@ main section h2 {
   background:var(--card); border:1px solid var(--border); border-radius:.6rem;
   padding:1.1rem 1.2rem; box-shadow:var(--shadow);
 }
-#scenario-cards {
-  background:none; border:none; box-shadow:none; padding:0;
+#scenario-cards { background:none; border:none; box-shadow:none; padding:0; }
+#scenario-cards .cards {
   display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:.9rem;
 }
+.sec-head { display:flex; align-items:center; gap:.45rem; margin:0 0 .8rem; }
+.sec-head h2 { margin:0; }
+details.help { position:relative; display:inline-block; line-height:1; }
+details.help summary {
+  list-style:none; cursor:help; width:1.05rem; height:1.05rem; border-radius:50%;
+  border:1px solid var(--border-strong); color:var(--ink-dim); background:var(--card);
+  font-size:.68rem; font-weight:600; font-family:'IBM Plex Mono',monospace;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+details.help summary::-webkit-details-marker { display:none; }
+details.help[open] summary { color:var(--accent-ink); border-color:var(--accent); }
+details.help > p {
+  position:absolute; z-index:20; top:1.4rem; left:0; width:270px; margin:0;
+  background:var(--card); border:1px solid var(--border-strong); border-radius:.45rem;
+  padding:.6rem .75rem; font-size:.76rem; font-weight:400; line-height:1.45;
+  color:var(--ink); text-transform:none; letter-spacing:normal; text-align:left;
+  box-shadow:var(--shadow);
+}
+#controls details.help > p, td details.help > p, caption details.help > p { left:auto; right:0; }
+#method ul { margin:.2rem 0 .9rem; padding-left:1.1rem; font-size:.85rem; }
+#method li { margin-bottom:.35rem; }
+#method .sources { font-size:.78rem; color:var(--ink-dim); margin:0; }
+#method .sources span { display:block; margin-bottom:.2rem; }
 .card {
   position:relative; background:var(--card); border:1px solid var(--border);
   border-radius:.6rem; padding:1rem 1.1rem; box-shadow:var(--shadow);
@@ -167,7 +190,7 @@ tr.conf-low .conf { color:var(--bad); }
 .view-client [data\2d internal] { display:none !important; }
 @media print {
   header { position:static; }
-  header button, #controls, #modified-banner { display:none; }
+  header button, #controls, #modified-banner, details.help { display:none; }
   main { grid-template-columns:1fr; }
   main > section, .card { box-shadow:none; }
 }
@@ -191,6 +214,7 @@ tr.conf-low .conf { color:var(--bad); }
     <section id="timeline"></section>
     <section id="feature-table"></section>
     <section id="register"></section>
+    <section id="method"></section>
   </div>
   <!-- internal:start -->
   <style>
@@ -213,7 +237,8 @@ tr.conf-low .conf { color:var(--bad); }
   }
   </style>
   <aside id="controls" data-internal>
-    <h2>What-if</h2>
+    <div class="sec-head"><h2>What-if</h2><details class="help"><summary aria-label="explain this panel">?</summary>
+      <p>The levers re-run the exact same formulas as the committed numbers, in your browser. Nothing here changes the committed estimate — it answers "what would it look like if&hellip;".</p></details></div>
     <p class="hint">Adjust the levers; the readout below and the dashed custom card update live.</p>
     <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
     <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
@@ -312,6 +337,9 @@ function currentParams(defaults) {
 
 const fmtMoney = (v) => `$${Math.round(v).toLocaleString()}`;
 
+const help = (text) => `<details class="help"><summary aria-label="explain this section">?</summary><p>${text}</p></details>`;
+const secHead = (title, text) => `<div class="sec-head"><h2>${title}</h2>${help(text)}</div>`;
+
 function barRow({ label, value, max, text, cls }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return `<div class="bar-row"><span class="bar-label" title="${label}">${label}</span>
@@ -340,7 +368,11 @@ function renderCards(custom) {
   const el = document.getElementById('scenario-cards');
   if (!el) return;
   const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom (what-if)');
-  el.innerHTML = entries.map(([id, s]) => scenarioCard(id, s)).join('');
+  el.innerHTML = secHead('Delivery scenarios',
+    'Each card is one way to staff and deliver the same scope. Months and cost are computed '
+    + 'from the same task hours; the highlighted card is the recommended estimate, the dashed '
+    + 'card mirrors the what-if levers.')
+    + `<div class="cards">${entries.map(([id, s]) => scenarioCard(id, s)).join('')}</div>`;
 }
 
 function barClass(id) {
@@ -353,8 +385,11 @@ function renderBars(custom) {
   if (!el) return;
   const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom');
   const max = Math.max(...entries.map(([, s]) => s.totalCost));
-  el.innerHTML = '<h2>Total cost by scenario</h2>' + entries.map(([id, s]) =>
-    barRow({ label: id, value: s.totalCost, max, text: fmtMoney(s.totalCost), cls: barClass(id) })).join('');
+  el.innerHTML = secHead('Total cost by scenario',
+    'Labor (months × team rates) plus Claude plan seats, per scenario. Bar lengths are '
+    + 'proportional to the most expensive scenario.')
+    + entries.map(([id, s]) =>
+      barRow({ label: id, value: s.totalCost, max, text: fmtMoney(s.totalCost), cls: barClass(id) })).join('');
 }
 
 function renderTimeline() {
@@ -363,8 +398,11 @@ function renderTimeline() {
   const features = Object.entries(DATA.computed.features)
     .slice().sort(([, a], [, b]) => b.hours - a.hours);
   const max = Math.max(...features.map(([, f]) => f.hours));
-  el.innerHTML = '<h2>Effort by feature (expected hours)</h2>' + features.map(([id, f]) =>
-    barRow({ label: id, value: f.hours, max, text: `${f.hours}h` })).join('');
+  el.innerHTML = secHead('Effort by feature (expected hours)',
+    'PERT expected hours per feature, before any AI adjustment — the biggest bars are where '
+    + 'the work is. Sorted largest first.')
+    + features.map(([id, f]) =>
+      barRow({ label: id, value: f.hours, max, text: `${f.hours}h` })).join('');
 }
 
 function renderTable() {
@@ -376,7 +414,11 @@ function renderTable() {
     return `<tr><td>${input.name}</td><td class="num">${f.hours}</td><td class="num">${f.low}&ndash;${f.high}</td>
       <td><span class="tag ${input.provenance}">${input.provenance}</span></td></tr>`;
   }).join('');
-  el.innerHTML = `<h2>Feature breakdown</h2><table><thead><tr><th>Feature</th><th class="num">Hours</th>
+  el.innerHTML = secHead('Feature breakdown',
+    'Hours is the PERT expected value E = (O + 4M + P) / 6 summed over the feature’s tasks; '
+    + 'Range is the sum of optimistic to pessimistic bounds. Source says whether the scope was '
+    + 'stated by the client or proposed by us.')
+    + `<table><thead><tr><th>Feature</th><th class="num">Hours</th>
     <th class="num">Range</th><th>Source</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -393,12 +435,48 @@ function renderRegister() {
     <td>${t.name}</td><td><span class="tag">${t.category}</span></td><td><span class="conf">${t.confidence}</span></td>
     <td>${t.assumptions.join('; ') || 'none'}</td></tr>`).join('');
   const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td class="num">${Math.round(r.probability * 100)}%</td><td class="num">${r.impactHours}h</td></tr>`).join('');
-  el.innerHTML = `<div ${INTERNAL_ATTR}><table><caption>Task register</caption>
+  el.innerHTML = `<div ${INTERNAL_ATTR}><table><caption>Task register ${help(
+    'Every task behind the numbers: its AI-speedup category, how confident we are in the '
+    + 'three-point sizing, and the assumptions the number depends on.')}</caption>
     <thead><tr><th>Task</th><th>Category</th><th>Confidence</th><th>Assumptions</th></tr></thead>
     <tbody>${taskRows}</tbody></table></div>
-    <table><caption>Risk register</caption>
+    <table><caption>Risk register ${help(
+    'Each risk adds probability &times; impact hours to the risk buffer, so unlikely-but-costly '
+    + 'events are priced in without padding every task.')}</caption>
     <thead><tr><th>Risk</th><th class="num">Probability</th><th class="num">Impact</th></tr></thead>
     <tbody>${riskRows}</tbody></table>`;
+}
+
+// The words are static; every number shown is read from inputs, never derived.
+function renderMethod() {
+  const el = document.getElementById('method');
+  if (!el) return;
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  el.innerHTML = `${secHead('Method',
+    'How the numbers on this page were produced, and where the techniques come from.')}
+    <p>Technique: <strong>${DATA.inputs.technique}</strong> &middot; depth ${DATA.inputs.depth}</p>
+    <ul>
+      <li>Each task is sized with three points (optimistic / most-likely / pessimistic);
+        expected hours use PERT: E = (O + 4M + P) / 6, spread &sigma; = (P &minus; O) / 6.</li>
+      <li>Two buffers are added once, at project level: an estimate-spread buffer
+        (&radic;&Sigma;&sigma;&sup2; across tasks) and a risk buffer (&Sigma; probability &times;
+        impact from the risk register). Overhead adds ${pct(DATA.inputs.overheadPct)} for
+        meetings, review, and coordination.</li>
+      <li>AI-assisted scenarios reduce each task by its category — boilerplate 50&ndash;80%,
+        logic 20&ndash;40%, novel 0&ndash;10% — blended as (AO + 2AR + TR) / 4, plus
+        ${pct(DATA.inputs.verificationPct)} verification overhead on AI output. There is no
+        blanket project-wide multiplier: the reduction is judged per task.</li>
+      <li>Seniority scales base effort (junior +15%, senior &minus;15%); team capacity pays a
+        10% coordination tax per engineer added.</li>
+      <li>The confidence badge is the worst task confidence on the largest feature —
+        an estimate is only as strong as its critical path.</li>
+    </ul>
+    <p class="sources"><span>PERT and three-point estimation (US Navy, 1958), buffers, ranges,
+      and risk registers — Atomic Object, atomicobject.com/client-resources/better-custom-software-estimates.</span>
+    <span>AI speedup categories and the blended formula — Kmino,
+      kmino.io/blog/software-estimation-with-ai (practitioner observations, not peer-reviewed).</span>
+    <span>Scenario and tier structure — Modular Earth solutions-architecture-agent,
+      github.com/Modular-Earth-LLC/solutions-architecture-agent.</span></p>`;
 }
 
 // Live feedback at the point of interaction: the sticky rail is usually on
@@ -420,6 +498,7 @@ function renderAll(defaults) {
   renderTimeline();
   renderTable();
   renderRegister();
+  renderMethod();
   renderReadout(custom);
 }
 

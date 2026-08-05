@@ -60,6 +60,18 @@ test('moving a control updates the custom card and shows the banner', skip, asyn
   } finally { page.close(); }
 });
 
+test('every section explains itself: help icons plus a rendered method section', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.ok(await page.eval(`document.querySelectorAll('details.help').length >= 6`),
+      'expected a help icon per section');
+    const method = await page.eval(`document.getElementById('method').textContent`);
+    assert.match(method, /three-point-pert/); // technique named from inputs
+    assert.match(method, /PERT/);
+    assert.match(method, /atomicobject\.com/);
+  } finally { page.close(); }
+});
+
 test('the what-if rail shows a live readout that tracks control changes', skip, async () => {
   const page = await openPage(buildPage());
   try {
@@ -90,7 +102,7 @@ test('the --client-only page boots clean without its stripped controls', skip, a
   try {
     assert.deepEqual(page.errors, []); // stripped nodes must be null-guarded, not assumed
     assert.equal(await page.eval(`document.getElementById('ctl-engineers')`), null);
-    for (const id of ['scenario-cards', 'timeline', 'register']) {
+    for (const id of ['scenario-cards', 'timeline', 'register', 'method']) {
       assert.ok(await page.eval(`document.getElementById('${id}').children.length > 0`),
         `${id} empty on client-only page`);
     }

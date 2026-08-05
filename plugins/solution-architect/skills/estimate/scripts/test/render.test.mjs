@@ -48,6 +48,13 @@ test('rendered page is self-contained and carries parseable data', () => {
   assert.match(html, /function pert\(/); // math inlined, not referenced
 });
 
+test('the page carries a method section with source attributions', () => {
+  const html = renderedPage();
+  assert.match(html, /id="method"/);
+  assert.match(html, /atomicobject\.com/); // sources cited in the page, not only in refs
+  assert.match(html, /kmino\.io/);
+});
+
 test('--client-only strips every internal range', () => {
   const html = renderedPage(['--client-only']);
   assert.doesNotMatch(html, /data-internal|internal:start|ctl-engineers/);

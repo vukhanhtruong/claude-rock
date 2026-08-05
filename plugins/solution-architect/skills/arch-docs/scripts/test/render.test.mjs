@@ -51,6 +51,26 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /class="page"[^>]*data-route="0001-sample"/);
 });
 
+// The estimation companion is the argument; the estimate skill's page beside
+// it is the same numbers made interactive. The viewer links it when — and only
+// when — the file exists, so an md-only run renders exactly as before.
+test('the estimation companion links a sibling estimate.html', () => {
+  const out = mkdtempSync(join(tmpdir(), 'arch-docs-render-'));
+  const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
+  execFileSync('node', [
+    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
+    '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
+    '--docs', `${fixtures}docs/estimation.md`,
+    '--out', out,
+    '--likec4-bundle', stub('l.js', LIKEC4_STUB),
+    '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
+    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
+  ]);
+  const html = readFileSync(join(out, 'index.html'), 'utf8');
+  assert.match(html, /class="page"[^>]*data-kind="estimation"/);
+  assert.match(html, /class="estimate-link"><a href="[^"]*estimate\.html"/);
+});
+
 test('render.mjs fails loudly on a missing bundle', () => {
   assert.throws(() => execFileSync('node', [
     'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',

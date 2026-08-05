@@ -8,6 +8,7 @@ import { routeMap } from './lib/doc-routes.mjs';
 import { parseFrontmatter } from './lib/frontmatter.mjs';
 import { embed } from './lib/embed.mjs';
 import { kindOf } from './lib/doc-kinds.mjs';
+import { estimateLink } from './lib/companion-links.mjs';
 import { sectionHelp, serialiseHelp } from './lib/section-help.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
 import { buildFontFaces } from './lib/fonts.mjs';
@@ -74,7 +75,10 @@ const pages = docPaths.map((p, i) => ({
 // Second pass, because a link's target id is only known once every document has
 // been rendered: the id comes from the target's H1, not from its filename.
 const idByPath = new Map(pages.map((p) => [p.path, p.docId]));
-const linked = pages.map((p) => ({ ...p, html: rewriteDocLinks(p.html, p.path, idByPath) }));
+const linked = pages.map((p) => ({
+  ...p,
+  html: estimateLink(p, args.out) + rewriteDocLinks(p.html, p.path, idByPath),
+}));
 const routes = routeMap(linked);
 
 // The last point at which an off-palette bundle can still be stopped. A model

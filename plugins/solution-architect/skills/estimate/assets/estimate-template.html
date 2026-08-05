@@ -36,6 +36,12 @@ button {
 }
 button:hover { border-color:var(--accent); color:var(--accent-ink); }
 button:active { transform:translateY(1px); }
+/* companion-mode back-link to the arch-docs viewer; dressed as a header button */
+#viewer-link {
+  font-size:.8rem; padding:.35rem .75rem; border-radius:.35rem;
+  border:1px solid var(--border-strong); color:var(--ink); text-decoration:none;
+}
+#viewer-link:hover { border-color:var(--accent); color:var(--accent-ink); }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 /* header bar: constrained to the same column as main via padding math */
 header {
@@ -304,7 +310,7 @@ tr.task-row .bd-cell { justify-content:flex-end; }
 .view-client [data\2d internal] { display:none !important; }
 @media print {
   header { position:static; }
-  header button, #controls, #modified-banner, details.help, .bd-filters, .expand { display:none; }
+  header button, #viewer-link, #controls, #modified-banner, details.help, .bd-filters, .expand { display:none; }
   main { grid-template-columns:1fr; }
   main > section, .card { box-shadow:none; }
 }
@@ -318,7 +324,7 @@ tr.task-row .bd-cell { justify-content:flex-end; }
   </div>
   <span id="confidence-badge"></span>
   <button id="theme-toggle" type="button">theme</button>
-  <!-- internal:start --><button id="view-toggle" type="button" data-internal>client view</button><!-- internal:end -->
+  <!-- internal:start --><!-- slot:VIEWER --><button id="view-toggle" type="button" data-internal>client view</button><!-- internal:end -->
 </header>
 <p id="modified-banner" role="status" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
 <main>

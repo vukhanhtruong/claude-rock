@@ -165,9 +165,11 @@ writing a reason.
     `CONTEXT-MAP.md`.
 - **threat-model.md** deliverable: a DFD, trust boundaries, a threat list,
   and mitigations per threat — never just the diagram or just the list.
-- **estimation.md** honesty rule: every row carries confidence + assumptions;
-  a row nobody estimated renders `not estimated` — **never `0`**, which
-  would misread as "estimated at zero effort."
+- **estimation.md** is not written here: when elected, the `estimate` skill
+  produces it (computed, validated — see `project-types.md`). Its honesty
+  rule still binds whoever renders it: every row carries confidence +
+  assumptions; a row nobody estimated renders `not estimated` — **never
+  `0`**, which would misread as "estimated at zero effort."
 
 ## 6. mattpocock integration
 

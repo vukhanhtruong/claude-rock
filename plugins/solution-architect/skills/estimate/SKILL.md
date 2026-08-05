@@ -47,7 +47,11 @@ interactive what-if page served on localhost.
 When ARCHITECTURE.md exists: §6 components seed the WBS, §15 risks seed the
 risk register, flip the `electedDocs` estimation entry to `elected: true`,
 place estimation.md beside ARCHITECTURE.md so the arch-docs viewer picks it
-up as a companion page; link the interactive page from it.
+up as a companion page; link the interactive page from it. Keep estimate.html
+in the same directory — the viewer links it from the estimation tab when it
+finds the file there. When a rendered viewer exists, pass
+`--viewer <relative path to its index.html>` to render.mjs so the page links
+back (internal view only; the client render strips it).
 
 ## Dependency
 

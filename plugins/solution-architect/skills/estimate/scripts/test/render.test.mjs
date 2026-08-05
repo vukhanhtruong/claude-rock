@@ -28,10 +28,28 @@ test('render refuses a deliverable that fails validation', () => {
   assert.throws(() => execFileSync('node', [cli, '--json', json, '--md', failMd, '--out', dir]));
 });
 
-test('template carries exactly the four slots and no external URLs', () => {
+test('template carries exactly the five slots and no external URLs', () => {
   const markers = [...tpl().matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]).sort();
-  assert.deepEqual([...new Set(markers)], ['DATA', 'FONTS', 'MATH', 'TITLE']);
+  assert.deepEqual([...new Set(markers)], ['DATA', 'FONTS', 'MATH', 'TITLE', 'VIEWER']);
   assert.doesNotMatch(tpl(), /https?:\/\/(?!www\.w3\.org)/);
+});
+
+// Companion mode: the arch-docs viewer links this page, and this page links
+// back. The href is caller-supplied because only the caller knows where the
+// viewer was rendered; internal-only because a client file must not point at
+// an internal document set.
+test('--viewer adds an internal-only back-link; client-only strips it', () => {
+  const withLink = renderedPage(['--viewer', '../viewer/index.html']);
+  assert.match(withLink, /<a id="viewer-link" data-internal href="\.\.\/viewer\/index\.html">/);
+  const without = renderedPage();
+  assert.doesNotMatch(without, /<a id="viewer-link"/);
+  const client = renderedPage(['--viewer', '../viewer/index.html', '--client-only']);
+  assert.doesNotMatch(client, /<a id="viewer-link"/);
+});
+
+test('the --viewer href is attribute-escaped', () => {
+  const html = renderedPage(['--viewer', '../a"b/index.html']);
+  assert.match(html, /href="\.\.\/a&quot;b\/index\.html"/);
 });
 
 test('inlineModule strips export keywords and nothing else', () => {

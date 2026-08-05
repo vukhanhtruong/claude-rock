@@ -25,14 +25,18 @@ Copied verbatim from the design spec (§3.2 Companion documents):
 |---|---|---|
 | threat-model.md | non-trivial attack surface | STRIDE · OWASP LLM Top 10 2025 · data lineage/PII · device+transport · physical+firmware |
 | interface contract | system exposes/consumes interfaces | OpenAPI · +tool schemas · data contracts +model card +datasheet · wire protocol · public API surface |
-| estimation.md | user wants effort estimates | confidence + assumptions per row; unestimated rows say so |
+| estimation.md | user wants effort estimates | produced by the `estimate` skill, never hand-written here |
 | DOMAIN-OVERVIEW.md | domain-heavy project (fintech, health, logistics…) | — |
 
 DOMAIN-OVERVIEW.md is never elected silently on a heuristic guess: the
 interview's domain rows (`interview.md`) confirm domain-heaviness first.
 estimation.md is elected only when the user asks for effort estimates — never
-by default. An un-elected companion is still recorded in frontmatter
-`electedDocs`, with the reason.
+by default. When elected, do not write it here: invoke the sibling `estimate`
+skill (its companion mode seeds the WBS from §6 and the risk register from
+§15). Its pipeline computes and validates every number; a hand-written
+estimation.md has neither, and the two are indistinguishable by filename.
+An un-elected companion is still recorded in frontmatter `electedDocs`, with
+the reason.
 
 ## Table-column variants (§6 / §8 / §9 / §10)
 

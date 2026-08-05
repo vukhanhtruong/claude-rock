@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { embed } from '../../arch-docs/scripts/lib/embed.mjs';
 import { buildFontFaces } from '../../arch-docs/scripts/lib/fonts.mjs';
+import { escapeHtml } from '../../arch-docs/scripts/lib/md-inline.mjs';
 import { checkDeliverables } from './lib/checks.mjs';
 import { inlineModule, stripInternal } from './lib/inline.mjs';
 import { redactForClient } from './lib/redact.mjs';
@@ -36,6 +37,12 @@ if (findings.length) {
 }
 
 const dataForEmbed = args['client-only'] ? redactForClient(estimation) : estimation;
+// Companion mode: --viewer carries the caller-known path back to the arch-docs
+// viewer. It sits in the header's internal range, so the client render (which
+// must not point at an internal document set) strips it with everything else.
+const viewerSlot = typeof args.viewer === 'string'
+  ? `<a id="viewer-link" data-internal href="${escapeHtml(args.viewer)}">architecture docs</a>`
+  : '';
 const template = readFileSync(templatePath, 'utf8');
 const html = embed({
   template,
@@ -45,6 +52,7 @@ const html = embed({
     // Escaped so a literal </script in the JSON can't close the data tag early.
     DATA: JSON.stringify(dataForEmbed).replaceAll('</script', '<\\/script'),
     MATH: inlineModule(readFileSync(mathPath, 'utf8')),
+    VIEWER: viewerSlot,
   },
 });
 

@@ -24,7 +24,9 @@ next free port).
 - **Companion** — an `ARCHITECTURE.md` already exists (from the `arch-docs`
   skill). estimate seeds the WBS from its §6 Core Components and the risk
   register from its §15 Risks, then places `estimation.md` beside it so the
-  arch-docs viewer picks it up as a companion page.
+  arch-docs viewer picks it up as a companion page. The viewer also links
+  `estimate.html` from that tab when the file sits in the same directory, and
+  `render.mjs --viewer <path>` adds the internal-only back-link.
 
 ## Run it
 

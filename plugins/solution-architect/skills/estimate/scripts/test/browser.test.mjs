@@ -80,6 +80,10 @@ test('every section explains itself: help icons plus a rendered method section',
     assert.match(method, /three-point-pert/); // technique named from inputs
     assert.match(method, /PERT/);
     assert.match(method, /atomicobject\.com/);
+    // collapsed by default: title row visible, body folded until clicked
+    assert.equal(await page.eval(`document.querySelector('#method details.method-fold').open`), false);
+    await page.eval(`document.querySelector('#method details.method-fold summary').click()`);
+    assert.equal(await page.eval(`document.querySelector('#method details.method-fold').open`), true);
   } finally { page.close(); }
 });
 

@@ -104,7 +104,13 @@ details.help > p {
   box-shadow:var(--shadow);
 }
 #controls details.help > p, td details.help > p, caption details.help > p { left:auto; right:0; }
-#method ul { margin:.2rem 0 .9rem; padding-left:1.1rem; font-size:.85rem; }
+#method summary { list-style:none; display:flex; align-items:baseline; gap:.6rem; cursor:pointer; }
+#method summary::-webkit-details-marker { display:none; }
+#method summary h2 { margin:0; }
+#method .tech { font-size:.8rem; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; }
+#method .chev { margin-left:auto; color:var(--ink-dim); transition:transform .15s ease; }
+#method details[open] .chev { transform:rotate(90deg); }
+#method ul { margin:.8rem 0 .9rem; padding-left:1.1rem; font-size:.85rem; }
 #method li { margin-bottom:.35rem; }
 #method .sources { font-size:.78rem; color:var(--ink-dim); margin:0; }
 #method .sources span { display:block; margin-bottom:.2rem; }
@@ -430,13 +436,15 @@ function renderRegister() {
 }
 
 // The words are static; every number shown is read from inputs, never derived.
+// Collapsed by default: the title row names the technique, the fold carries
+// the full pipeline and sources for whoever wants them.
 function renderMethod() {
   const el = document.getElementById('method');
   if (!el) return;
   const pct = (v) => `${Math.round(v * 100)}%`;
-  el.innerHTML = `${secHead('Method',
-    'How the numbers on this page were produced, and where the techniques come from.')}
-    <p>Technique: <strong>${DATA.inputs.technique}</strong> &middot; depth ${DATA.inputs.depth}</p>
+  el.innerHTML = `<details class="method-fold"><summary><h2>Method</h2>
+    <span class="tech">${DATA.inputs.technique} &middot; depth ${DATA.inputs.depth}</span>
+    <span class="chev" aria-hidden="true">&#9656;</span></summary>
     <ul>
       <li>Each task is sized with three points (optimistic / most-likely / pessimistic);
         expected hours use PERT: E = (O + 4M + P) / 6, spread &sigma; = (P &minus; O) / 6.</li>
@@ -458,7 +466,7 @@ function renderMethod() {
     <span>AI speedup categories and the blended formula — Kmino,
       kmino.io/blog/software-estimation-with-ai (practitioner observations, not peer-reviewed).</span>
     <span>Scenario and tier structure — Modular Earth solutions-architecture-agent,
-      github.com/Modular-Earth-LLC/solutions-architecture-agent.</span></p>`;
+      github.com/Modular-Earth-LLC/solutions-architecture-agent.</span></p></details>`;
 }
 
 // Live feedback at the point of interaction: the sticky rail is usually on
@@ -510,6 +518,12 @@ document.getElementById('view-toggle')?.addEventListener('click', () => {
 document.getElementById('theme-toggle')?.addEventListener('click', () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// A collapsed <details> prints as its summary line only — force the method
+// fold open on print so the paper copy still explains itself.
+window.addEventListener('beforeprint', () => {
+  document.querySelector('#method details.method-fold')?.setAttribute('open', '');
 });
 </script>
 </body>

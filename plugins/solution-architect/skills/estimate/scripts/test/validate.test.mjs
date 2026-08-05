@@ -7,6 +7,7 @@ import { computeEstimation } from '../lib/rollup.mjs';
 
 const read = (f) => readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8');
 const inputs = () => JSON.parse(read('booking-inputs.json'));
+const stripRoadmap = (md) => md.replace(/### Roadmap[\s\S]*?(?=### Assumptions)/, '');
 
 test('the pass fixture passes', () => {
   assert.deepEqual(
@@ -15,7 +16,7 @@ test('the pass fixture passes', () => {
 
 test('each seeded violation is caught by name', () => {
   const findings = checkDeliverables({ md: read('estimation-fail.md'), estimation: computeEstimation(inputs()) });
-  for (const needle of ['never 0', 'src', 'assumptions cell', 'assumptions register', 'buffer', 'out of scope', 'scenario']) {
+  for (const needle of ['never 0', 'src', 'assumptions cell', 'assumptions register', 'buffer', 'out of scope', 'scenario', 'roadmap']) {
     assert.ok(findings.some((f) => f.toLowerCase().includes(needle)), `no finding for: ${needle}`);
   }
 });
@@ -41,4 +42,31 @@ test('a Summary without a scope table is refused, not vacuously accepted', () =>
   );
   const findings = checkDeliverables({ md, estimation: computeEstimation(inputs()) });
   assert.ok(findings.some((f) => f.includes('summary scope table missing')));
+});
+
+test('milestones without a Roadmap section are refused', () => {
+  const findings = checkDeliverables({
+    md: stripRoadmap(read('estimation-pass.md')), estimation: computeEstimation(inputs()) });
+  assert.ok(findings.some((f) => f.includes('missing ### Roadmap')));
+});
+
+test('a Roadmap section without milestones is refused', () => {
+  const bare = inputs();
+  for (const f of bare.features) delete f.milestone;
+  const findings = checkDeliverables({
+    md: read('estimation-pass.md'), estimation: computeEstimation(bare) });
+  assert.ok(findings.some((f) => f.includes('no milestones')));
+});
+
+test('no milestones and no Roadmap section is clean', () => {
+  const bare = inputs();
+  for (const f of bare.features) delete f.milestone;
+  assert.deepEqual(checkDeliverables({
+    md: stripRoadmap(read('estimation-pass.md')), estimation: computeEstimation(bare) }), []);
+});
+
+test('the roadmap honesty line is mandatory', () => {
+  const md = read('estimation-pass.md').replace(/not calendar dates/, 'roughly');
+  const findings = checkDeliverables({ md, estimation: computeEstimation(inputs()) });
+  assert.ok(findings.some((f) => f.includes('not calendar dates')));
 });

@@ -78,6 +78,23 @@ function checkScopeRows(summary, out) {
   }
 }
 
+// Roadmap presence must match the inputs: a roadmap nobody asked for is
+// invented scope, milestones without a roadmap is a silently dropped
+// deliverable. The prose line keeps the bands honest — relative, not dated.
+function checkRoadmap(md, estimation, out) {
+  const hasMilestones = (estimation.inputs.features ?? []).some((f) => f.milestone);
+  const section = heading(md, 'Roadmap');
+  if (!hasMilestones) {
+    if (section !== null) out.push('### Roadmap present but inputs carry no milestones');
+    return;
+  }
+  if (section === null) { out.push('missing ### Roadmap section (inputs carry milestones)'); return; }
+  if (tables(section).flatMap((t) => t.rows).length < 1) out.push('roadmap table is empty');
+  if (!/not calendar dates/i.test(section)) {
+    out.push('roadmap must state bands are relative months, not calendar dates');
+  }
+}
+
 function checkRows(md) {
   const out = [];
   checkTaskRows(heading(md, 'Estimation detail') ?? '', out);
@@ -105,5 +122,7 @@ function checkNumbers(estimation) {
 }
 
 export function checkDeliverables({ md, estimation }) {
-  return [...checkStructure(md), ...checkRows(md), ...checkNumbers(estimation)];
+  const out = [...checkStructure(md), ...checkRows(md), ...checkNumbers(estimation)];
+  checkRoadmap(md, estimation, out);
+  return out;
 }

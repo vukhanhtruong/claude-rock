@@ -16,6 +16,16 @@ Recommended delivery: 2 engineers (1 senior, 1 mid) + Claude Code Max 5x — see
 | Risk buffer | 12 |
 | Estimate-spread buffer | 10.91 |
 
+### Roadmap
+
+| Milestone | Features | Months (from start) |
+| --- | --- | --- |
+| M1 - Booking core | User can book appointment | 0–0.3 |
+| M2 - Notifications | Email reminders | 0.3–0.4 |
+
+Sequential delivery by the recommended scenario team. Bands are relative
+months, not calendar dates. Ordering: proposed.
+
 ### Assumptions
 
 | Assumption | Impact if wrong |

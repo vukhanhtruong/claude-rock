@@ -105,9 +105,12 @@ main section h2 {
   display:block; font-size:1.9rem; font-weight:600; line-height:1.15;
   color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em;
 }
-.scenario dl { display:flex; gap:1.2rem; margin:0; }
-.scenario dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
-.scenario dd { margin:0; font-family:'IBM Plex Mono',monospace; font-size:.88rem; }
+.scenario dl, #whatif-readout dl { display:flex; gap:1.2rem; margin:0; }
+.scenario dt, #whatif-readout dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+.scenario dd, #whatif-readout dd { margin:0; font-family:'IBM Plex Mono',monospace; font-size:.88rem; }
+#whatif-readout { border-top:1px solid var(--border); padding-top:.8rem; }
+#whatif-readout .months { margin:0 0 .5rem; }
+#whatif-readout .months .num { font-size:1.5rem; color:var(--accent-ink); }
 /* bars are styled divs — width set inline from data, no canvas, printable */
 .bar-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.45rem; }
 .bar-label {
@@ -211,7 +214,7 @@ tr.conf-low .conf { color:var(--bad); }
   </style>
   <aside id="controls" data-internal>
     <h2>What-if</h2>
-    <p class="hint">Adjust the levers; the dashed custom card and bars update live.</p>
+    <p class="hint">Adjust the levers; the readout below and the dashed custom card update live.</p>
     <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
     <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
     <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
@@ -219,6 +222,7 @@ tr.conf-low .conf { color:var(--bad); }
     <label><span class="lab">AI multiplier <output></output></span><input id="ctl-ai" type="range" min="0" max="1.5" step="0.05"></label>
     <label><span class="lab">risk buffer <output></output></span><input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
     <label><span class="lab">overhead % <output></output></span><input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
+    <div id="whatif-readout" aria-live="polite"></div>
   </aside>
   <!-- internal:end -->
 </main>
@@ -398,6 +402,18 @@ function renderRegister() {
     <tbody>${riskRows}</tbody></table>`;
 }
 
+// Live feedback at the point of interaction: the sticky rail is usually on
+// screen while the custom card is not, so the rail repeats the custom rollup.
+function renderReadout(custom) {
+  const el = document.getElementById('whatif-readout');
+  if (!el) return;
+  el.innerHTML = Number.isFinite(custom.totalCost)
+    ? `<p class="months"><span class="num">${custom.months.toFixed(2)}</span>months</p>
+      <dl><div><dt>total cost</dt><dd>${fmtMoney(custom.totalCost)}</dd></div>
+      <div><dt>effort</dt><dd>${custom.hours.toFixed(1)}h</dd></div></dl>`
+    : '';
+}
+
 function renderAll(defaults) {
   const custom = recompute(currentParams(defaults));
   renderCards(custom);
@@ -405,6 +421,7 @@ function renderAll(defaults) {
   renderTimeline();
   renderTable();
   renderRegister();
+  renderReadout(custom);
 }
 
 const defaults = defaultsFromRecommended();

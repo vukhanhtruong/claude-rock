@@ -61,6 +61,20 @@ test('moving a control updates the custom card and shows the banner', skip, asyn
   } finally { page.close(); }
 });
 
+test('the what-if rail shows a live readout that tracks control changes', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const read = () => page.eval(`document.getElementById('whatif-readout').textContent`);
+    const before = await read();
+    assert.match(before, /months/);
+    await page.eval(`(() => {
+      const ctl = document.getElementById('ctl-engineers');
+      ctl.value = '4'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    assert.notEqual(await read(), before);
+  } finally { page.close(); }
+});
+
 test('client view hides internals; theme toggle flips the root attribute', skip, async () => {
   const page = await openPage(buildPage());
   try {

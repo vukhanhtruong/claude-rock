@@ -25,25 +25,30 @@ The blended AI-adjusted estimate for a task is:
 (AO + 2×AR + TR) / 4
 ```
 
-where `TR` is the task's PERT hours with no AI help, `AR` is TR reduced by
-the category's average speedup (scaled by seniority), and `AO` is TR reduced
-by the category's *maximum* speedup (also scaled by seniority) — the
-optimistic case weighted at 1, the average case weighted at 2, so a single
-lucky run doesn't drag the whole estimate down. This doc explains the
-formula; the code computes it, in `aiAdjust()` in
-`scripts/lib/estimate-math.mjs`. Never re-derive this arithmetic by hand or
-in prose — call the function.
+where `TR` is the task's seniority-scaled hours with no AI help, `AR` is TR
+reduced by the category's average speedup, and `AO` is TR reduced by the
+category's *maximum* speedup — the optimistic case weighted at 1, the
+average case weighted at 2, so a single lucky run doesn't drag the whole
+estimate down. This doc explains the formula; the code computes it, in
+`taskHours()`/`aiAdjust()` in `scripts/lib/estimate-math.mjs`. Never
+re-derive this arithmetic by hand or in prose — call the function.
 
 ## 3. Seniority scaling
 
-The speedup a category promises assumes a mid-level engineer driving the AI.
-`SENIORITY_FACTOR` scales the reduction:
+Task PERT hours assume a mid-level engineer. `SENIORITY_FACTOR` scales the
+**base effort** on every path — traditional and AI alike:
 
 | Seniority | Factor | Effect |
 | --- | --- | --- |
-| junior | 1.15 | reduction scaled up — a junior gets more out of AI assistance on well-scoped tasks, closing more of the gap to a senior's baseline speed |
+| junior | 1.15 | slower baseline — same task takes 15% longer |
 | mid | 1.0 | baseline, no scaling |
-| senior | 0.85 | reduction scaled down — a senior is already fast without AI, so the delta AI adds is smaller |
+| senior | 0.85 | faster baseline — same task takes 15% less |
+
+The AI reduction itself is a property of the task category, not of the
+engineer: scaling the reduction by seniority (an earlier draft of this
+model) made juniors come out *faster than seniors* on AI plans, which no
+delivery data supports. With base-effort scaling, a senior with AI is always
+at or below a junior with AI on the same task.
 
 ## 4. Verification overhead
 
@@ -77,10 +82,12 @@ table and PLAN_PRICES in scripts/lib/estimate-math.mjs in the same commit.
 
 ## Sources
 
-- Formula `(AO + 2×AR + TR) / 4`, per-category reduction ranges, seniority
-  gain variation, and the non-uniform-acceleration warning — Kmino,
-  *Software Estimation with AI* (kmino.io/blog/software-estimation-with-ai).
-  Published practitioner observations, not peer-reviewed data.
+- Formula `(AO + 2×AR + TR) / 4`, per-category reduction ranges, and the
+  non-uniform-acceleration warning — Kmino, *Software Estimation with AI*
+  (kmino.io/blog/software-estimation-with-ai). Published practitioner
+  observations, not peer-reviewed data. Kmino also varies AI gains by
+  seniority; this skill departs from that and scales base effort instead
+  (see §3 for why).
 - Blanket-multiplier prohibition — Kmino's caveat, promoted to hard rule here.
 - Capacity and calibration constants (`HOURS_PER_MONTH`, `COORDINATION_TAX`,
   seniority factors, 12% verification overhead) — this skill's own defaults,

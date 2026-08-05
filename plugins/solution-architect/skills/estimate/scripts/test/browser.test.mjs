@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findChrome } from '../../../arch-docs/scripts/lib/chrome.mjs';
 import { openPage } from '../../../arch-docs/scripts/lib/cdp.mjs';
-import { pert, aiAdjust, scenarioRollup, riskBufferHours, projectBuffer } from '../lib/estimate-math.mjs';
+import { pert, taskHours, scenarioRollup, riskBufferHours, projectBuffer } from '../lib/estimate-math.mjs';
 
 const skip = { skip: !findChrome() && 'no chrome on PATH' };
 const fixture = new URL('./fixtures/booking-inputs.json', import.meta.url).pathname;
@@ -24,9 +24,8 @@ function buildPage(extra = []) {
 function nodeRecompute(p) {
   const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
   const tasks = inputs.features.flatMap((f) => f.tasks);
-  const hoursOf = (t) => p.plan === 'none' ? pert(t).e
-    : aiAdjust({ e: pert(t).e, category: t.category, seniority: p.seniority,
-                 verificationPct: inputs.verificationPct, scale: p.aiScale });
+  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority: p.seniority, plan: p.plan,
+    category: t.category, verificationPct: inputs.verificationPct, scale: p.aiScale });
   const dev = tasks.reduce((s, t) => s + hoursOf(t), 0);
   const buffers = (riskBufferHours(inputs.risks) + projectBuffer(tasks.map((t) => pert(t).sigma))) * p.bufferScale;
   const hours = dev + dev * p.overheadPct + buffers;

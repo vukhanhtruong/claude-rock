@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   pert, projectBuffer, tierFor, aiAdjust, riskBufferHours,
-  effectiveCapacity, scenarioRollup,
+  effectiveCapacity, scenarioRollup, taskHours, SENIORITY_FACTOR,
 } from '../lib/estimate-math.mjs';
 
 const close = (got, want) => assert.ok(Math.abs(got - want) < 1e-9, `${got} !~ ${want}`);
@@ -27,15 +27,39 @@ test('factor scores map to tiers at the documented breaks', () => {
 });
 
 test('aiAdjust applies (AO + 2AR + TR)/4 plus verification overhead', () => {
-  const e = 152 / 6; // boilerplate, mid: red=0.65, redMax=0.8
+  const e = 152 / 6; // boilerplate: red=0.65, redMax=0.8 — category only, no seniority term
   const want = ((e * 0.2 + 2 * (e * 0.35) + e) / 4) * 1.12;
-  close(aiAdjust({ e, category: 'boilerplate', seniority: 'mid', verificationPct: 0.12, scale: 1 }), want);
+  close(aiAdjust({ e, category: 'boilerplate', verificationPct: 0.12, scale: 1 }), want);
 });
 
 test('aiAdjust clamps reduction at 0.9 for outsized scale', () => {
-  const got = aiAdjust({ e: 100, category: 'boilerplate', seniority: 'junior', verificationPct: 0, scale: 1.5 });
-  const red = 0.9; // 0.65 × 1.15 × 1.5 = 1.121 → clamped
+  const got = aiAdjust({ e: 100, category: 'boilerplate', verificationPct: 0, scale: 1.5 });
+  const red = 0.9; // 0.65 × 1.5 = 0.975 → clamped
   close(got, (100 * (1 - red) * 3 + 100) / 4); // redMax also clamps to 0.9 so ao == ar
+});
+
+test('taskHours: seniority scales base effort on the traditional path', () => {
+  const base = { e: 100, plan: 'none', category: 'logic', verificationPct: 0.12 };
+  close(taskHours({ ...base, seniority: 'senior' }), 85);
+  close(taskHours({ ...base, seniority: 'mid' }), 100);
+  close(taskHours({ ...base, seniority: 'junior' }), 115);
+});
+
+test('taskHours: a senior is never slower than a junior, with or without AI', () => {
+  for (const plan of ['none', 'max5x']) {
+    for (const category of ['boilerplate', 'logic', 'novel']) {
+      const at = (seniority) => taskHours({ e: 100, seniority, plan, category, verificationPct: 0.12 });
+      assert.ok(at('senior') < at('mid') && at('mid') < at('junior'),
+        `${plan}/${category}: ${at('senior')} < ${at('mid')} < ${at('junior')} violated`);
+    }
+  }
+});
+
+test('taskHours: AI plan reduces hours versus the same seniority without AI', () => {
+  for (const seniority of Object.keys(SENIORITY_FACTOR)) {
+    const at = (plan) => taskHours({ e: 100, seniority, plan, category: 'boilerplate', verificationPct: 0.12 });
+    assert.ok(at('max5x') < at('none'), `${seniority}: AI ${at('max5x')} !< ${at('none')}`);
+  }
 });
 
 test('risk buffer is probability times impact, summed', () => {

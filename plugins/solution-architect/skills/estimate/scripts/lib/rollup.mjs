@@ -2,7 +2,7 @@
 // task, AI-adjusted hours per (task × scenario), buffers, and cost rollups.
 // Every map is assembled with sorted keys so repeat runs are byte-identical.
 import {
-  pert, projectBuffer, aiAdjust, riskBufferHours, scenarioRollup,
+  pert, projectBuffer, taskHours, riskBufferHours, scenarioRollup,
 } from './estimate-math.mjs';
 
 const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
@@ -32,11 +32,10 @@ export function taskHoursFor(scenario, tasks) {
   const seniority = dominantSeniority(scenario.team);
   const entries = Object.keys(tasks).map((id) => [
     id,
-    scenario.plan === 'none'
-      ? tasks[id].e
-      : aiAdjust({
-        e: tasks[id].e, category: tasks[id].category, seniority, verificationPct: tasks[id].verificationPct,
-      }),
+    taskHours({
+      e: tasks[id].e, seniority, plan: scenario.plan,
+      category: tasks[id].category, verificationPct: tasks[id].verificationPct,
+    }),
   ]);
   return sortedMap(entries);
 }

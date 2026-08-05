@@ -30,13 +30,20 @@ export function tierFor(scores) {
 
 const clampRed = (r) => Math.min(Math.max(r, 0), 0.9);
 
-export function aiAdjust({ e, category, seniority, verificationPct, scale = 1 }) {
+export function aiAdjust({ e, category, verificationPct, scale = 1 }) {
   const { min, max } = AI_CATEGORIES[category];
-  const factor = SENIORITY_FACTOR[seniority] * scale;
-  const red = clampRed(((min + max) / 2) * factor);
-  const redMax = clampRed(max * factor);
+  const red = clampRed(((min + max) / 2) * scale);
+  const redMax = clampRed(max * scale);
   const [tr, ar, ao] = [e, e * (1 - red), e * (1 - redMax)];
   return ((ao + 2 * ar + tr) / 4) * (1 + verificationPct);
+}
+
+// Seniority scales the base effort on every path; the AI reduction is a
+// property of the task category alone. Scaling the reduction by seniority
+// instead made juniors come out faster than seniors on AI plans.
+export function taskHours({ e, seniority, plan, category, verificationPct, scale = 1 }) {
+  const base = e * SENIORITY_FACTOR[seniority];
+  return plan === 'none' ? base : aiAdjust({ e: base, category, verificationPct, scale });
 }
 
 export function riskBufferHours(risks) {

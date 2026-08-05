@@ -242,9 +242,8 @@ badge.className = `${DATA.computed.projectConfidence.toLowerCase()} ${confLevel(
 // what-if engine and the parity hook the browser tests call directly.
 function recompute(p) {
   const tasks = DATA.inputs.features.flatMap((f) => f.tasks);
-  const hoursOf = (t) => p.plan === 'none' ? pert(t).e
-    : aiAdjust({ e: pert(t).e, category: t.category, seniority: p.seniority,
-                 verificationPct: DATA.inputs.verificationPct, scale: p.aiScale });
+  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority: p.seniority, plan: p.plan,
+    category: t.category, verificationPct: DATA.inputs.verificationPct, scale: p.aiScale });
   const dev = tasks.reduce((s, t) => s + hoursOf(t), 0);
   const buffers = (riskBufferHours(DATA.inputs.risks)
     + projectBuffer(tasks.map((t) => pert(t).sigma))) * p.bufferScale;

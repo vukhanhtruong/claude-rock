@@ -70,15 +70,14 @@ main {
   display:grid; grid-template-columns:1fr; gap:1.1rem;
   max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem;
 }
-#scenario-cards, #cost-bars, #timeline { grid-column:1; }
-#feature-table, #register { grid-column:1 / -1; }
-main > section:empty { display:none; }
+.col { display:grid; gap:1.1rem; min-width:0; align-content:start; }
+.col > section:empty { display:none; }
 main section h2 {
   font-size:.82rem; font-weight:600; color:var(--ink-dim);
   margin:0 0 .8rem; letter-spacing:.01em;
 }
 /* panels: every section except the scenario card grid reads as one surface */
-main > section {
+.col > section {
   background:var(--card); border:1px solid var(--border); border-radius:.6rem;
   padding:1.1rem 1.2rem; box-shadow:var(--shadow);
 }
@@ -183,20 +182,31 @@ tr.conf-low .conf { color:var(--bad); }
 </header>
 <p id="modified-banner" role="status" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
 <main>
-  <section id="scenario-cards"></section>
+  <div class="col">
+    <section id="scenario-cards"></section>
+    <section id="cost-bars"></section>
+    <section id="timeline"></section>
+    <section id="feature-table"></section>
+    <section id="register"></section>
+  </div>
   <!-- internal:start -->
   <style>
-  /* internal-only layout: two columns with a sticky what-if rail. Lives in the
+  /* internal-only layout: two columns with a sticky what-if rail. The rail is
+     its own full-height grid column, so the sticky box is constrained to the
+     whole page — it can never paint over the sections beside it. Lives in the
      internal range so the client-only render collapses back to one column.
      @media screen so the print rules in the head keep winning on paper. */
   @media screen {
     main { grid-template-columns:minmax(0, 1fr) 300px; }
-    #controls { grid-column:2; grid-row:1 / span 3; align-self:start; position:sticky; top:4.2rem; }
+    #controls {
+      align-self:start; position:sticky; top:4.2rem;
+      max-height:calc(100vh - 5.5rem); overflow:auto;
+    }
     .view-client main { grid-template-columns:1fr; }
   }
   @media screen and (max-width:900px) {
     main { grid-template-columns:1fr; }
-    #controls { grid-column:1; grid-row:auto; position:static; }
+    #controls { position:static; max-height:none; }
   }
   </style>
   <aside id="controls" data-internal>
@@ -211,10 +221,6 @@ tr.conf-low .conf { color:var(--bad); }
     <label><span class="lab">overhead % <output></output></span><input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
   </aside>
   <!-- internal:end -->
-  <section id="cost-bars"></section>
-  <section id="timeline"></section>
-  <section id="feature-table"></section>
-  <section id="register"></section>
 </main>
 <script type="application/json" id="estimation-data"><!-- slot:DATA --></script>
 <script>

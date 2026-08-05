@@ -29,6 +29,20 @@ function checkFeature(feature, out) {
   for (const task of feature.tasks ?? []) checkTask(task, out);
 }
 
+// Roadmap is all-or-nothing: a half-labeled feature list would render a
+// half-roadmap that silently drops scope, so partial labeling is refused.
+function checkMilestones(features, out) {
+  const withMs = features.filter((f) => f.milestone !== undefined);
+  if (withMs.length === 0) return;
+  for (const f of features) {
+    if (f.milestone === undefined) {
+      out.push(`feature ${f.id}: milestone missing (all features must carry one when any does)`);
+    } else if (!(typeof f.milestone === 'string' && f.milestone.trim())) {
+      out.push(`feature ${f.id}: milestone must be a non-empty string`);
+    }
+  }
+}
+
 function checkScenarios(inputs, out) {
   const ids = (inputs.scenarios ?? []).map((s) => s.id);
   if (!ids.includes(inputs.recommendedScenario)) out.push('recommendedScenario names no scenario');
@@ -59,6 +73,7 @@ export function checkInputs(inputs) {
     if (!(key in inputs)) out.push(`missing top-level "${key}"`);
   }
   for (const feature of inputs.features ?? []) checkFeature(feature, out);
+  checkMilestones(inputs.features ?? [], out);
   checkScenarios(inputs, out);
   checkGlobals(inputs, out);
   return out;

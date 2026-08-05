@@ -73,3 +73,18 @@ test('inherited object keys do not pass the enum checks', () => {
   assert.ok(findings.some((f) => f.includes('3eng-noai') && f.includes('seniority')));
   assert.ok(findings.some((f) => f.includes('2eng-max5x') && f.includes('plan')));
 });
+
+test('milestones are all-or-nothing across features', () => {
+  const bad = fixture();
+  bad.features[0].milestone = 'M1 - Booking core';   // features[1] has none
+  const findings = checkInputs(bad);
+  assert.ok(findings.some((f) => f.includes('reminders') && f.includes('milestone missing')));
+});
+
+test('a blank milestone is refused; none at all is fine', () => {
+  const bad = fixture();
+  bad.features[0].milestone = '  ';
+  bad.features[1].milestone = 'M2';
+  assert.ok(checkInputs(bad).some((f) => f.includes('booking') && f.includes('non-empty')));
+  assert.deepEqual(checkInputs(fixture()), []);      // no milestones → still valid
+});

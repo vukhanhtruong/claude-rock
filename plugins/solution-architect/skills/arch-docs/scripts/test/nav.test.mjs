@@ -191,6 +191,28 @@ test('a section row routes to its first document when it has no index', () => {
   assert.match(buildNav(pages, routeMap(pages)), /class="nav-sec"[^>]*data-route="architecture"/);
 });
 
+// The estimate skill's writing template mandates `# <Project> — Estimation`, so
+// that H1 always arrives carrying the project prefix. A 191px rail clips it at
+// the prefix, and the row then reads as a second copy of the spine's — the one
+// word that distinguishes it is the word that gets cut. Companions are railed by
+// kind; the full title stays on the row's hover title.
+test('a companion document is railed by its kind, not its prefixed H1', () => {
+  const est = { ...page('Big Co — Atlas, Forge and Relay — Estimation', 'doc-est', [], 'Architecture'), kind: 'estimation' };
+  const nav = buildNav([est]);
+  assert.match(nav, /nav-group__title">Estimation</);
+  assert.match(nav, /title="Big Co — Atlas, Forge and Relay — Estimation"/);
+});
+
+test('the spine keeps its own title in the rail', () => {
+  const nav = buildNav([{ ...page('Big Co — The Planes', 'doc-a', [], 'Architecture'), kind: 'spine' }]);
+  assert.match(nav, /nav-group__title">Big Co — The Planes</);
+});
+
+test('an unclassified document keeps its own title in the rail', () => {
+  assert.match(buildNav([page('Interface Contract', 'doc-ic', [], 'Architecture')]),
+    /nav-group__title">Interface Contract</);
+});
+
 /* ---------- drawer sections ---------- */
 
 // A Decision Records rail row is §14's table a second time. The records open in a

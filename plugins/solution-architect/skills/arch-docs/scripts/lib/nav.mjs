@@ -1,5 +1,6 @@
 import { escapeHtml, stripInline } from './md-inline.mjs';
 import { bucketPages, isDrawerBucket, landingOf, slugOf } from './doc-sections.mjs';
+import { labelOf } from './doc-kinds.mjs';
 
 // The rail is two levels deep. One <details> per source document keeps the ~120
 // headings of a real set from reading as a wall of near-duplicate labels
@@ -22,11 +23,14 @@ function link(heading) {
 function group(page, open, route) {
   const doc = page.docId ? ` data-doc="${escapeHtml(page.docId)}"` : '';
   const title = escapeHtml(stripInline(page.title));
+  // The row shows the short kind label where there is one; the hover title keeps
+  // the H1, so nothing the rail shortens is lost.
+  const label = escapeHtml(labelOf(page.kind) ?? stripInline(page.title));
   return [
     `<details class="nav-group"${route ? ` data-route="${route}"` : ''}`
       + `${open ? ' open' : ''}${doc}>`,
     `<summary class="nav-group__head" title="${title}">${CHEVRON}`,
-    `<span class="nav-group__title">${title}</span>`,
+    `<span class="nav-group__title">${label}</span>`,
     `<span class="nav-group__count">${page.headings.length}</span>`,
     '</summary>',
     `<div class="nav-group__body">${page.headings.map(link).join('')}</div>`,

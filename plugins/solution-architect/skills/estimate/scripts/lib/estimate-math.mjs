@@ -60,3 +60,16 @@ export function scenarioRollup({ hours, team, plan }) {
   const planCost = months * PLAN_PRICES[plan] * team.length;
   return { months, laborCost, planCost, totalCost: laborCost + planCost };
 }
+
+// Sequential roadmap: each milestone's band width is its share of total task
+// hours × scenario months, so bands tile [0, months] and buffers/overhead
+// spread proportionally instead of piling up at the end.
+export function roadmapBands({ milestones, months }) {
+  const total = milestones.reduce((sum, m) => sum + m.hours, 0);
+  let at = 0;
+  return milestones.map((m) => {
+    const startMonths = at;
+    at += total > 0 ? (m.hours / total) * months : 0;
+    return { name: m.name, startMonths, endMonths: at };
+  });
+}

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   pert, projectBuffer, tierFor, aiAdjust, riskBufferHours,
-  effectiveCapacity, scenarioRollup, taskHours, SENIORITY_FACTOR,
+  effectiveCapacity, scenarioRollup, taskHours, SENIORITY_FACTOR, roadmapBands,
 } from '../lib/estimate-math.mjs';
 
 const close = (got, want) => assert.ok(Math.abs(got - want) < 1e-9, `${got} !~ ${want}`);
@@ -80,4 +80,23 @@ test('scenarioRollup: 1008h, 2 mid @45, max5x → 4.0mo, $51,200', () => {
   close(got.laborCost, 50400);
   close(got.planCost, 800);
   close(got.totalCost, 51200);
+});
+
+test('roadmapBands tiles [0, months] proportionally to hours, in order', () => {
+  const bands = roadmapBands({
+    milestones: [{ name: 'M1', hours: 60 }, { name: 'M2', hours: 40 }],
+    months: 5,
+  });
+  assert.deepEqual(bands.map((b) => b.name), ['M1', 'M2']);
+  close(bands[0].startMonths, 0);
+  close(bands[0].endMonths, 3);
+  close(bands[1].startMonths, 3);   // no gap: starts where M1 ends
+  close(bands[1].endMonths, 5);     // last band ends at total months
+});
+
+test('roadmapBands: single milestone spans the whole project', () => {
+  const bands = roadmapBands({ milestones: [{ name: 'All', hours: 90 }], months: 4.2 });
+  assert.equal(bands.length, 1);
+  close(bands[0].startMonths, 0);
+  close(bands[0].endMonths, 4.2);
 });

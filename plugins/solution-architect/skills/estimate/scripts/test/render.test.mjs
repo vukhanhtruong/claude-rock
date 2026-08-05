@@ -55,6 +55,10 @@ test('the page carries a method section with source attributions', () => {
   assert.match(html, /kmino\.io/);
 });
 
+test('the method section comes first — how before how-much', () => {
+  assert.match(tpl(), /<div class="col">\s*<section id="method">/);
+});
+
 test('--client-only strips every internal range', () => {
   const html = renderedPage(['--client-only']);
   assert.doesNotMatch(html, /data-internal|internal:start|ctl-engineers/);

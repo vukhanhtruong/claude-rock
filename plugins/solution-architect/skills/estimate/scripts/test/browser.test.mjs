@@ -47,6 +47,17 @@ test('page boots without console errors and browser math equals node math', skip
   } finally { page.close(); }
 });
 
+test('the scenario cards show only committed scenarios — the rail owns what-if', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
+    const cards = await page.eval(`[...document.querySelectorAll('#scenario-cards .scenario h3')].map((h) => h.textContent)`);
+    assert.deepEqual(cards.sort(), inputs.scenarios.map((s) => s.id).sort());
+    const bars = await page.eval(`[...document.querySelectorAll('#cost-bars .bar-label')].map((b) => b.textContent)`);
+    assert.ok(!bars.some((b) => b.startsWith('custom')), `custom bar leaked: ${bars}`);
+  } finally { page.close(); }
+});
+
 test('moving a control updates the custom card and shows the banner', skip, async () => {
   const page = await openPage(buildPage());
   try {

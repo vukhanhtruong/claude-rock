@@ -117,7 +117,6 @@ details.help > p {
   color:var(--ink-dim); margin:0 0 .5rem; overflow-wrap:anywhere;
 }
 .scenario.recommended { border-color:var(--accent); background:linear-gradient(var(--accent-soft), transparent 55%) var(--card); }
-.scenario.custom { border-style:dashed; }
 .flag {
   position:absolute; top:.7rem; right:.8rem; font-size:.62rem; font-weight:600;
   letter-spacing:.04em; color:var(--accent-ink); background:var(--accent-soft);
@@ -143,10 +142,6 @@ details.help > p {
 .bar-track { flex:1; height:.8rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
 .bar-fill { display:block; height:100%; background:var(--accent); opacity:.5; border-radius:.3rem; }
 .bar-fill.is-rec { opacity:1; }
-.bar-fill.is-custom {
-  opacity:.8;
-  background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 4px, transparent 4px 8px);
-}
 .bar-val {
   flex:0 0 auto; min-width:5.5rem; text-align:right;
   font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
@@ -209,12 +204,12 @@ tr.conf-low .conf { color:var(--bad); }
 <p id="modified-banner" role="status" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
 <main>
   <div class="col">
+    <section id="method"></section>
     <section id="scenario-cards"></section>
     <section id="cost-bars"></section>
     <section id="timeline"></section>
     <section id="feature-table"></section>
     <section id="register"></section>
-    <section id="method"></section>
   </div>
   <!-- internal:start -->
   <style>
@@ -239,7 +234,7 @@ tr.conf-low .conf { color:var(--bad); }
   <aside id="controls" data-internal>
     <div class="sec-head"><h2>What-if</h2><details class="help"><summary aria-label="explain this panel">?</summary>
       <p>The levers re-run the exact same formulas as the committed numbers, in your browser. Nothing here changes the committed estimate — it answers "what would it look like if&hellip;".</p></details></div>
-    <p class="hint">Adjust the levers; the readout below and the dashed custom card update live.</p>
+    <p class="hint">Adjust the levers; the readout below updates live.</p>
     <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
     <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
     <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
@@ -349,47 +344,34 @@ function barRow({ label, value, max, text, cls }) {
 
 function scenarioCard(id, s) {
   const rec = id === DATA.inputs.recommendedScenario;
-  const custom = id.startsWith('custom');
-  return `<article class="card scenario${rec ? ' recommended' : ''}${custom ? ' custom' : ''}">
+  return `<article class="card scenario${rec ? ' recommended' : ''}">
     ${rec ? '<span class="flag">recommended</span>' : ''}<h3>${id}</h3>
     <p class="months"><span class="num">${s.months.toFixed(2)}</span>months</p>
     <dl><div><dt>total cost</dt><dd>${fmtMoney(s.totalCost)}</dd></div>
     <div><dt>effort</dt><dd>${s.hours.toFixed(1)}h</dd></div></dl></article>`;
 }
 
-// The custom entry is skipped when its rollup is not finite: the client-only
-// render redacts rates, so the what-if defaults cannot price a custom
-// scenario there — rendering "$NaN" would violate the honesty rules.
-function withCustom(entries, custom, label) {
-  return Number.isFinite(custom.totalCost) ? [...entries, [label, custom]] : entries;
-}
-
-function renderCards(custom) {
+function renderCards() {
   const el = document.getElementById('scenario-cards');
   if (!el) return;
-  const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom (what-if)');
+  const entries = Object.entries(DATA.computed.scenarios);
   el.innerHTML = secHead('Delivery scenarios',
-    'Each card is one way to staff and deliver the same scope. Months and cost are computed '
-    + 'from the same task hours; the highlighted card is the recommended estimate, the dashed '
-    + 'card mirrors the what-if levers.')
+    'Each card is one committed way to staff and deliver the same scope. Months and cost are '
+    + 'computed from the same task hours; the highlighted card is the recommended estimate. '
+    + 'Sandbox variations live in the what-if panel.')
     + `<div class="cards">${entries.map(([id, s]) => scenarioCard(id, s)).join('')}</div>`;
 }
 
-function barClass(id) {
-  if (id === DATA.inputs.recommendedScenario) return 'is-rec';
-  return id.startsWith('custom') ? 'is-custom' : '';
-}
-
-function renderBars(custom) {
+function renderBars() {
   const el = document.getElementById('cost-bars');
   if (!el) return;
-  const entries = withCustom(Object.entries(DATA.computed.scenarios), custom, 'custom');
+  const entries = Object.entries(DATA.computed.scenarios);
   const max = Math.max(...entries.map(([, s]) => s.totalCost));
   el.innerHTML = secHead('Total cost by scenario',
     'Labor (months × team rates) plus Claude plan seats, per scenario. Bar lengths are '
     + 'proportional to the most expensive scenario.')
-    + entries.map(([id, s]) =>
-      barRow({ label: id, value: s.totalCost, max, text: fmtMoney(s.totalCost), cls: barClass(id) })).join('');
+    + entries.map(([id, s]) => barRow({ label: id, value: s.totalCost, max, text: fmtMoney(s.totalCost),
+      cls: id === DATA.inputs.recommendedScenario ? 'is-rec' : '' })).join('');
 }
 
 function renderTimeline() {
@@ -492,14 +474,13 @@ function renderReadout(custom) {
 }
 
 function renderAll(defaults) {
-  const custom = recompute(currentParams(defaults));
-  renderCards(custom);
-  renderBars(custom);
+  renderCards();
+  renderBars();
   renderTimeline();
   renderTable();
   renderRegister();
   renderMethod();
-  renderReadout(custom);
+  renderReadout(recompute(currentParams(defaults)));
 }
 
 const defaults = defaultsFromRecommended();

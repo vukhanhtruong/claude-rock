@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="en">
+<!-- data-theme is stated rather than left to the browser: this page opens dark,
+     and the toggle flips from a known state so its first click always bites. -->
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +10,19 @@
 <title><!-- slot:TITLE --> — Estimate</title>
 <style>
 <!-- slot:FONTS -->
+/* color-scheme is declared, not left at `normal`: a page that never states its
+   scheme is the page a force-dark browser rewrites, and then the toggle flips
+   data-theme with nothing visible changing — the button reads as broken. Stated
+   per theme, forced dark is off and the native controls in the what-if rail
+   (number, range, select) follow the page instead of fighting it.
+
+   The light palette is unconditional and the dark one is scoped to @media screen
+   below, so this block doubles as the paper palette: the page opens dark on a
+   display, and printing it falls back here instead of spending a full-bleed page
+   of ink. Written as a fallback rather than as a second copy inside @media print
+   — a duplicated palette is a palette that drifts. */
 :root {
+  color-scheme:light;
   --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
   --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
   --warn:#b45309; --warn-soft:rgba(180,83,9,.1);
@@ -16,13 +30,16 @@
   --border:#e6e1d5; --border-strong:#cfc8b8;
   --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
 }
-:root[data-theme="dark"] {
-  --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
-  --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
-  --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
-  --bad:#e5726b; --ok:#5dbb7a; --card:#181d1c;
-  --border:#263230; --border-strong:#3a4a46;
-  --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme:dark;
+    --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
+    --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
+    --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
+    --bad:#e5726b; --ok:#5dbb7a; --card:#181d1c;
+    --border:#263230; --border-strong:#3a4a46;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
 }
 * { box-sizing: border-box; }
 body {
@@ -687,6 +704,11 @@ function roadmapTicks(total, roadmap) {
 
 const tickPct = (m, total) => (total > 0 ? (m / total) * 100 : 0);
 
+// Milestone names and feature lists are the only free text the roadmap draws, and
+// they now land in an attribute as well as in the body — so both are escaped
+// rather than the quote being left to break out of the title.
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
 function roadmapRow(band, total, names, ticks) {
   const left = (band.startMonths / total) * 100;
   const width = ((band.endMonths - band.startMonths) / total) * 100;
@@ -695,9 +717,14 @@ function roadmapRow(band, total, names, ticks) {
     const style = pct <= 0 ? 'left:0' : pct >= 100 ? 'right:0' : `left:${pct}%`;
     return `<span class="roadmap-gridline" style="${style}"></span>`;
   }).join('');
+  // 150px of label column against "M1 - Foundation: the governed write path": every
+  // row clips, and a clipped Gantt label names nothing. Widening the column would
+  // cost the axis the span it needs, so each label carries its own full text as a
+  // hover title instead.
+  const feats = band.features.map((id) => names[id]);
   return `<div class="roadmap-row">
-    <div class="roadmap-label"><span class="roadmap-name">${band.milestone}</span>
-      <span class="roadmap-feature-names">${band.features.map((id) => names[id]).join(' &middot; ')}</span></div>
+    <div class="roadmap-label"><span class="roadmap-name" title="${esc(band.milestone)}">${esc(band.milestone)}</span>
+      <span class="roadmap-feature-names" title="${esc(feats.join(' · '))}">${feats.map(esc).join(' &middot; ')}</span></div>
     <div class="roadmap-track">${gridlines}<span class="roadmap-band" style="left:${left}%;width:${width}%"></span></div>
     <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></div>`;
 }

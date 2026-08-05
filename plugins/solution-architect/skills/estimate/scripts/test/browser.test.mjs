@@ -108,7 +108,7 @@ test('client view hides internals; theme toggle flips the root attribute', skip,
     assert.equal(await page.eval(
       `getComputedStyle(document.getElementById('controls')).display`), 'none');
     await page.eval(`document.getElementById('theme-toggle').click()`);
-    assert.equal(await page.eval(`document.documentElement.dataset.theme`), 'dark');
+    assert.equal(await page.eval(`document.documentElement.dataset.theme`), 'light');
   } finally { page.close(); }
 });
 
@@ -274,6 +274,63 @@ test('roadmap renders committed bands and ignores the what-if rail', skip, async
     })()`);
     assert.equal(await page.eval(`document.getElementById('roadmap').innerHTML`), before,
       'roadmap must stay frozen at the committed estimate');
+  } finally { page.close(); }
+});
+
+// 150px of label column against milestone names that read "M1 - Foundation: the
+// governed write path": every row clips, and a clipped Gantt label names nothing.
+// The row carries the full text as its hover title so the axis stays narrow.
+test('a clipped roadmap label still names its milestone on hover', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const rows = await page.eval(`[...document.querySelectorAll('#roadmap .roadmap-row')].map((r) => ({
+      name: r.querySelector('.roadmap-name').textContent,
+      nameTitle: r.querySelector('.roadmap-name').title,
+      featTitle: r.querySelector('.roadmap-feature-names').title,
+      feats: r.querySelector('.roadmap-feature-names').textContent,
+    }))`);
+    assert.equal(rows.length, 2);
+    for (const row of rows) {
+      assert.equal(row.nameTitle, row.name, 'milestone name must carry its own full text');
+      assert.equal(row.featTitle, row.feats, 'feature list must carry its own full text');
+    }
+  } finally { page.close(); }
+});
+
+// A page that declares no color-scheme is the page a force-dark browser rewrites,
+// and the toggle then flips data-theme with nothing visible changing — the button
+// reads as broken. Declared per theme, forced dark is off and the toggle bites.
+const READ_THEME = `({
+  theme: document.documentElement.dataset.theme || null,
+  scheme: getComputedStyle(document.documentElement).colorScheme,
+  bg: getComputedStyle(document.body).backgroundColor,
+})`;
+
+test('the page opens dark, declares its scheme, and the toggle flips both', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const before = await page.eval(READ_THEME);
+    assert.equal(before.theme, 'dark');
+    assert.equal(before.scheme, 'dark');
+    await page.eval(`document.getElementById('theme-toggle').click()`);
+    const after = await page.eval(READ_THEME);
+    assert.equal(after.theme, 'light');
+    assert.equal(after.scheme, 'light');
+    assert.notEqual(after.bg, before.bg, 'the first click must change what the reader sees');
+  } finally { page.close(); }
+});
+
+// The estimate is a document that gets printed and handed over. A dark screen
+// default must not follow it onto paper — that is a full-bleed ink page and grey
+// text on it. The dark palette is scoped to screen so paper keeps the light one.
+test('the dark default stops at the screen — paper stays light', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const screen = await page.eval(READ_THEME);
+    await page.send('Emulation.setEmulatedMedia', { media: 'print' });
+    const paper = await page.eval(READ_THEME);
+    assert.equal(paper.bg, 'rgb(247, 245, 240)');
+    assert.notEqual(paper.bg, screen.bg, 'print must not inherit the dark background');
   } finally { page.close(); }
 });
 

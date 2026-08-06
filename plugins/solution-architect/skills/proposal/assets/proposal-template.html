@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><!-- slot:TITLE --></title>
+<style>
+<!-- slot:FONTS -->
+:root {
+  --ink: #1a1d21; --muted: #5c6470; --line: #d9dde3;
+  --accent: #0f5c5a; --bg: #ffffff; --wash: #f6f7f9;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.65 "IBM Plex Sans", system-ui, sans-serif;
+}
+nav {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 230px;
+  padding: 2.5rem 1.5rem; border-right: 1px solid var(--line);
+  background: var(--wash); overflow-y: auto;
+}
+nav a {
+  display: block; color: var(--muted); text-decoration: none;
+  font-size: .85rem; padding: .3rem 0;
+}
+nav a:hover { color: var(--accent); }
+main { max-width: 72ch; margin: 0 auto; padding: 3rem 2rem 5rem; }
+@media (min-width: 980px) { main { margin-left: 270px; } }
+@media (max-width: 979px) { nav { display: none; } }
+h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -.01em; }
+h2 {
+  font-size: 1.25rem; margin-top: 2.6rem; padding-top: 1.2rem;
+  border-top: 1px solid var(--line); color: var(--accent);
+}
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--line); }
+th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+strong { font-weight: 600; }
+code, pre { font-family: "IBM Plex Mono", monospace; font-size: .9em; }
+.diagram-shell { margin: 1.5rem 0; padding: 1rem; background: var(--wash); border-radius: 8px; }
+.mermaid-canvas svg { max-width: 100%; height: auto; }
+@media print {
+  nav { display: none; }
+  main { margin: 0 auto; padding: 0; max-width: none; }
+  h2 { break-after: avoid; }
+  table, .diagram-shell { break-inside: avoid; }
+  @page { size: A4; margin: 22mm 18mm; }
+}
+</style>
+</head>
+<body>
+<nav aria-label="Sections">
+<!-- slot:NAV -->
+</nav>
+<main>
+<!-- slot:CONTENT -->
+</main>
+<script>
+<!-- slot:MERMAID_BUNDLE -->
+</script>
+<script>
+mermaid.initialize({ startOnLoad: false, theme: 'neutral', fontFamily: '"IBM Plex Sans", sans-serif' });
+mermaid.run({ querySelector: '.mermaid-canvas' });
+</script>
+</body>
+</html>

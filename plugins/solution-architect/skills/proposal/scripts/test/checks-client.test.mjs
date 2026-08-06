@@ -91,6 +91,16 @@ test('the headline cost range must be present', () => {
   assert.ok(findings.some((f) => f.includes('2.4')));
 });
 
+test('a lone invented duration is a finding', () => {
+  assert.ok(run(md.replace('Weekly demos.', 'Live within 9 months.')).some((f) => f.includes('9')));
+});
+
+test('headline ranges must live in the Executive Summary itself', () => {
+  const buried = md.replace('New booking system for $8,000 – $12,000, delivered in 1.6–2.4 months.', 'A fair price, fast.');
+  const findings = run(buried);
+  assert.ok(findings.some((f) => /Executive Summary/.test(f)));
+});
+
 test('other scenario ids and provenance markup are leaks', () => {
   assert.ok(run(md.replace('Weekly demos.', 'Cheaper than s2-secret.')).some((f) => f.includes('s2-secret')));
   assert.ok(run(md.replace('| Feature | What you get |', '| Feature | src |')).some((f) => f.includes('src')));

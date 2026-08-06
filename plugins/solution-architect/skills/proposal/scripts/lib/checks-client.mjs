@@ -21,14 +21,23 @@ function checkMoney(md, figures, out) {
       if (!allowed.has(bound)) out.push(`duration bound ${bound} months not derived from estimation.json`);
     }
   }
+  for (const m of md.matchAll(/(\d+(?:\.\d+)?)\s+months\b/g)) {
+    const n = Number(m[1]);
+    if (!allowed.has(n)) out.push(`duration bound ${n} months not derived from estimation.json`);
+  }
 }
 
 function checkHeadline(md, figures, out) {
+  const summary = sectionText(md, 'Executive Summary') ?? '';
   for (const n of [figures.cost.low, figures.cost.high]) {
-    if (!md.includes(n.toLocaleString('en-US'))) out.push(`headline cost bound ${n.toLocaleString('en-US')} missing`);
+    if (!summary.includes(n.toLocaleString('en-US'))) {
+      out.push(`headline cost bound ${n.toLocaleString('en-US')} missing from Executive Summary`);
+    }
   }
   for (const n of [figures.months.low, figures.months.high]) {
-    if (!new RegExp(`\\b${escapeRegExp(String(n))}\\b`).test(md)) out.push(`headline duration bound ${n} missing`);
+    if (!new RegExp(`\\b${escapeRegExp(String(n))}\\b`).test(summary)) {
+      out.push(`headline duration bound ${n} missing from Executive Summary`);
+    }
   }
 }
 

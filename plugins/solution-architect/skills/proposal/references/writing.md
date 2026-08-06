@@ -24,8 +24,9 @@ source_estimation: ../estimation.json
 first, keep proposal-figures.json open, and use only those values: the cost
 range, the duration range, and the per-milestone splits. Money is written
 `$8,000` (en-US grouping); durations are written `1.6–2.4 months`. The
-validator extracts every money amount and duration range in the document
-and refuses any value the derivation didn't produce — and it recomputes the
+validator extracts every money amount and duration (ranges and single
+mentions) in the document and refuses any value the derivation didn't
+produce — and it recomputes the
 figures from estimation.json itself, so editing proposal-figures.json by
 hand changes nothing.
 

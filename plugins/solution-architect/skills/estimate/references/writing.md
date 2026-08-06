@@ -29,6 +29,16 @@ core"`). Milestones are all-or-nothing: if any feature has one, every feature
 must, or `schema.mjs` refuses the inputs. Features sharing a label form one
 milestone; label order of first appearance in `features` = delivery order.
 
+Inputs may also carry a top-level `components` roster (each entry `id`,
+`name`, optional `parent` naming a top-level entry — two levels max, C4
+container → component — and optional `notEstimated: "<reason>"`). Components
+are all-or-nothing like milestones: when the roster exists, every feature
+carries a `component` that resolves to a roster id. Every leaf entry must be
+covered by at least one feature or carry a `notEstimated` reason —
+`schema.mjs` refuses an uncovered component, because a component in the
+architecture with no planned work is a scope hole, not an omission to paper
+over.
+
 ## 2. `estimation.md` — two-part skeleton
 
 Mirror `scripts/test/fixtures/estimation-pass.md` exactly. Two top-level

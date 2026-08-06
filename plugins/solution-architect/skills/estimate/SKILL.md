@@ -26,7 +26,9 @@ interactive what-if page served on localhost.
    State findings; the user can override. (`references/interview.md` §1)
 2. **Depth**: ask QUICK / STANDARD / DEEP first.
 3. **Interview**: follow `references/interview.md` — pre-fill from evidence,
-   ask only holes, run the clear-vs-assumed gate before sizing.
+   ask only holes, run the clear-vs-assumed gate before sizing. Before
+   proposing milestones, read `references/slicing.md` — slices are judged
+   there, not computed.
 4. **Technique**: recommend from `references/techniques.md`, state why,
    cite the method's sources (its §Sources — attribution + link, never
    quoted text), confirm.
@@ -45,7 +47,10 @@ interactive what-if page served on localhost.
 ## Companion mode
 
 When ARCHITECTURE.md exists: §6 components seed the WBS, §15 risks seed the
-risk register, flip the `electedDocs` estimation entry to `elected: true`,
+risk register, seed the `components` roster from §6 rows (use the LikeC4
+model's container and component ids where one exists — dotted ids like
+`atlas.goldStore`) and tag every feature with the component it implements,
+flip the `electedDocs` estimation entry to `elected: true`,
 place estimation.md beside ARCHITECTURE.md so the arch-docs viewer picks it
 up as a companion page; link the interactive page from it. Keep estimate.html
 in the same directory — the viewer links it from the estimation tab when it

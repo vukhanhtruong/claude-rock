@@ -13,13 +13,13 @@
     {
       "name": "solution-architect",
       "source": "./plugins/solution-architect",
-      "description": "Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, plus AI-aware project estimation.",
+      "description": "Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals.",
       "version": "1.0.0",
       "author": {
         "name": "Truong Vu",
         "email": "vukhanhtruong@gmail.com"
       },
-      "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr", "estimation"],
+      "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr", "estimation", "proposal"],
       "category": "documentation",
       "strict": false
     }

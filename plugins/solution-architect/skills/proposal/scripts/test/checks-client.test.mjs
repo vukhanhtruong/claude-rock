@@ -114,6 +114,11 @@ test('technical clients skip the jargon scan; the About section is exempt', () =
   assert.deepEqual(run(aboutJargon), []);
 });
 
+test('plural jargon is still jargon', () => {
+  const plural = md.replace('Weekly demos.', 'We expose several endpoints.');
+  assert.ok(run(plural).some((f) => /endpoint/i.test(f)));
+});
+
 test('the deny-list is lowercase and non-trivial', () => {
   assert.ok(JARGON.length >= 12);
   for (const term of JARGON) assert.equal(term, term.toLowerCase());

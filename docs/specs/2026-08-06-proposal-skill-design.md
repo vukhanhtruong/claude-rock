@@ -55,9 +55,10 @@ plugins/solution-architect/skills/proposal/    ← NEW
 │   ├── writing.md              ← proposal.md contract: frontmatter + 10 sections + tech-level lexicon
 │   └── review.md               ← subagent reviewer charter
 ├── scripts/
+│   ├── derive.mjs              ← estimation.json + scenario id → proposal-figures.json
 │   ├── validate.mjs            ← 8 checks, exit 0 gates render
 │   ├── render.mjs              ← proposal.md → proposal.html
-│   ├── lib/                    ← md parsing, number extraction (shared w/ tests)
+│   ├── lib/                    ← figures derivation, checks, jargon list
 │   └── test/
 │       └── fixtures/           ← passing pair + failing fixtures
 └── assets/
@@ -71,16 +72,18 @@ IBM Plex fonts + embed pattern, bundled-mermaid recipe from the viewer.
 
 Frontmatter (machine-readable contract for validate + render):
 
+Flat keys only — the shared `frontmatter.mjs` parser is flat key:value with
+JSON values for arrays:
+
 ```yaml
 client: Acme Corp
 client_tech_level: non-tech | low-tech | technical
-scenario: 2-devs-ai            # id must exist in estimation.json
+scenario: 2eng-max5x           # id must exist in estimation.json
 currency: USD
 valid_until: 2026-09-06        # must be a future date
 jargon_allow: []               # per-term overrides for the non-tech jargon scan
-sources:
-  architecture: ../ARCHITECTURE.md
-  estimation: ../estimation.json
+source_architecture: ../ARCHITECTURE.md
+source_estimation: ../estimation.json
 ```
 
 Ten sections, each with a named source:
@@ -132,8 +135,13 @@ Exit 0 gates rendering. Checks:
 
 1. Frontmatter complete: client, tech level, scenario id, valid_until, sources.
 2. Scenario id exists in estimation.json.
-3. Every money and duration number in the md appears in estimation.json
-   computed output (per-milestone and totals, both range bounds). Kills
+3. Every money and duration number in the md matches the deterministic
+   derivation from estimation.json (cost/duration ranges scaled by the
+   feature low/high spread, per-milestone splits from the roadmap shares).
+   estimation.json carries no client-facing ranges itself, so
+   `scripts/derive.mjs` computes `proposal-figures.json` as an authoring
+   aid, and the validator recomputes the same figures internally — matching
+   the file is never trusted, so hand-edited figures can't pass. Kills
    hand-invented pricing.
 4. All 10 sections present and non-empty.
 5. No `[TODO]`, no placeholder text, no empty tables.
@@ -185,6 +193,7 @@ max. Human review of proposal.md is the final gate before render + send.
 /proposal
   → prereq gate (ARCHITECTURE.md + estimation.json, both hard)
   → interview (client ctx, tech level, scenario pick, profile w/ scope choice)
+  → derive.mjs (scenario figures: ranges + milestone splits, authoring aid)
   → write proposal.md (10 sections, frontmatter contract)
   → validate.mjs (8 checks, exit 0 gates)
   → subagent review (fresh-eyes, 1 fix cycle)

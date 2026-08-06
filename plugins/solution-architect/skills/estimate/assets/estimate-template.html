@@ -273,6 +273,7 @@ tr.conf-low .conf { color:var(--bad); }
 }
 #containers .pie-share { min-width:2.6rem; text-align:right; color:var(--ink-dim); }
 #containers .pie-note { margin:.8rem 0 0; font-size:.76rem; color:var(--ink-dim); }
+#containers .pie-legend li.hot { background:var(--accent-soft); border-radius:.3rem; }
 .bd-filter-group { display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
 .bd-filter-group + .bd-filter-group { border-left:1px solid var(--border-strong); padding-left:.9rem; }
 .bd-select { gap:.4rem; font-size:.72rem; color:var(--ink-dim); }
@@ -743,6 +744,15 @@ function onBreakdownChange(e) {
   renderBreakdown();
 }
 
+// Slice → legend row: a 2% donut slice is unhoverable-thin for reading, so
+// pointing at any slice lights the row that names it.
+function onPieHover(e) {
+  const id = e.target.closest?.('.pie-slice')?.dataset.ct;
+  for (const li of document.querySelectorAll('#containers .pie-legend li')) {
+    li.classList.toggle('hot', e.type === 'mouseover' && li.dataset.ct === id);
+  }
+}
+
 // A roadmap row is a shortcut into the breakdown: stale container/source
 // filters would silently hide the milestone's rows, so the click clears them
 // before filtering. Clicking the active row again clears the milestone too.
@@ -857,13 +867,13 @@ function pieSlice([id, h], ctx) {
   const share = (h / ctx.total) * 100;
   const off = 25 - ctx.acc;
   ctx.acc += share;
-  return `<circle class="pie-slice" cx="21" cy="21" r="15.915" fill="none" pathLength="100"
+  return `<circle class="pie-slice" data-ct="${esc(id)}" cx="21" cy="21" r="15.915" fill="none" pathLength="100"
     stroke="${ctColor(id)}" stroke-width="7" stroke-dasharray="${share.toFixed(2)} ${(100 - share).toFixed(2)}"
     stroke-dashoffset="${off.toFixed(2)}"><title>${esc(`${ctx.names[id] ?? id} · ${h}h (${Math.round(share)}%)`)}</title></circle>`;
 }
 
 function pieLegendRow([id, h], ctx) {
-  return `<li><span class="swatch" style="background:${ctColor(id)}"></span>
+  return `<li data-ct="${esc(id)}"><span class="swatch" style="background:${ctColor(id)}"></span>
     <span>${esc(ctx.names[id] ?? id)}</span>
     <span class="pie-hours">${h}h</span> <span class="pie-share">${Math.round((h / ctx.total) * 100)}%</span></li>`;
 }
@@ -989,6 +999,8 @@ document.getElementById('reset')?.addEventListener('click', () => {
 document.getElementById('feature-table')?.addEventListener('click', onBreakdownClick);
 document.getElementById('feature-table')?.addEventListener('change', onBreakdownChange);
 document.getElementById('roadmap')?.addEventListener('click', onRoadmapClick);
+document.getElementById('containers')?.addEventListener('mouseover', onPieHover);
+document.getElementById('containers')?.addEventListener('mouseout', onPieHover);
 
 document.getElementById('view-toggle')?.addEventListener('click', () => {
   document.body.classList.toggle('view-client');

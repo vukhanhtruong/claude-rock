@@ -283,6 +283,14 @@ test('the effort-by-container donut shows shares and names the honest gaps', ski
     assert.match(note, /not estimated/i);
     assert.match(note, /Admin Console/);
     assert.match(note, /out of v1 scope/);
+    // hovering a slice lights up its legend row, so a thin slice is still nameable
+    const hot = (type) => page.eval(`(() => {
+      document.querySelector('#containers .pie-slice[data-ct="notify"]')
+        .dispatchEvent(new MouseEvent('${type}', { bubbles: true }));
+      return [...document.querySelectorAll('#containers .pie-legend li.hot')].map((r) => r.dataset.ct);
+    })()`);
+    assert.deepEqual(await hot('mouseover'), ['notify']);
+    assert.deepEqual(await hot('mouseout'), []);
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });

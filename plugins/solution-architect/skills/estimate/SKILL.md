@@ -1,6 +1,6 @@
 ---
 name: estimate
-description: Interview-driven project estimation with AI-aware delivery scenarios. Use when the user asks for an estimate, effort sizing, a quote, a proposal, a timeline, staffing, or "how long would this take" — with or without existing architecture docs.
+description: Interview-driven project estimation with AI-aware delivery scenarios. Use when the user asks for an estimate, effort sizing, a quote, a timeline, staffing, or "how long would this take" — with or without existing architecture docs.
 ---
 
 # estimate

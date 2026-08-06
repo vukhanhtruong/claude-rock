@@ -258,6 +258,11 @@ tr.conf-low .conf { color:var(--bad); }
 #containers .bd-track { display:block; }
 .bd-filter-group { display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
 .bd-filter-group + .bd-filter-group { border-left:1px solid var(--border-strong); padding-left:.9rem; }
+.bd-select { gap:.4rem; font-size:.72rem; color:var(--ink-dim); }
+.bd-select select {
+  font-family:inherit; font-size:.74rem; padding:.2rem .4rem; border-radius:.35rem;
+  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); max-width:16rem;
+}
 .bd-right { display:flex; flex-wrap:wrap; gap:.9rem; align-items:center; margin-left:auto; }
 /* the expand group is internal-only; without it the source group must not
    keep the divider that separated the two. */
@@ -603,19 +608,25 @@ function bdExpandControls() {
     <button type="button" data-expand="none">collapse all</button></span>`;
 }
 
+function selectBox({ name, key, current, pairs }) {
+  return `<label class="bd-filter-group bd-select">${name}<select data-select="${key}" aria-label="${name}">
+    ${pairs.map(([v, text]) =>
+    `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(text)}</option>`).join('')}</select></label>`;
+}
+
 function bdFilters(all) {
   let milestones = '';
   if (all.every((f) => f.milestone)) {
     const labels = [...new Set(all.map((f) => f.milestone))];
-    milestones = pillGroup({ name: 'milestone', attr: 'data-milestone', current: bdState.milestone,
-      pairs: [['', 'all milestones'], ...labels.map((l) => [l, l.split(' - ')[0]])] });
+    milestones = selectBox({ name: 'milestone', key: 'milestone', current: bdState.milestone,
+      pairs: [['', 'all milestones'], ...labels.map((l) => [l, l])] });
   }
   let components = '';
   if (DATA.inputs.components) {
     const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
     const tops = [...new Set(all.map((f) => containerOf(f.component)))];
-    components = pillGroup({ name: 'component', attr: 'data-component', current: bdState.component,
-      pairs: [['', 'all components'], ...tops.map((id) => [id, names[id] ?? id])] });
+    components = selectBox({ name: 'container', key: 'component', current: bdState.component,
+      pairs: [['', 'all containers'], ...tops.map((id) => [id, names[id] ?? id])] });
   }
   const source = pillGroup({ name: 'source', attr: 'data-prov', current: bdState.prov,
     pairs: [['', 'all sources'], ['stated', 'stated'], ['proposed', 'proposed']] });
@@ -698,10 +709,15 @@ function onBreakdownClick(e) {
   if (!btn) return;
   if (btn.dataset.sort) bdSort(btn.dataset.sort);
   else if (btn.dataset.expand) bdExpandAll(btn.dataset.expand);
-  else if (btn.dataset.milestone !== undefined) { bdState.milestone = btn.dataset.milestone; renderBreakdown(); }
-  else if (btn.dataset.component !== undefined) { bdState.component = btn.dataset.component; renderBreakdown(); }
   else if (btn.dataset.prov !== undefined) { bdState.prov = btn.dataset.prov; renderBreakdown(); }
   else if (btn.classList.contains('expand')) bdToggle(btn.closest('tr').dataset.id);
+}
+
+function onBreakdownChange(e) {
+  const sel = e.target.closest('select[data-select]');
+  if (!sel) return;
+  bdState[sel.dataset.select] = sel.value;
+  renderBreakdown();
 }
 
 // Ticks are whole months (0, 1, 2…) once the span is long enough for that to
@@ -899,6 +915,7 @@ document.getElementById('reset')?.addEventListener('click', () => {
 });
 
 document.getElementById('feature-table')?.addEventListener('click', onBreakdownClick);
+document.getElementById('feature-table')?.addEventListener('change', onBreakdownChange);
 
 document.getElementById('view-toggle')?.addEventListener('click', () => {
   document.body.classList.toggle('view-client');

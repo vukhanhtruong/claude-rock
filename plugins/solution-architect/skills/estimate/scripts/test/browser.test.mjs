@@ -241,18 +241,24 @@ test('the what-if rail is not sticky and lower sections span the full width', sk
   } finally { page.close(); }
 });
 
-test('milestone and provenance filters scope rows without rescaling bars', skip, async () => {
+const pickOption = (key, value) => `(() => {
+  const sel = document.querySelector('#feature-table select[data-select="${key}"]');
+  sel.value = ${JSON.stringify(value)};
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+})()`;
+
+test('milestone select and provenance pills scope rows without rescaling bars', skip, async () => {
   const page = await openPage(buildPage());
   try {
     const width = () => page.eval(
       `document.querySelector('#feature-table tr.feat-row[data-id="reminders"] .bd-fill').style.width`);
     const before = await width();
-    await page.eval(`document.querySelector('#feature-table button[data-milestone="M2 - Notifications"]').click()`);
+    await page.eval(pickOption('milestone', 'M2 - Notifications'));
     const visible = await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`);
     assert.deepEqual(visible, ['reminders']);
     assert.equal(await width(), before, 'bar must keep its global scale under filters');
-    await page.eval(`document.querySelector('#feature-table button[data-milestone=""]').click()`);
+    await page.eval(pickOption('milestone', ''));
     await page.eval(`document.querySelector('#feature-table button[data-prov="stated"]').click()`);
     assert.deepEqual(await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['booking']);
@@ -290,17 +296,17 @@ test('no roster → the containers section is absent, no placeholder', skip, asy
   } finally { page.close(); }
 });
 
-test('component pills filter rows by container', skip, async () => {
+test('container select filters rows by container', skip, async () => {
   const page = await openPage(buildPage());
   try {
-    // pills name containers from the roster — never leaf components, never admin (no rows)
-    const pills = await page.eval(
-      `[...document.querySelectorAll('#feature-table button[data-component]')].map((b) => b.textContent)`);
-    assert.deepEqual(pills, ['all components', 'Booking API', 'Notification Service']);
-    await page.eval(`document.querySelector('#feature-table button[data-component="notify"]').click()`);
+    // options name containers from the roster — never leaf components, never admin (no rows)
+    const options = await page.eval(
+      `[...document.querySelectorAll('#feature-table select[data-select="component"] option')].map((o) => o.textContent)`);
+    assert.deepEqual(options, ['all containers', 'Booking API', 'Notification Service']);
+    await page.eval(pickOption('component', 'notify'));
     assert.deepEqual(await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['reminders']);
-    await page.eval(`document.querySelector('#feature-table button[data-component=""]').click()`);
+    await page.eval(pickOption('component', ''));
     assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.feat-row').length`), 2);
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }

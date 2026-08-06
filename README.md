@@ -31,11 +31,13 @@ Use `--force` to overwrite collisions.
 
 | Plugin | Description | Version |
 |---|---|---|
-| `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, plus AI-aware project estimation. | 1.0.0 |
+| `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals. | 1.0.0 |
 
-`solution-architect` ships two skills: `arch-docs` (architecture documentation)
-and `estimate` (interview-driven, AI-aware project estimation with an
-interactive what-if page). `-p solution-architect` installs both.
+`solution-architect` ships three skills: `arch-docs` (architecture
+documentation), `estimate` (interview-driven, AI-aware project estimation
+with an interactive what-if page), and `proposal` (pre-sales client
+proposal rendered as a print-ready page). `-p solution-architect` installs
+all three.
 
 ## Repo conventions
 

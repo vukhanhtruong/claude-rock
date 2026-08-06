@@ -595,7 +595,7 @@ const CT_NAMES = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c
 function ctEdge(component) {
   if (!DATA.inputs.components) return '';
   const id = containerOf(component);
-  return ` class="ct-edge" style="box-shadow:inset 3px 0 0 ${ctColor(id)}" title="${esc(CT_NAMES[id] ?? id)}"`;
+  return ` class="ct-edge" style="box-shadow:inset 6px 0 0 ${ctColor(id)}" title="${esc(CT_NAMES[id] ?? id)}"`;
 }
 const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', expanded: new Set() };
 const BD_COLS = [

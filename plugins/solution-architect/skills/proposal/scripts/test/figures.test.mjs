@@ -24,8 +24,8 @@ const estimation = {
       s1: {
         months: 2, totalCost: 10000,
         roadmap: [
-          { name: 'M1', startMonths: 0, endMonths: 1.5 },
-          { name: 'M2', startMonths: 1.5, endMonths: 2 },
+          { milestone: 'M1', startMonths: 0, endMonths: 1.5 },
+          { milestone: 'M2', startMonths: 1.5, endMonths: 2 },
         ],
       },
     },
@@ -74,6 +74,8 @@ test('derive.mjs CLI writes the figures file and refuses unknown scenarios', () 
   const out = join(dir, 'proposal-figures.json');
   const cli = new URL('../derive.mjs', import.meta.url).pathname;
   execFileSync('node', [cli, '--estimation', est, '--scenario', 's1', '--out', out]);
-  assert.equal(JSON.parse(readFileSync(out, 'utf8')).cost.low, 8000);
+  const written = JSON.parse(readFileSync(out, 'utf8'));
+  assert.equal(written.cost.low, 8000);
+  assert.equal(written.milestones[0].name, 'M1');
   assert.throws(() => execFileSync('node', [cli, '--estimation', est, '--scenario', 'nope', '--out', out]));
 });

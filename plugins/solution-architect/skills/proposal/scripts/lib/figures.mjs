@@ -20,7 +20,7 @@ function milestoneFigures(scenario, ratios) {
   return (scenario.roadmap ?? []).map((band) => {
     const width = band.endMonths - band.startMonths;
     return {
-      name: band.name,
+      name: band.milestone,
       cost: range(scenario.totalCost * (width / scenario.months), ratios, round100),
       months: range(width, ratios, round1),
     };

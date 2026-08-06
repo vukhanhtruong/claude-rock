@@ -50,7 +50,7 @@ function checkJargon({ md, fm }, out) {
   const scanned = md.replace(/^---\n[\s\S]*?\n---/, '').replace(about ?? '', '');
   for (const term of JARGON) {
     if (allow.has(term)) continue;
-    if (new RegExp(`(?<![\\w/])${escapeRegExp(term)}(?![\\w/])`, 'i').test(scanned)) {
+    if (new RegExp(`(?<![\\w/])${escapeRegExp(term)}(?:e?s)?(?![\\w/])`, 'i').test(scanned)) {
       out.push(`jargon for a non-tech client: "${term}" (rewrite plainly or add to jargon_allow)`);
     }
   }

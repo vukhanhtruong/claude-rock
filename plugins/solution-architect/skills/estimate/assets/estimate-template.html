@@ -254,8 +254,20 @@ tr.conf-med .conf { color:var(--warn); }
 tr.conf-low .conf { color:var(--bad); }
 /* feature breakdown: filter pills, sortable headers, bar-in-cell, task drill-down */
 .bd-filters { display:flex; flex-wrap:wrap; gap:.9rem; margin:0 0 .8rem; }
-#containers .ct-bar { width:38%; }
-#containers .bd-track { display:block; }
+/* effort-by-container donut: slices are stroked circles (pathLength=100 turns
+   stroke-dasharray into percent), legend carries the exact numbers. */
+#containers .pie-wrap { display:flex; flex-wrap:wrap; align-items:center; gap:1.8rem; }
+#containers svg { width:172px; height:172px; flex:0 0 auto; }
+#containers .pie-slice:hover { opacity:.75; }
+#containers .pie-legend { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; flex:1; min-width:230px; align-content:center; }
+#containers .pie-legend li { display:flex; align-items:center; gap:.5rem; font-size:.82rem; }
+#containers .swatch { width:.7rem; height:.7rem; border-radius:.2rem; flex:0 0 auto; }
+#containers .pie-hours { margin-left:auto; }
+#containers .pie-hours, #containers .pie-share {
+  font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
+}
+#containers .pie-share { min-width:2.6rem; text-align:right; color:var(--ink-dim); }
+#containers .pie-note { margin:.8rem 0 0; font-size:.76rem; color:var(--ink-dim); }
 .bd-filter-group { display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
 .bd-filter-group + .bd-filter-group { border-left:1px solid var(--border-strong); padding-left:.9rem; }
 .bd-select { gap:.4rem; font-size:.72rem; color:var(--ink-dim); }
@@ -563,6 +575,12 @@ const CONF_RANK = { HIGH: 0, MED: 1, LOW: 2 };
 // hop at most; a top-level id is its own container.
 const COMP_PARENT = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.parent]));
 const containerOf = (id) => COMP_PARENT[id] ?? id;
+// One color per top-level container, shared by the donut and the roadmap
+// segments so a hue means the same container everywhere on the page.
+const CT_COLORS = ['#5a9fd4', '#d97757', '#3ba99f', '#d9b95e', '#9d86c9',
+  '#5dbb7a', '#c47a94', '#7c8f9e', '#c98a4b', '#a8a29e'];
+const CT_TOPS = (DATA.inputs.components ?? []).filter((c) => !c.parent).map((c) => c.id);
+const ctColor = (id) => CT_COLORS[CT_TOPS.indexOf(id) % CT_COLORS.length];
 const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', expanded: new Set() };
 const BD_COLS = [
   { key: 'name', label: 'Feature', val: (f) => f.name, hint: 'sort by name' },
@@ -793,13 +811,29 @@ function renderRoadmap() {
 }
 
 // Committed numbers only, like every section: expected hours summed per
-// top-level container (computed.components). A container the roster excused
-// with notEstimated renders the honest words, never a bare 0.
-function containerRow(id, h, ctx) {
-  const share = ctx.total ? Math.round((h / ctx.total) * 100) : 0;
-  return `<tr><td>${esc(ctx.names[id] ?? id)}</td>
-    <td class="num">${h ? `${h}h` : 'not estimated'}</td><td class="num">${h ? `${share}%` : ''}</td>
-    <td class="ct-bar"><span class="bd-track"><span class="bd-fill" style="width:${share}%"></span></span></td></tr>`;
+// top-level container (computed.components), drawn as a donut. A container
+// the roster excused with notEstimated never becomes a zero-width slice —
+// it keeps the honest words in the note under the chart instead.
+function pieSlice([id, h], ctx) {
+  const share = (h / ctx.total) * 100;
+  const off = 25 - ctx.acc;
+  ctx.acc += share;
+  return `<circle class="pie-slice" cx="21" cy="21" r="15.915" fill="none" pathLength="100"
+    stroke="${ctColor(id)}" stroke-width="7" stroke-dasharray="${share.toFixed(2)} ${(100 - share).toFixed(2)}"
+    stroke-dashoffset="${off.toFixed(2)}"><title>${esc(`${ctx.names[id] ?? id} · ${h}h (${Math.round(share)}%)`)}</title></circle>`;
+}
+
+function pieLegendRow([id, h], ctx) {
+  return `<li><span class="swatch" style="background:${ctColor(id)}"></span>
+    <span>${esc(ctx.names[id] ?? id)}</span>
+    <span class="pie-hours">${h}h</span> <span class="pie-share">${Math.round((h / ctx.total) * 100)}%</span></li>`;
+}
+
+function pieNote() {
+  const excused = (DATA.inputs.components ?? []).filter((c) => c.notEstimated);
+  if (!excused.length) return '';
+  return `<p class="pie-note">Not estimated: ${excused.map((c) =>
+    `${esc(c.name)} (${esc(c.notEstimated)})`).join('; ')}. In the architecture, no sized work yet.</p>`;
 }
 
 function renderContainers() {
@@ -808,16 +842,15 @@ function renderContainers() {
   const comp = DATA.computed.components;
   if (!comp) { el.remove(); return; }
   const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
-  const total = Object.values(comp).reduce((a, b) => a + b, 0);
-  const rows = Object.entries(comp).sort(([, a], [, b]) => b - a)
-    .map(([id, h]) => containerRow(id, h, { names, total })).join('');
+  const entries = Object.entries(comp).filter(([, h]) => h > 0).sort(([, a], [, b]) => b - a);
+  const ctx = { names, total: entries.reduce((s, [, h]) => s + h, 0), acc: 0 };
   el.innerHTML = secHead('Effort by container',
-    'Expected hours summed per top-level container, from the same task numbers as the '
-    + 'breakdown. A container marked "not estimated" is in the architecture but has no '
-    + 'sized work yet — an honest gap, not zero effort.')
-    + `<div class="bd-scroll"><table>
-      <thead><tr><th>Container</th><th class="num">Hours</th><th class="num">Share</th><th></th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+    'Share of expected hours per top-level container, from the same task numbers as the '
+    + 'breakdown. The colors match the roadmap bands. A container nobody sized is named '
+    + 'under the chart, never drawn as a zero slice.')
+    + `<div class="pie-wrap"><svg viewBox="0 0 42 42" role="img" aria-label="effort share by container">
+      ${entries.map((e) => pieSlice(e, ctx)).join('')}</svg>
+      <ul class="pie-legend">${entries.map((e) => pieLegendRow(e, { ...ctx, acc: 0 })).join('')}</ul></div>${pieNote()}`;
 }
 
 // Assembled at runtime for the same reason as CTL_SUFFIX above: the task

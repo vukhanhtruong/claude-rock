@@ -265,17 +265,24 @@ test('milestone select and provenance pills scope rows without rescaling bars', 
   } finally { page.close(); }
 });
 
-test('the effort-by-container rollup shows hours, shares, and honest gaps', skip, async () => {
+test('the effort-by-container donut shows shares and names the honest gaps', skip, async () => {
   const page = await openPage(buildPage());
   try {
-    const rows = await page.eval(`[...document.querySelectorAll('#containers tbody tr')].map((r) =>
-      [...r.querySelectorAll('td')].slice(0, 3).map((c) => c.textContent.trim()))`);
-    // hours desc; admin is roster-excused → the honest words, never a bare 0
-    assert.deepEqual(rows, [
-      ['Booking API', '69.33h', '76%'],
-      ['Notification Service', '21.33h', '24%'],
-      ['Admin Console', 'not estimated', ''],
-    ]);
+    // one slice per estimated container, hours desc — the excused one never gets a slice
+    const slices = await page.eval(`[...document.querySelectorAll('#containers svg .pie-slice')].map((s) => ({
+      title: s.querySelector('title').textContent, dash: s.getAttribute('stroke-dasharray') }))`);
+    assert.equal(slices.length, 2);
+    assert.match(slices[0].title, /Booking API · 69\.33h \(76%\)/);
+    assert.match(slices[1].title, /Notification Service · 21\.33h \(24%\)/);
+    assert.match(slices[0].dash, /^76(\.\d+)? /, 'slice arc length must be its share');
+    const legend = await page.eval(`[...document.querySelectorAll('#containers .pie-legend li')].map((r) =>
+      r.textContent.trim().replace(/\\s+/g, ' '))`);
+    assert.deepEqual(legend, ['Booking API 69.33h 76%', 'Notification Service 21.33h 24%']);
+    // the roster-excused container stays visible as words — an honest gap, not a hidden zero
+    const note = await page.eval(`document.querySelector('#containers .pie-note').textContent`);
+    assert.match(note, /not estimated/i);
+    assert.match(note, /Admin Console/);
+    assert.match(note, /out of v1 scope/);
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });

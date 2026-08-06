@@ -23,6 +23,16 @@ test('estimation page links a sibling estimate.html, relative to the out dir', (
   assert.match(link, /interactive/i);
 });
 
+// The viewer folder is the handover unit: when estimate.html is rendered into
+// it, the link must stay inside the folder so shipping viewer/ alone works.
+test('an estimate.html inside the viewer folder wins over the sibling', () => {
+  const { docs, out } = tree();
+  writeFileSync(join(docs, 'estimate.html'), '<!doctype html>');
+  writeFileSync(join(out, 'estimate.html'), '<!doctype html>');
+  const page = { kind: 'estimation', path: join(docs, 'estimation.md') };
+  assert.match(estimateLink(page, out), /<a href="estimate\.html">/);
+});
+
 // A dead link reads as a broken deliverable: an md-only run (no estimate skill
 // render) must produce exactly the viewer it produces today.
 test('no estimate.html beside the source means no link', () => {

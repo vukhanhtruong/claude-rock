@@ -26,9 +26,11 @@ next free port).
   register from its §15 Risks, seeds a `components` roster from §6 so every
   feature is tagged with the component it implements (untouched components
   are caught by validation), then places `estimation.md` beside it so the
-  arch-docs viewer picks it up as a companion page. The viewer also links
-  `estimate.html` from that tab when the file sits in the same directory, and
-  `render.mjs --viewer <path>` adds the internal-only back-link.
+  arch-docs viewer picks it up as a companion page. `estimate.html` renders
+  into the viewer's own directory when one exists (falling back to beside
+  `estimation.md`), so viewer and estimate ship as one folder; the viewer
+  links it from the estimation tab, and `render.mjs --viewer <path>` adds
+  the internal-only back-link.
 
 ## Run it
 

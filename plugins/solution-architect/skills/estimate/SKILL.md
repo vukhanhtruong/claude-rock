@@ -52,11 +52,13 @@ model's container and component ids where one exists — dotted ids like
 `atlas.goldStore`) and tag every feature with the component it implements,
 flip the `electedDocs` estimation entry to `elected: true`,
 place estimation.md beside ARCHITECTURE.md so the arch-docs viewer picks it
-up as a companion page; link the interactive page from it. Keep estimate.html
-in the same directory — the viewer links it from the estimation tab when it
-finds the file there. When a rendered viewer exists, pass
-`--viewer <relative path to its index.html>` to render.mjs so the page links
-back (internal view only; the client render strips it).
+up as a companion page; link the interactive page from it. When a rendered
+viewer exists, render estimate.html **into the viewer's own directory**
+(`--out <viewer dir>` plus `--viewer index.html` for the back-link, internal
+view only; the client render strips it) — index.html and estimate.html then
+ship as one self-contained folder, and the viewer's estimation tab links the
+copy inside it. Without a viewer, keep estimate.html beside estimation.md —
+the viewer also finds it there when rendered later.
 
 ## Dependency
 

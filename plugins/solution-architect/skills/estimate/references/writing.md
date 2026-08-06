@@ -190,6 +190,11 @@ node scripts/render.mjs --json <dir>/estimation.json --md <dir>/estimation.md --
 node ../arch-docs/scripts/serve.mjs <dir>/
 ```
 
+When a rendered arch-docs viewer exists, point `--out` at the viewer's own
+directory and add `--viewer index.html`: index.html and estimate.html then
+ship as one self-contained folder, and the viewer's estimation tab links the
+copy inside it (it falls back to an estimate.html beside estimation.md).
+
 `render.mjs` runs the same `checkDeliverables` validation `validate.mjs`
 runs and **refuses to write `estimate.html` on any finding** — running
 `validate.mjs` first is a convenience for a readable error, not a separate

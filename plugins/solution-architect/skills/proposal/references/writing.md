@@ -43,6 +43,9 @@ Rates never appear. Team members are described by role/seniority only.
    exactly the depth the tech level allows (see §4). Must contain one
    `mermaid` code fence — non-tech gets boxes-and-arrows with ≤ 6 nodes.
 4. **Scope** — in-scope features as a table, phrased as client outcomes.
+   More than ~8 rows: split into several tables grouped under `###`
+   subheads named after product areas the client recognizes. `###` lines
+   do not break section slicing; each table still validates on its own.
 5. **Out of Scope & Assumptions** — explicit exclusions (from estimation.md
    plus the interview) and the assumptions the estimate rests on.
 6. **Delivery Approach** — milestones with their duration ranges, ways of

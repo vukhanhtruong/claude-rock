@@ -259,6 +259,22 @@ test('milestone and provenance filters scope rows without rescaling bars', skip,
   } finally { page.close(); }
 });
 
+test('component pills filter rows by container', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    // pills name containers from the roster — never leaf components, never admin (no rows)
+    const pills = await page.eval(
+      `[...document.querySelectorAll('#feature-table button[data-component]')].map((b) => b.textContent)`);
+    assert.deepEqual(pills, ['all components', 'Booking API', 'Notification Service']);
+    await page.eval(`document.querySelector('#feature-table button[data-component="notify"]').click()`);
+    assert.deepEqual(await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['reminders']);
+    await page.eval(`document.querySelector('#feature-table button[data-component=""]').click()`);
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.feat-row').length`), 2);
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
 test('roadmap renders committed bands and ignores the what-if rail', skip, async () => {
   const page = await openPage(buildPage());
   try {

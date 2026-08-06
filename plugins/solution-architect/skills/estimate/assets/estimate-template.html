@@ -551,7 +551,11 @@ function renderBars() {
 // effort chart), the sortable feature table, and the per-task drill-down (was
 // the flat task register). Committed numbers only — never the what-if rail's.
 const CONF_RANK = { HIGH: 0, MED: 1, LOW: 2 };
-const bdState = { sortKey: 'hours', dir: -1, milestone: '', prov: '', expanded: new Set() };
+// Two levels max (schema-enforced), so a component's container is one parent
+// hop at most; a top-level id is its own container.
+const COMP_PARENT = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.parent]));
+const containerOf = (id) => COMP_PARENT[id] ?? id;
+const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', expanded: new Set() };
 const BD_COLS = [
   { key: 'name', label: 'Feature', val: (f) => f.name, hint: 'sort by name' },
   { key: 'hours', label: 'Effort (h)', val: (f) => f.hours, hint: 'sort by expected hours' },
@@ -566,7 +570,7 @@ function breakdownData() {
     const c = DATA.computed.features[f.id];
     const conf = f.tasks.reduce(
       (w, t) => (CONF_RANK[t.confidence] > CONF_RANK[w] ? t.confidence : w), 'HIGH');
-    return { id: f.id, name: f.name, milestone: f.milestone, provenance: f.provenance,
+    return { id: f.id, name: f.name, milestone: f.milestone, component: f.component, provenance: f.provenance,
       tasks: f.tasks, conf, hours: c.hours, low: c.low, high: c.high, spread: c.high - c.low };
   });
 }
@@ -581,6 +585,7 @@ function bdSorted(list) {
 
 function bdVisible(list) {
   return list.filter((f) => (!bdState.milestone || f.milestone === bdState.milestone)
+    && (!bdState.component || containerOf(f.component) === bdState.component)
     && (!bdState.prov || f.provenance === bdState.prov));
 }
 
@@ -602,9 +607,16 @@ function bdFilters(all) {
     milestones = pillGroup({ name: 'milestone', attr: 'data-milestone', current: bdState.milestone,
       pairs: [['', 'all milestones'], ...labels.map((l) => [l, l.split(' - ')[0]])] });
   }
+  let components = '';
+  if (DATA.inputs.components) {
+    const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
+    const tops = [...new Set(all.map((f) => containerOf(f.component)))];
+    components = pillGroup({ name: 'component', attr: 'data-component', current: bdState.component,
+      pairs: [['', 'all components'], ...tops.map((id) => [id, names[id] ?? id])] });
+  }
   const source = pillGroup({ name: 'source', attr: 'data-prov', current: bdState.prov,
     pairs: [['', 'all sources'], ['stated', 'stated'], ['proposed', 'proposed']] });
-  return `<div class="bd-filters">${milestones}<span class="bd-right">${bdExpandControls()}${source}</span></div>`;
+  return `<div class="bd-filters">${milestones}${components}<span class="bd-right">${bdExpandControls()}${source}</span></div>`;
 }
 
 function bdHead() {
@@ -684,6 +696,7 @@ function onBreakdownClick(e) {
   if (btn.dataset.sort) bdSort(btn.dataset.sort);
   else if (btn.dataset.expand) bdExpandAll(btn.dataset.expand);
   else if (btn.dataset.milestone !== undefined) { bdState.milestone = btn.dataset.milestone; renderBreakdown(); }
+  else if (btn.dataset.component !== undefined) { bdState.component = btn.dataset.component; renderBreakdown(); }
   else if (btn.dataset.prov !== undefined) { bdState.prov = btn.dataset.prov; renderBreakdown(); }
   else if (btn.classList.contains('expand')) bdToggle(btn.closest('tr').dataset.id);
 }

@@ -43,6 +43,53 @@ function checkMilestones(features, out) {
   }
 }
 
+// Components are all-or-nothing like milestones, and coverage is the point:
+// a §6 component nobody planned work for is a scope hole, refused here unless
+// the roster excuses it with an explicit notEstimated reason. Two levels max —
+// C4 container → component — so rollups never walk a chain.
+function checkRoster(components, out) {
+  const byId = new Map(components.map((c) => [c.id, c]));
+  if (byId.size !== components.length) out.push('component roster: duplicate ids');
+  for (const c of components) {
+    if (!(typeof c.id === 'string' && c.id.trim())) out.push('component roster: every entry needs a non-empty id');
+    if (!(typeof c.name === 'string' && c.name.trim())) out.push(`component ${c.id}: name must be a non-empty string`);
+    if (c.notEstimated !== undefined && !(typeof c.notEstimated === 'string' && c.notEstimated.trim())) {
+      out.push(`component ${c.id}: notEstimated must carry a reason`);
+    }
+    if (c.parent === undefined) continue;
+    const parent = byId.get(c.parent);
+    if (!parent) out.push(`component ${c.id}: parent "${c.parent}" not in roster`);
+    else if (parent.parent !== undefined) out.push(`component ${c.id}: parent "${c.parent}" is not top-level (two levels max)`);
+  }
+}
+
+function checkComponentCoverage(components, features, out) {
+  const covered = new Set(features.map((f) => f.component));
+  const parents = new Set(components.map((c) => c.parent).filter(Boolean));
+  for (const c of components) {
+    if (!parents.has(c.id) && !covered.has(c.id) && c.notEstimated === undefined) {
+      out.push(`component ${c.id}: no feature covers it — tag a feature or set notEstimated with a reason`);
+    }
+  }
+}
+
+function checkComponents(inputs, out) {
+  const features = inputs.features ?? [];
+  if (inputs.components === undefined) {
+    for (const f of features) {
+      if (f.component !== undefined) out.push(`feature ${f.id}: component set but no top-level components roster`);
+    }
+    return;
+  }
+  checkRoster(inputs.components, out);
+  const ids = new Set(inputs.components.map((c) => c.id));
+  for (const f of features) {
+    if (f.component === undefined) out.push(`feature ${f.id}: component missing (all features must carry one when a roster exists)`);
+    else if (!ids.has(f.component)) out.push(`feature ${f.id}: component "${f.component}" not in roster`);
+  }
+  checkComponentCoverage(inputs.components, features, out);
+}
+
 function checkScenarios(inputs, out) {
   const ids = (inputs.scenarios ?? []).map((s) => s.id);
   if (!ids.includes(inputs.recommendedScenario)) out.push('recommendedScenario names no scenario');
@@ -74,6 +121,7 @@ export function checkInputs(inputs) {
   }
   for (const feature of inputs.features ?? []) checkFeature(feature, out);
   checkMilestones(inputs.features ?? [], out);
+  checkComponents(inputs, out);
   checkScenarios(inputs, out);
   checkGlobals(inputs, out);
   return out;

@@ -7,11 +7,18 @@
   "overheadPct": 0.35,
   "verificationPct": 0.12,
   "exposeRatesToClient": false,
+  "components": [
+    { "id": "api", "name": "Booking API" },
+    { "id": "notify", "name": "Notification Service" },
+    { "id": "notify.jobs", "name": "Reminder Jobs", "parent": "notify" },
+    { "id": "admin", "name": "Admin Console", "notEstimated": "out of v1 scope" }
+  ],
   "features": [
     {
       "id": "booking",
       "name": "User can book appointment",
       "provenance": "stated",
+      "component": "api",
       "milestone": "M1 - Booking core",
       "tasks": [
         { "id": "booking-api", "name": "Booking CRUD API", "category": "boilerplate",
@@ -26,6 +33,7 @@
       "id": "reminders",
       "name": "Email reminders",
       "provenance": "proposed",
+      "component": "notify.jobs",
       "milestone": "M2 - Notifications",
       "tasks": [
         { "id": "reminder-jobs", "name": "Scheduled reminder jobs", "category": "logic",

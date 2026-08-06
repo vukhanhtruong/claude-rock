@@ -81,6 +81,43 @@ test('milestones are all-or-nothing across features', () => {
   assert.ok(findings.some((f) => f.includes('reminders') && f.includes('milestone missing')));
 });
 
+test('components are all-or-nothing and must resolve to the roster', () => {
+  const bad = fixture();
+  delete bad.features[1].component;                 // features[0] has one
+  assert.ok(checkInputs(bad).some((f) => f.includes('reminders') && f.includes('component missing')));
+  const ghost = fixture();
+  ghost.features[0].component = 'ghost';
+  assert.ok(checkInputs(ghost).some((f) => f.includes('booking') && f.includes('not in roster')));
+  const tagOnly = fixture();
+  delete tagOnly.components;
+  assert.ok(checkInputs(tagOnly).some((f) => f.includes('no top-level components roster')));
+  const bare = fixture();
+  delete bare.components;
+  for (const f of bare.features) delete f.component;
+  assert.deepEqual(checkInputs(bare), []);          // no roster at all → still valid
+});
+
+test('an uncovered leaf component is a scope hole unless notEstimated says why', () => {
+  const bad = fixture();
+  bad.components.push({ id: 'reports', name: 'Reporting' });
+  assert.ok(checkInputs(bad).some((f) => f.includes('reports') && f.includes('no feature covers it')));
+  const excused = fixture();
+  excused.components.push({ id: 'reports', name: 'Reporting', notEstimated: 'phase 2' });
+  assert.deepEqual(checkInputs(excused), []);
+  const blank = fixture();
+  blank.components[3].notEstimated = '  ';          // admin's excuse blanked
+  assert.ok(checkInputs(blank).some((f) => f.includes('admin') && f.includes('reason')));
+});
+
+test('the roster is two levels max and parents must exist', () => {
+  const deep = fixture();
+  deep.components.push({ id: 'retry', name: 'Retry', parent: 'notify.jobs' });
+  assert.ok(checkInputs(deep).some((f) => f.includes('retry') && f.includes('two levels max')));
+  const orphan = fixture();
+  orphan.components[2].parent = 'ghost';            // notify.jobs → nonexistent parent
+  assert.ok(checkInputs(orphan).some((f) => f.includes('notify.jobs') && f.includes('not in roster')));
+});
+
 test('a blank milestone is refused; none at all is fine', () => {
   const bad = fixture();
   bad.features[0].milestone = '  ';

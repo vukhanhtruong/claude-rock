@@ -72,9 +72,14 @@ Rates never appear. Team members are described by role/seniority only.
 
 Other scenarios (ids, names, or comparisons), provenance vocabulary
 (`observed`/`stated`/`researched`/`proposed` as table cells or a `src`
-column), confidence internals, rates, internal risk ids, `data-internal`,
-placeholder text of any spelling, empty tables. Unknowns are honest absences —
-if something isn't known, say so in plain words or leave it out.
+column), `data-internal`, placeholder text of any spelling, empty tables,
+and any number the derivation didn't produce — all of these fail
+`validate.mjs`. Rates, internal risk ids, and confidence internals must
+never appear either, but no script can recognize them reliably: the
+fresh-eyes review (`references/review.md` charter item 4) and your own
+read before rendering are the gate for those. Unknowns are honest
+absences — if something isn't known, say so in plain words or leave it
+out.
 
 ## 6. Placement + commands
 

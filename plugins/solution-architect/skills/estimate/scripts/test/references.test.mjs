@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { AI_CATEGORIES, PLAN_PRICES, TIER_BREAKS } from '../lib/estimate-math.mjs';
 
 const ref = (f) => readFileSync(new URL(`../../references/${f}`, import.meta.url), 'utf8');
-const ALL = ['interview.md', 'techniques.md', 'ai-multipliers.md', 'writing.md'];
+const ALL = ['interview.md', 'techniques.md', 'ai-multipliers.md', 'writing.md', 'slicing.md'];
 
 test('no reference doc carries placeholders', () => {
   for (const f of ALL) assert.doesNotMatch(ref(f), /\bTBD\b|\bTODO\b/, f);
@@ -44,6 +44,15 @@ test('writing.md states every validator rule family', () => {
     'assumptions', 'buffer', 'elected', 'docs/estimate/', 'Roadmap', 'not calendar dates']) {
     assert.ok(doc.includes(needle), `writing.md missing: ${needle}`);
   }
+});
+
+test('slicing.md carries the vertical-slice rules and split patterns', () => {
+  const doc = ref('slicing.md');
+  for (const needle of ['Walking skeleton', 'user-visible', 'Workflow steps', 'Spike',
+    'two levels', 'humanizingwork.com', 'addyosmani']) {
+    assert.ok(doc.includes(needle), `slicing.md missing: ${needle}`);
+  }
+  assert.ok(/## Sources/.test(doc), 'slicing.md missing Sources section');
 });
 
 test('method sources are cited where techniques are recommended', () => {

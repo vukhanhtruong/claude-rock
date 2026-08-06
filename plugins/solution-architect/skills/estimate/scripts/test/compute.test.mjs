@@ -64,6 +64,20 @@ test('scenarios carry a roadmap when features have milestones', () => {
     > roadmap[1].endMonths - roadmap[1].startMonths);
 });
 
+test('computed.components rolls feature hours into top-level containers', () => {
+  const { computed } = computeEstimation(fixture());
+  // booking (api) 69.33 · reminders (notify.jobs → notify) 21.33 · admin excused, 0
+  assert.deepEqual(computed.components, { admin: 0, api: 69.33, notify: 21.33 });
+});
+
+test('no roster → no components key at all', () => {
+  const bare = fixture();
+  delete bare.components;
+  for (const f of bare.features) delete f.component;
+  const { computed } = computeEstimation(bare);
+  assert.ok(!('components' in computed), 'components key must be absent, not empty');
+});
+
 test('no milestones → no roadmap key at all', () => {
   const bare = fixture();
   for (const f of bare.features) delete f.milestone;

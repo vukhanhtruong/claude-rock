@@ -5,6 +5,7 @@ import {
   pert, projectBuffer, taskHours, riskBufferHours, scenarioRollup,
 } from './estimate-math.mjs';
 import { roadmapFor } from './roadmap.mjs';
+import { componentHoursFor } from './components.mjs';
 
 const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
 
@@ -118,12 +119,13 @@ export function computeEstimation(inputs) {
   const buffers = globalBuffers(tasks, inputs.risks);
   const ctx = { tasks, features: inputs.features, overheadPct: inputs.overheadPct, ...buffers };
   const scenarios = sortedMap(inputs.scenarios.map((s) => [s.id, scenarioBlock(s, ctx)]));
-  const roundedTasks = sortedMap(Object.entries(tasks).map(([id, t]) => [id, { e: round2(t.e), sigma: round2(t.sigma) }]));
+  const components = componentHoursFor(inputs, features);
   return {
     inputs,
     computed: {
-      tasks: roundedTasks,
+      tasks: sortedMap(Object.entries(tasks).map(([id, t]) => [id, { e: round2(t.e), sigma: round2(t.sigma) }])),
       features,
+      ...(components ? { components } : {}),
       devHours: round2(buffers.devHours),
       overheadHours: round2(buffers.devHours * inputs.overheadPct),
       spreadBufferHours: round2(buffers.spreadBufferHours),

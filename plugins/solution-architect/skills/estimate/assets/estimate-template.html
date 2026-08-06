@@ -206,7 +206,8 @@ details.help > p {
    track and in the axis ticks — one shared coordinate system, not a
    per-row axis. */
 .roadmap-chart { display:flex; flex-direction:column; }
-.roadmap-row { display:flex; align-items:center; gap:.7rem; padding:.4rem 0; }
+.roadmap-row { display:flex; align-items:center; gap:.7rem; padding:.4rem 0; cursor:pointer; }
+.roadmap-row:hover { background:var(--accent-soft); }
 .roadmap-row + .roadmap-row { border-top:1px solid var(--border); }
 .roadmap-label { flex:0 0 150px; min-width:0; display:flex; flex-direction:column; gap:.15rem; }
 .roadmap-name { font-size:.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -216,7 +217,11 @@ details.help > p {
   background:var(--border); border-radius:.3rem; overflow:hidden;
 }
 .roadmap-gridline { position:absolute; top:0; bottom:0; width:1px; background:var(--border-strong); opacity:.55; }
-.roadmap-band { position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem; }
+.roadmap-band {
+  position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem;
+  display:flex; overflow:hidden; /* container segments fill it left to right */
+}
+.roadmap-seg { height:100%; }
 .roadmap-months {
   flex:0 0 auto; min-width:4.6rem; text-align:right;
   font-family:'IBM Plex Mono',monospace; font-size:.72rem;
@@ -408,8 +413,8 @@ tr.task-row .bd-cell { justify-content:flex-end; }
   </aside>
   <!-- internal:end -->
   <div class="col col-wide">
-    <section id="roadmap"></section>
     <section id="containers"></section>
+    <section id="roadmap"></section>
     <section id="feature-table"></section>
     <section id="register"></section>
   </div>
@@ -738,6 +743,19 @@ function onBreakdownChange(e) {
   renderBreakdown();
 }
 
+// A roadmap row is a shortcut into the breakdown: stale container/source
+// filters would silently hide the milestone's rows, so the click clears them
+// before filtering. Clicking the active row again clears the milestone too.
+function onRoadmapClick(e) {
+  const row = e.target.closest('.roadmap-row');
+  if (!row) return;
+  bdState.milestone = bdState.milestone === row.dataset.milestone ? '' : row.dataset.milestone;
+  bdState.component = '';
+  bdState.prov = '';
+  renderBreakdown();
+  document.getElementById('feature-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Ticks are whole months (0, 1, 2…) once the span is long enough for that to
 // read as a timeline; below that a whole-month grid would be a bare "0", so
 // fall back to each band's own start/end. Either way ticks are computed once
@@ -759,6 +777,25 @@ const tickPct = (m, total) => (total > 0 ? (m / total) * 100 : 0);
 // rather than the quote being left to break out of the title.
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
+// Inside a band, each top-level container the milestone touches gets a slice
+// of the bar sized by its share of the milestone's hours — several colors is a
+// vertical slice, one color is the horizontal-slice smell. Same palette as the
+// donut. No roster → empty string, and the band keeps its solid accent fill.
+function bandSegments(band) {
+  if (!DATA.computed.components) return '';
+  const compOf = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.component]));
+  const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
+  const hours = {};
+  for (const id of band.features) {
+    const c = containerOf(compOf[id]);
+    hours[c] = (hours[c] ?? 0) + DATA.computed.features[id].hours;
+  }
+  const sum = Object.values(hours).reduce((a, b) => a + b, 0);
+  return Object.entries(hours).map(([c, h]) =>
+    `<span class="roadmap-seg" style="width:${((h / sum) * 100).toFixed(2)}%;background:${ctColor(c)}"
+      title="${esc(`${names[c] ?? c} · ${h.toFixed(2)}h (${Math.round((h / sum) * 100)}%)`)}"></span>`).join('');
+}
+
 function roadmapRow(band, total, names, ticks) {
   const left = (band.startMonths / total) * 100;
   const width = ((band.endMonths - band.startMonths) / total) * 100;
@@ -772,10 +809,10 @@ function roadmapRow(band, total, names, ticks) {
   // cost the axis the span it needs, so each label carries its own full text as a
   // hover title instead.
   const feats = band.features.map((id) => names[id]);
-  return `<div class="roadmap-row">
+  return `<div class="roadmap-row" data-milestone="${esc(band.milestone)}">
     <div class="roadmap-label"><span class="roadmap-name" title="${esc(band.milestone)}">${esc(band.milestone)}</span>
       <span class="roadmap-feature-names" title="${esc(feats.join(' · '))}">${feats.map(esc).join(' &middot; ')}</span></div>
-    <div class="roadmap-track">${gridlines}<span class="roadmap-band" style="left:${left}%;width:${width}%"></span></div>
+    <div class="roadmap-track">${gridlines}<span class="roadmap-band" style="left:${left}%;width:${width}%">${bandSegments(band)}</span></div>
     <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></div>`;
 }
 
@@ -805,7 +842,9 @@ function renderRoadmap() {
   const ticks = roadmapTicks(total, roadmap);
   el.innerHTML = secHead('Roadmap',
     'Sequential delivery by the recommended scenario team. Bands are relative months from '
-    + 'kickoff, not calendar dates; each milestone\'s width is its share of the work.')
+    + 'kickoff, not calendar dates; each milestone\'s width is its share of the work. Band '
+    + 'colors are the containers the milestone touches (same palette as the chart above). '
+    + 'Click a row to filter the breakdown below to that milestone.')
     + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, total, names, ticks)).join('')}`
     + `${roadmapAxis(total, ticks)}</div>`;
 }
@@ -949,6 +988,7 @@ document.getElementById('reset')?.addEventListener('click', () => {
 
 document.getElementById('feature-table')?.addEventListener('click', onBreakdownClick);
 document.getElementById('feature-table')?.addEventListener('change', onBreakdownChange);
+document.getElementById('roadmap')?.addEventListener('click', onRoadmapClick);
 
 document.getElementById('view-toggle')?.addEventListener('click', () => {
   document.body.classList.toggle('view-client');

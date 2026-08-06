@@ -299,6 +299,9 @@ test('no roster → the containers section is absent, no placeholder', skip, asy
   const page = await openPage(pathToFileURL(join(dir, 'estimate.html')).href);
   try {
     assert.equal(await page.eval(`document.getElementById('containers')`), null);
+    // no roster → no segments either; the band falls back to the solid accent fill
+    assert.equal(await page.eval(`document.querySelectorAll('#roadmap .roadmap-seg').length`), 0);
+    assert.ok(await page.eval(`document.querySelectorAll('#roadmap .roadmap-band').length > 0`));
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });
@@ -316,6 +319,37 @@ test('container select filters rows by container', skip, async () => {
     await page.eval(pickOption('component', ''));
     assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.feat-row').length`), 2);
     assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+test('roadmap bands segment by container; clicking a row drives the breakdown', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const segs = await page.eval(`[...document.querySelectorAll('#roadmap .roadmap-row')].map((r) =>
+      [...r.querySelectorAll('.roadmap-seg')].map((s) => s.title))`);
+    assert.deepEqual(segs, [['Booking API · 69.33h (100%)'], ['Notification Service · 21.33h (100%)']]);
+    // a stale container filter would hide the milestone's rows — the click clears it first
+    await page.eval(pickOption('component', 'api'));
+    await page.eval(`document.querySelector('#roadmap .roadmap-row[data-milestone="M2 - Notifications"]').click()`);
+    assert.deepEqual(await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['reminders']);
+    assert.equal(await page.eval(
+      `document.querySelector('#feature-table select[data-select="milestone"]').value`), 'M2 - Notifications');
+    assert.equal(await page.eval(
+      `document.querySelector('#feature-table select[data-select="component"]').value`), '');
+    // same row again → the filter clears, every feature returns
+    await page.eval(`document.querySelector('#roadmap .roadmap-row[data-milestone="M2 - Notifications"]').click()`);
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.feat-row').length`), 2);
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+test('the container donut and roadmap sit directly above the feature breakdown', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const ids = await page.eval(`[...document.querySelectorAll('main section[id]')].map((s) => s.id)`);
+    const [c, r, f] = ['containers', 'roadmap', 'feature-table'].map((id) => ids.indexOf(id));
+    assert.ok(c >= 0 && c < r && r + 1 === f, `order wrong: ${ids}`);
   } finally { page.close(); }
 });
 

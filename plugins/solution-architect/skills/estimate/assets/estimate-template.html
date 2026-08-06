@@ -254,6 +254,8 @@ tr.conf-med .conf { color:var(--warn); }
 tr.conf-low .conf { color:var(--bad); }
 /* feature breakdown: filter pills, sortable headers, bar-in-cell, task drill-down */
 .bd-filters { display:flex; flex-wrap:wrap; gap:.9rem; margin:0 0 .8rem; }
+#containers .ct-bar { width:38%; }
+#containers .bd-track { display:block; }
 .bd-filter-group { display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; }
 .bd-filter-group + .bd-filter-group { border-left:1px solid var(--border-strong); padding-left:.9rem; }
 .bd-right { display:flex; flex-wrap:wrap; gap:.9rem; align-items:center; margin-left:auto; }
@@ -390,6 +392,7 @@ tr.task-row .bd-cell { justify-content:flex-end; }
   <!-- internal:end -->
   <div class="col col-wide">
     <section id="roadmap"></section>
+    <section id="containers"></section>
     <section id="feature-table"></section>
     <section id="register"></section>
   </div>
@@ -773,6 +776,34 @@ function renderRoadmap() {
     + `${roadmapAxis(total, ticks)}</div>`;
 }
 
+// Committed numbers only, like every section: expected hours summed per
+// top-level container (computed.components). A container the roster excused
+// with notEstimated renders the honest words, never a bare 0.
+function containerRow(id, h, ctx) {
+  const share = ctx.total ? Math.round((h / ctx.total) * 100) : 0;
+  return `<tr><td>${esc(ctx.names[id] ?? id)}</td>
+    <td class="num">${h ? `${h}h` : 'not estimated'}</td><td class="num">${h ? `${share}%` : ''}</td>
+    <td class="ct-bar"><span class="bd-track"><span class="bd-fill" style="width:${share}%"></span></span></td></tr>`;
+}
+
+function renderContainers() {
+  const el = document.getElementById('containers');
+  if (!el) return;
+  const comp = DATA.computed.components;
+  if (!comp) { el.remove(); return; }
+  const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
+  const total = Object.values(comp).reduce((a, b) => a + b, 0);
+  const rows = Object.entries(comp).sort(([, a], [, b]) => b - a)
+    .map(([id, h]) => containerRow(id, h, { names, total })).join('');
+  el.innerHTML = secHead('Effort by container',
+    'Expected hours summed per top-level container, from the same task numbers as the '
+    + 'breakdown. A container marked "not estimated" is in the architecture but has no '
+    + 'sized work yet — an honest gap, not zero effort.')
+    + `<div class="bd-scroll"><table>
+      <thead><tr><th>Container</th><th class="num">Hours</th><th class="num">Share</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+
 // Assembled at runtime for the same reason as CTL_SUFFIX above: the task
 // drill-down is per-task WBS detail, not meant for the client view, so its
 // rows and expand buttons carry the internal-hide attribute — but that
@@ -840,6 +871,7 @@ function renderAll(defaults) {
   renderCards();
   renderBars();
   renderRoadmap();
+  renderContainers();
   renderBreakdown();
   renderRegister();
   renderMethod();

@@ -106,6 +106,14 @@ test('--client-only keeps rates when exposeRatesToClient is true', () => {
   assert.match(html, /"rate":/);
 });
 
+test('component data survives the client-only render', () => {
+  // deliberate: names come from the architecture doc the client already sees;
+  // costs stay redacted — the rollup shows hours/share only
+  const client = renderedPage(['--client-only']);
+  assert.match(client, /"components":/);
+  assert.match(client, /"component":"api"/);
+});
+
 test('the rendered page carries the roadmap section markup', () => {
   const html = renderedPage();
   assert.match(html, /id="roadmap"/);

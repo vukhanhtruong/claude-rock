@@ -117,7 +117,7 @@ test('the --client-only page boots clean without its stripped controls', skip, a
   try {
     assert.deepEqual(page.errors, []); // stripped nodes must be null-guarded, not assumed
     assert.equal(await page.eval(`document.getElementById('ctl-engineers')`), null);
-    for (const id of ['scenario-cards', 'feature-table', 'register', 'method', 'roadmap']) {
+    for (const id of ['scenario-cards', 'feature-table', 'register', 'method', 'roadmap', 'containers']) {
       assert.ok(await page.eval(`document.getElementById('${id}').children.length > 0`),
         `${id} empty on client-only page`);
     }
@@ -256,6 +256,37 @@ test('milestone and provenance filters scope rows without rescaling bars', skip,
     await page.eval(`document.querySelector('#feature-table button[data-prov="stated"]').click()`);
     assert.deepEqual(await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['booking']);
+  } finally { page.close(); }
+});
+
+test('the effort-by-container rollup shows hours, shares, and honest gaps', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const rows = await page.eval(`[...document.querySelectorAll('#containers tbody tr')].map((r) =>
+      [...r.querySelectorAll('td')].slice(0, 3).map((c) => c.textContent.trim()))`);
+    // hours desc; admin is roster-excused → the honest words, never a bare 0
+    assert.deepEqual(rows, [
+      ['Booking API', '69.33h', '76%'],
+      ['Notification Service', '21.33h', '24%'],
+      ['Admin Console', 'not estimated', ''],
+    ]);
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+test('no roster → the containers section is absent, no placeholder', skip, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-browser-'));
+  const scripts = new URL('..', import.meta.url).pathname;
+  const bare = JSON.parse(readFileSync(fixture, 'utf8'));
+  delete bare.components;
+  for (const f of bare.features) delete f.component;
+  writeFileSync(join(dir, 'inputs.json'), JSON.stringify(bare));
+  execFileSync('node', [join(scripts, 'compute.mjs'), '--inputs', join(dir, 'inputs.json'), '--out', join(dir, 'estimation.json')]);
+  execFileSync('node', [join(scripts, 'render.mjs'), '--json', join(dir, 'estimation.json'), '--md', join(scripts, 'test/fixtures/estimation-pass.md'), '--out', dir]);
+  const page = await openPage(pathToFileURL(join(dir, 'estimate.html')).href);
+  try {
+    assert.equal(await page.eval(`document.getElementById('containers')`), null);
+    assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });
 

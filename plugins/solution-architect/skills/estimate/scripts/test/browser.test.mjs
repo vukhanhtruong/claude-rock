@@ -310,6 +310,8 @@ test('no roster → the containers section is absent, no placeholder', skip, asy
     // no roster → no segments either; the band falls back to the solid accent fill
     assert.equal(await page.eval(`document.querySelectorAll('#roadmap .roadmap-seg').length`), 0);
     assert.ok(await page.eval(`document.querySelectorAll('#roadmap .roadmap-band').length > 0`));
+    // and the breakdown rows carry no container swatches
+    assert.equal(await page.eval(`document.querySelectorAll('#feature-table .swatch').length`), 0);
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });
@@ -321,6 +323,11 @@ test('container select filters rows by container', skip, async () => {
     const options = await page.eval(
       `[...document.querySelectorAll('#feature-table select[data-select="component"] option')].map((o) => o.textContent)`);
     assert.deepEqual(options, ['all containers', 'Booking API', 'Notification Service']);
+    // each row carries its container's swatch, named on hover — same palette as the donut
+    const swatches = await page.eval(`[...document.querySelectorAll('#feature-table tr.feat-row .swatch')]
+      .map((s) => ({ title: s.title, bg: s.style.background }))`);
+    assert.deepEqual(swatches.map((s) => s.title), ['Booking API', 'Notification Service']);
+    assert.ok(swatches[0].bg && swatches[0].bg !== swatches[1].bg, 'containers must differ in color');
     await page.eval(pickOption('component', 'notify'));
     assert.deepEqual(await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['reminders']);

@@ -266,7 +266,8 @@ tr.conf-low .conf { color:var(--bad); }
 #containers .pie-slice:hover { opacity:.75; }
 #containers .pie-legend { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; flex:1; min-width:230px; align-content:center; }
 #containers .pie-legend li { display:flex; align-items:center; gap:.5rem; font-size:.82rem; }
-#containers .swatch { width:.7rem; height:.7rem; border-radius:.2rem; flex:0 0 auto; }
+.swatch { width:.7rem; height:.7rem; border-radius:.2rem; flex:0 0 auto; }
+.feat-cell .swatch { align-self:center; }
 #containers .pie-hours { margin-left:auto; }
 #containers .pie-hours, #containers .pie-share {
   font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
@@ -587,6 +588,15 @@ const CT_COLORS = ['#5a9fd4', '#d97757', '#3ba99f', '#d9b95e', '#9d86c9',
   '#5dbb7a', '#c47a94', '#7c8f9e', '#c98a4b', '#a8a29e'];
 const CT_TOPS = (DATA.inputs.components ?? []).filter((c) => !c.parent).map((c) => c.id);
 const ctColor = (id) => CT_COLORS[CT_TOPS.indexOf(id) % CT_COLORS.length];
+const CT_NAMES = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.name]));
+
+// The container's color chip, reused wherever a row needs to say which
+// container it belongs to. No roster → no chip, not a grey placeholder.
+function ctSwatch(component) {
+  if (!DATA.inputs.components) return '';
+  const id = containerOf(component);
+  return `<span class="swatch" style="background:${ctColor(id)}" title="${esc(CT_NAMES[id] ?? id)}"></span>`;
+}
 const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', expanded: new Set() };
 const BD_COLS = [
   { key: 'name', label: 'Feature', val: (f) => f.name, hint: 'sort by name' },
@@ -679,7 +689,7 @@ function featRow(f, max) {
   return `<tr class="feat-row ${confLevel(f.conf)}" data-id="${f.id}">
     <td><span class="feat-cell"><button type="button" class="expand" ${INTERNAL_ATTR}
       aria-expanded="${open}" aria-label="show tasks">&#9656;</button>
-      <span>${f.name}</span></span></td>
+      ${ctSwatch(f.component)}<span>${f.name}</span></span></td>
     <td><span class="bd-cell">${bdBar(f, max)}<span class="bd-num">${f.hours}</span></span></td>
     <td class="num">${f.low}&ndash;${f.high}</td>
     <td><span class="conf">${f.conf}</span></td>

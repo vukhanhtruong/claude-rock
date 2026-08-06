@@ -38,7 +38,7 @@ function checkLeaks({ md, fm, estimation }, out) {
   }
   if (/\|\s*src\s*\|/i.test(md)) out.push('leak: provenance "src" column');
   if (/data-internal/.test(md)) out.push('leak: data-internal marker');
-  for (const word of ['observed', 'researched']) {
+  for (const word of ['observed', 'stated', 'researched', 'proposed']) {
     if (new RegExp(`\\|\\s*${word}\\s*\\|`).test(md)) out.push(`leak: provenance cell "${word}"`);
   }
 }

@@ -97,6 +97,10 @@ test('other scenario ids and provenance markup are leaks', () => {
   assert.ok(run(md.replace('Weekly demos.', '| observed |')).some((f) => f.includes('observed')));
 });
 
+test('stated and proposed provenance cells are leaks too', () => {
+  assert.ok(run(md.replace('Weekly demos.', '| proposed |')).some((f) => f.includes('proposed')));
+});
+
 test('non-tech jargon fails, jargon_allow overrides per term', () => {
   const jargony = md.replace('Weekly demos.', 'We deploy the API to Kubernetes.');
   const findings = run(jargony);

@@ -291,6 +291,17 @@ test('the effort-by-container donut shows shares and names the honest gaps', ski
     })()`);
     assert.deepEqual(await hot('mouseover'), ['notify']);
     assert.deepEqual(await hot('mouseout'), []);
+    // and the reverse: hovering a legend row lights its slice on the donut
+    const hotSlices = (type) => page.eval(`(() => {
+      document.querySelector('#containers .pie-legend li[data-ct="api"]')
+        .dispatchEvent(new MouseEvent('${type}', { bubbles: true }));
+      return [...document.querySelectorAll('#containers .pie-slice.hot')].map((s) => s.dataset.ct);
+    })()`);
+    assert.deepEqual(await hotSlices('mouseover'), ['api']);
+    assert.equal(await page.eval(
+      `getComputedStyle(document.querySelector('#containers .pie-slice[data-ct="api"]')).opacity`),
+    '0.75', 'the lit slice must read as highlighted');
+    assert.deepEqual(await hotSlices('mouseout'), []);
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });
@@ -326,10 +337,12 @@ test('container select filters rows by container', skip, async () => {
     // each row's first cell carries its container's stripe on the left edge,
     // named on hover — same palette as the donut
     const stripes = await page.eval(`[...document.querySelectorAll('#feature-table tr.feat-row td.ct-edge')]
-      .map((c) => ({ title: c.title, shadow: getComputedStyle(c).boxShadow }))`);
+      .map((c) => ({ title: c.title, shadow: getComputedStyle(c).boxShadow, inline: c.style.boxShadow }))`);
     assert.deepEqual(stripes.map((s) => s.title), ['Booking API', 'Notification Service']);
     assert.ok(stripes.every((s) => /inset/.test(s.shadow)), 'stripe must be an inset edge, no gap');
     assert.notEqual(stripes[0].shadow, stripes[1].shadow, 'containers must differ in color');
+    assert.ok(stripes.every((s) => s.inline === ''),
+      'the shadow lives in the ct-edge class — inline style carries only the color variable');
     await page.eval(pickOption('component', 'notify'));
     assert.deepEqual(await page.eval(
       `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`), ['reminders']);
@@ -362,6 +375,44 @@ test('roadmap bands segment by container; clicking a row drives the breakdown', 
     // same row again → the filter clears, every feature returns
     await page.eval(`document.querySelector('#roadmap .roadmap-row[data-milestone="M2 - Notifications"]').click()`);
     assert.equal(await page.eval(`document.querySelectorAll('#feature-table tr.feat-row').length`), 2);
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+// Clicking a roadmap row filters to its milestone AND groups the surviving
+// rows by container, so the stripe colors cluster the way the band's segments
+// do — the roadmap colors and the breakdown colors tell the same story.
+test('a roadmap click groups the breakdown rows by container', skip, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-browser-'));
+  const scripts = new URL('..', import.meta.url).pathname;
+  const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
+  inputs.features.push({
+    id: 'audit', name: 'Booking audit log', provenance: 'proposed',
+    component: 'api', milestone: 'M2 - Notifications',
+    tasks: [{ id: 'audit-log', name: 'Audit log writes', category: 'boilerplate',
+      o: 4, m: 6, p: 10, confidence: 'MED', assumptions: [], provenance: 'proposed' }],
+  });
+  writeFileSync(join(dir, 'inputs.json'), JSON.stringify(inputs));
+  execFileSync('node', [join(scripts, 'compute.mjs'), '--inputs', join(dir, 'inputs.json'), '--out', join(dir, 'estimation.json')]);
+  execFileSync('node', [join(scripts, 'render.mjs'), '--json', join(dir, 'estimation.json'), '--md', join(scripts, 'test/fixtures/estimation-pass.md'), '--out', dir]);
+  const page = await openPage(pathToFileURL(join(dir, 'estimate.html')).href);
+  try {
+    const ids = () => page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')].map((r) => r.dataset.id)`);
+    await page.eval(`document.querySelector('#roadmap .roadmap-row[data-milestone="M2 - Notifications"]').click()`);
+    // hours desc would put reminders first; container grouping puts the api row first
+    assert.deepEqual(await ids(), ['audit', 'reminders']);
+    // no header may claim a sort the grouping just overrode
+    assert.deepEqual(await page.eval(
+      `[...document.querySelectorAll('#feature-table th')].map((t) => t.getAttribute('aria-sort'))`),
+    ['none', 'none', 'none', 'none', 'none']);
+    // an explicit header sort takes control back from the grouping, starting
+    // fresh at the column's default direction — not toggling a stale one
+    await page.eval(`document.querySelector('#feature-table th button[data-sort="hours"]').click()`);
+    assert.deepEqual(await ids(), ['reminders', 'audit']);
+    assert.equal(await page.eval(
+      `document.querySelector('#feature-table th button[data-sort="hours"]').closest('th').getAttribute('aria-sort')`),
+    'descending');
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });

@@ -258,12 +258,15 @@ tr.conf-high .conf { color:var(--ok); }
 tr.conf-med .conf { color:var(--warn); }
 tr.conf-low .conf { color:var(--bad); }
 /* feature breakdown: filter pills, sortable headers, bar-in-cell, task drill-down */
+/* container stripe on a row's first cell: inset shadow — no gap to the table
+   edge. The color arrives per row as --ct-color; the shadow lives here. */
+td.ct-edge { box-shadow:inset 4px 0 0 var(--ct-color); }
 .bd-filters { display:flex; flex-wrap:wrap; gap:.9rem; margin:0 0 .8rem; }
 /* effort-by-container donut: slices are stroked circles (pathLength=100 turns
    stroke-dasharray into percent), legend carries the exact numbers. */
 #containers .pie-wrap { display:flex; flex-wrap:wrap; align-items:center; gap:1.8rem; }
 #containers svg { width:172px; height:172px; flex:0 0 auto; }
-#containers .pie-slice:hover { opacity:.75; }
+#containers .pie-slice.hot { opacity:.75; }
 #containers .pie-legend { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; flex:1; min-width:230px; align-content:center; }
 #containers .pie-legend li { display:flex; align-items:center; gap:.5rem; font-size:.82rem; }
 .swatch { width:.7rem; height:.7rem; border-radius:.2rem; flex:0 0 auto; }
@@ -589,15 +592,16 @@ const CT_TOPS = (DATA.inputs.components ?? []).filter((c) => !c.parent).map((c) 
 const ctColor = (id) => CT_COLORS[CT_TOPS.indexOf(id) % CT_COLORS.length];
 const CT_NAMES = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.name]));
 
-// Attributes for a row's first cell: a full-height stripe on the cell's exact
-// left edge (inset shadow — no gap to the table edge), container-colored and
-// named on hover. No roster → no stripe, not a grey placeholder.
+// Attributes for a row's first cell: a full-height container-colored stripe,
+// named on hover. The shadow geometry lives in the td.ct-edge class; only the
+// color travels inline, as a custom property — same pattern as the bar widths.
+// No roster → no stripe, not a grey placeholder.
 function ctEdge(component) {
   if (!DATA.inputs.components) return '';
   const id = containerOf(component);
-  return ` class="ct-edge" style="box-shadow:inset 6px 0 0 ${ctColor(id)}" title="${esc(CT_NAMES[id] ?? id)}"`;
+  return ` class="ct-edge" style="--ct-color:${ctColor(id)}" title="${esc(CT_NAMES[id] ?? id)}"`;
 }
-const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', expanded: new Set() };
+const bdState = { sortKey: 'hours', dir: -1, milestone: '', component: '', prov: '', group: false, expanded: new Set() };
 const BD_COLS = [
   { key: 'name', label: 'Feature', val: (f) => f.name, hint: 'sort by name' },
   { key: 'hours', label: 'Effort (h)', val: (f) => f.hours, hint: 'sort by expected hours' },
@@ -617,9 +621,15 @@ function breakdownData() {
   });
 }
 
+// group is a primary key layered over the column sort: rows cluster by
+// container (roster order — the palette's order) so the stripes read as the
+// same blocks of color as the roadmap band that set the filter.
 function bdSorted(list) {
   const col = BD_COLS.find((c) => c.key === bdState.sortKey);
+  const ctRank = (f) => CT_TOPS.indexOf(containerOf(f.component));
   return list.slice().sort((a, b) => {
+    const byGroup = bdState.group ? ctRank(a) - ctRank(b) : 0;
+    if (byGroup) return byGroup;
     const [x, y] = [col.val(a), col.val(b)];
     return (x < y ? -1 : x > y ? 1 : 0) * bdState.dir;
   });
@@ -669,7 +679,8 @@ function bdFilters(all) {
 
 function bdHead() {
   return `<thead><tr>${BD_COLS.map((c) => {
-    const active = bdState.sortKey === c.key;
+    // grouping overrides the column order, so no header may claim its sort
+    const active = !bdState.group && bdState.sortKey === c.key;
     const aria = active ? (bdState.dir === 1 ? 'ascending' : 'descending') : 'none';
     const arrow = active ? (bdState.dir === 1 ? ' &#9650;' : ' &#9660;') : '';
     return `<th aria-sort="${aria}"${c.cls ? ` class="${c.cls}"` : ''}>
@@ -721,8 +732,12 @@ function renderBreakdown() {
 }
 
 function bdSort(key) {
-  if (bdState.sortKey === key) bdState.dir = -bdState.dir;
-  else { bdState.sortKey = key; bdState.dir = key === 'hours' || key === 'spread' ? -1 : 1; }
+  // an explicit sort takes control back from the roadmap grouping — and starts
+  // fresh at the column's default direction, since no sort was showing.
+  const fresh = bdState.group || bdState.sortKey !== key;
+  bdState.group = false;
+  if (fresh) { bdState.sortKey = key; bdState.dir = key === 'hours' || key === 'spread' ? -1 : 1; }
+  else bdState.dir = -bdState.dir;
   renderBreakdown();
 }
 
@@ -754,12 +769,14 @@ function onBreakdownChange(e) {
   renderBreakdown();
 }
 
-// Slice → legend row: a 2% donut slice is unhoverable-thin for reading, so
-// pointing at any slice lights the row that names it.
+// Slice ↔ legend row, both directions: a 2% donut slice is unhoverable-thin
+// for reading, so pointing at it lights the row that names it — and pointing
+// at a legend row lights its slice, so a name finds its arc just as easily.
 function onPieHover(e) {
-  const id = e.target.closest?.('.pie-slice')?.dataset.ct;
-  for (const li of document.querySelectorAll('#containers .pie-legend li')) {
-    li.classList.toggle('hot', e.type === 'mouseover' && li.dataset.ct === id);
+  const id = e.target.closest?.('[data-ct]')?.dataset.ct;
+  const on = e.type === 'mouseover';
+  for (const el of document.querySelectorAll('#containers [data-ct]')) {
+    el.classList.toggle('hot', on && el.dataset.ct === id);
   }
 }
 
@@ -772,6 +789,9 @@ function onRoadmapClick(e) {
   bdState.milestone = bdState.milestone === row.dataset.milestone ? '' : row.dataset.milestone;
   bdState.component = '';
   bdState.prov = '';
+  // group the surviving rows by container so their stripes cluster like the
+  // clicked band's segments — same colors, same blocks, one story.
+  bdState.group = bdState.milestone !== '';
   renderBreakdown();
   document.getElementById('feature-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -864,7 +884,7 @@ function renderRoadmap() {
     'Sequential delivery by the recommended scenario team. Bands are relative months from '
     + 'kickoff, not calendar dates; each milestone\'s width is its share of the work. Band '
     + 'colors are the containers the milestone touches (same palette as the chart above). '
-    + 'Click a row to filter the breakdown below to that milestone.')
+    + 'Click a row to filter the breakdown below to that milestone, grouped by container.')
     + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, total, names, ticks)).join('')}`
     + `${roadmapAxis(total, ticks)}</div>`;
 }

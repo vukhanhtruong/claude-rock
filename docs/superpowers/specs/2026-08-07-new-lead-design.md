@@ -275,3 +275,5 @@ written by a small agent at each gate pass.
    steps; standalone invocations must behave identically before/after.
 5. The implementation plan is split into multiple files (one per milestone /
    work area), not a single monolithic plan document.
+6. Run `/simplify` on changed code before every commit — quality pass is part
+   of each milestone's definition of done.

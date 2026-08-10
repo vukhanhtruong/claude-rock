@@ -80,10 +80,10 @@ Note on question 1 (deliberate): proposal's standalone interview
 business problem, in their words" to seed its Background & Objectives
 section. There is no dedicated schema field for a business-problem
 statement, so that question is folded into this summary question rather
-than dropped — **`scope.summary` is the field an orchestrated proposal run
-should read for Background & Objectives.** Proposal's own SKILL.md
-orchestrated-mode section does not currently name this source; this document
-is the record of where that content is meant to come from.
+than dropped — `scope.summary` is the field an orchestrated proposal run
+reads for Background & Objectives, per proposal's own SKILL.md
+orchestrated-mode section, which names `scope.summary` as a source
+alongside `client` and `proposal`.
 
 ### Batch 3 — Tech & evidence → `tech`, `evidence` confirmations
 
@@ -91,8 +91,11 @@ Purpose: capture technical constraints and confirm what the evidence scan
 already found, so arch-docs doesn't have to re-ask.
 
 Prefill source: evidence scan (RFP/codebase/notes) and, if present,
-`ARCHITECTURE.md`. A codebase source (no docs, existing code) triggers
-arch-docs brownfield mode downstream.
+`ARCHITECTURE.md`. A codebase source is recorded as
+`evidence.sources[].type: "codebase"` — arch-docs still detects brownfield
+vs. greenfield mode itself from its own directory scan (arch-docs SKILL.md's
+orchestrated-mode section: "mode and project type stay scan-derived, as in
+standalone"), independent of what this record says.
 
 Questions:
 
@@ -168,13 +171,18 @@ interview this batch replaces under orchestration.
 | combined batch | arch-docs interview § | estimate interview § | proposal interview § |
 | --- | --- | --- | --- |
 | Batch 1 — Client & context | — (arch-docs' bank asks nothing about client identity) | — (estimate's bank asks nothing about client identity) | §1 items 1, 2 (client name/decider; tech level) |
-| Batch 2 — Scope | §1 Goals & Scope (goal, users, problem) | §3 Clear-vs-assumed gate; §4 item 1 (scope confirm) | §1 item 3 (business problem, folded into `scope.summary` — see Batch 2 note); §2 (out-of-scope gaps) |
+| Batch 2 — Scope | §1 Goals & Scope (goal, problem — not "users", see below) | §3 Clear-vs-assumed gate; §4 item 1 (scope confirm) | §1 item 3 (business problem, folded into `scope.summary` — see Batch 2 note); §2 both bullets (out-of-scope gaps; anything already rejected/demanded — reachable via `scope.outOfScope[]`/`scope.mustHave[]`) |
 | Batch 3 — Tech & evidence | §2 Constraints (mandated tech, compliance portion); §10 Deployment & Infrastructure (hosting) | §1 Evidence detection table (evidence confirmation) | §0 (state known tech stack for correction) |
 | Batch 4 — Delivery & estimation | §2 Constraints (budget, timeline portion); frontmatter `team` (ownership, folded into `teamNotes`) | §2 Depth question; §4 item 6 (deadline/budget); SKILL.md step 4 (technique — not part of interview.md itself, folded in here since it must be confirmed once, up front) | — |
 | Batch 5 — Proposal prefs | — | — | §1 items 5 (scenario — explicitly gate-set, not asked), 6 (validity); §3 (firm profile) |
 
 ### Rows with no combined coverage, and why
 
+- **arch-docs §1 Goals & Scope's "intended users" half** — Batch 2 Q1 asks
+  what the project is and what problem it solves, but never who its
+  intended users are. No schema field holds users distinctly from the rest
+  of `scope.summary`, so nothing structural is lost, but the question
+  itself doesn't ask it. Not covered here.
 - **arch-docs §13 Quality Requirements & SLOs** (quality attribute + target,
   availability target, RPO/RTO) — no schema field exists for quality
   attributes or SLOs. Dropped from the combined interview; an orchestrated
@@ -212,8 +220,10 @@ interview this batch replaces under orchestration.
 - The evidence scan runs **before Batch 1**: RFP, notes, and any other
   documents the lead directory holds are read and summarized into
   `evidence.sources[]` (`{ type: rfp|codebase|notes|none, path, summary }`).
-- A codebase source (code exists, no docs) triggers arch-docs brownfield
-  mode downstream — carried as `evidence.sources[].type: "codebase"`.
+- A codebase source (code exists, no docs) is carried as
+  `evidence.sources[].type: "codebase"`. This does not drive arch-docs' mode
+  detection — arch-docs keeps mode and project type scan-derived from its
+  own directory scan in orchestrated mode, same as standalone.
 - Every prefilled value is confirmed in its batch, never silently used —
   shown with its source (e.g. "found in `rfp.md`") so the user can correct
   it before it's written.

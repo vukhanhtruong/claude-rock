@@ -68,6 +68,9 @@ unchanged.
   and the scenario pick from `proposal.scenario` — the orchestrator sets it
   at the estimate gate before this skill runs. No scenario in the file →
   stop and report; never pick one yourself.
+- Background & Objectives' client-problem line comes from `scope.summary`
+  — the one field this skill reads outside the `client`/`proposal` groups
+  named above.
 - Step 6 (Fresh-eyes review) is run by the orchestrator's workflow — when
   invoked as the writer agent inside it, write and validate, then stop
   after step 5; the review, fix, and re-validate stages happen as separate

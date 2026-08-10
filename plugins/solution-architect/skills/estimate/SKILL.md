@@ -63,3 +63,25 @@ the viewer also finds it there when rendered later.
 ## Dependency
 
 Node ≥ 20. No npm install needed — the scripts are dependency-free.
+
+## Orchestrated mode
+
+Active only when the caller provides a path to a `new-lead-answers.json`
+file. Without that file this section does not apply — run the flow above
+unchanged.
+
+- Skip steps 1–3 (evidence detection, depth ask, interview): evidence
+  findings come from `evidence`, depth from `delivery.depth`
+  (QUICK/STANDARD/DEEP), scope and the clear-vs-assumed split from `scope`
+  (`mustHave`/`niceToHave` are stated, `assumed` items are proposed). A
+  hole the answers file does not fill stays a hole — label it `proposed`
+  with its assumption, never silently resolve it.
+- Step 4 (Technique): the technique was already recommended and confirmed
+  during the combined interview — take it from `delivery.technique` and log
+  it to `decisions` instead of re-confirming.
+- Skip step 9 (Render + serve) — the orchestrator owns rendering.
+- Companion mode applies as written when ARCHITECTURE.md exists (it will,
+  under the orchestrator — it runs after the arch gate).
+- Everything else — hard rules 1–5, sizing, `compute.mjs`, writing,
+  `validate.mjs` until exit 0 — applies unchanged.
+- Report back: files written, final validate exit code, `decisions[]`.

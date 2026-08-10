@@ -416,4 +416,138 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
   test('injecting the explainers logs no error', async () => {
     assert.deepEqual(page.errors, []);
   });
+
+  // The zoom, pan and expand controls shipped covered by template text alone —
+  // text can say the handler is wired, not that clicking it moves anything. The
+  // pin control was the only one of the six with a browser assertion.
+  const SHELL = `(() => {
+    const shell = [...document.querySelectorAll('.diagram-shell')].find((e) => e.offsetParent);
+    if (shell.classList.contains('is-pinned')) shell.querySelector('[data-pin]').click();
+    return shell;
+  })()`;
+
+  test('the zoom control scales the canvas and reports the new level', async () => {
+    const z = await page.eval(`(() => {
+      const shell = ${SHELL};
+      const canvas = shell.querySelector('.diagram-canvas');
+      const readout = shell.querySelector('[data-zoom-reset]');
+      readout.click();
+      const reset = canvas.style.transform;
+      shell.querySelector('[data-zoom-in]').click();
+      return { reset, after: canvas.style.transform,
+        text: readout.textContent, aria: readout.getAttribute('aria-label') };
+    })()`);
+    assert.match(z.reset, /scale\(1\)/, 'reset did not put the canvas back to 1x');
+    assert.match(z.after, /scale\(1\.2\)/, `zoom-in left the transform at ${z.after}`);
+    // The readout doubles as the reset button, so the level has to reach both the
+    // visible text and the accessible name.
+    assert.equal(z.text, '120%');
+    assert.match(z.aria, /currently 120%/);
+  });
+
+  test('the expand control flips its own pressed state', async () => {
+    const e = await page.eval(`(() => {
+      const shell = ${SHELL};
+      const btn = shell.querySelector('[data-expand]');
+      btn.click();
+      const on = { cls: shell.classList.contains('is-expanded'),
+        aria: btn.getAttribute('aria-pressed') };
+      btn.click();
+      return { on, off: { cls: shell.classList.contains('is-expanded'),
+        aria: btn.getAttribute('aria-pressed') } };
+    })()`);
+    assert.deepEqual(e.on, { cls: true, aria: 'true' });
+    assert.deepEqual(e.off, { cls: false, aria: 'false' });
+  });
+
+  // Pan was unbounded once: the canvas could be thrown clear of the viewport and
+  // the way back was a button the reader had to already know was a reset. The
+  // clamp is proved by panning past the edge twice — the second run must move
+  // nothing, because the first already sat on the limit.
+  test('a zoomed diagram pans, and stops at the edge of its own frame', async () => {
+    const p = await page.eval(`(() => {
+      const shell = ${SHELL};
+      const vp = shell.querySelector('.diagram-viewport');
+      const canvas = shell.querySelector('.diagram-canvas');
+      shell.querySelector('[data-zoom-reset]').click();
+      const atRest = vp.classList.contains('is-pannable');
+      for (let i = 0; i < 4; i += 1) shell.querySelector('[data-zoom-in]').click();
+      const zoomed = vp.classList.contains('is-pannable');
+      const xOf = () => {
+        const m = /translate\\((-?[\\d.]+)px,\\s*(-?[\\d.]+)px\\)/.exec(canvas.style.transform);
+        return m ? parseFloat(m[1]) : null;
+      };
+      vp.focus();
+      const pan = (n) => { for (let i = 0; i < n; i += 1) {
+        vp.dispatchEvent(new KeyboardEvent('keydown',
+          { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      } };
+      pan(30);
+      const first = xOf();
+      pan(30);
+      return { atRest, zoomed, first, second: xOf(), unclamped: 30 * 48 };
+    })()`);
+    assert.equal(p.atRest, false, 'a diagram that fits its box was still pannable');
+    assert.equal(p.zoomed, true, 'a 2x zoom left the diagram unpannable');
+    assert.ok(Math.abs(p.first) > 0, 'arrow keys panned a pannable diagram nowhere');
+    assert.ok(Math.abs(p.first) < p.unclamped,
+      `pan reached ${Math.abs(p.first)}px of an unclamped ${p.unclamped}px`);
+    assert.equal(p.second, p.first, 'panning past the edge kept moving the canvas');
+  });
+
+  /* The rail's current-position marking is driven by the scroll spy, not by the
+     click handler, so it needs a real IntersectionObserver to have run. Driven by
+     scrolling a chosen heading under the topbar rather than by clicking its link:
+     the spy's band is a thin strip below the bar, and on a document this short a
+     click often cannot bring its own target into it — the mark then correctly
+     lags behind the link that was clicked, which makes the click a test of
+     scroll distance rather than of the marking. */
+  test('the rail marks one heading at a time and names it in the breadcrumb', async () => {
+    const spy = await page.eval(`(async () => {
+      const settle = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
+      const read = () => {
+        const on = [...document.querySelectorAll('.nav-link.is-active')];
+        return { links: on.length, href: on[0] && on[0].getAttribute('href'),
+          /* The rail link's own text, not the heading's: the heading has had a '#'
+             deep-link anchor prepended and a '?' explainer button appended, so its
+             textContent is no longer the title the breadcrumb shows. */
+          text: on[0] && on[0].textContent.trim(),
+          groups: document.querySelectorAll('.nav-group.is-current').length,
+          secs: document.querySelectorAll('.nav-sec.is-current').length,
+          crumb: document.getElementById('crumb').textContent.trim() };
+      };
+      // Earlier tests leave whichever document they needed routed, and only the
+      // routed one has headings in the layout — so route to the spine first.
+      document.querySelector('.nav-link').click();
+      await settle();
+      /* Swept rather than aimed at one heading: the band is thin and the fixture
+         document is short, so scrolling saturates before an arbitrary heading can
+         be placed in it. The sweep asks a weaker question the fixture can answer —
+         across the whole document, which headings does the rail ever mark. */
+      const seen = [];
+      const height = document.documentElement.scrollHeight;
+      for (let i = 0; i <= 10; i += 1) {
+        scrollTo(0, Math.round((height * i) / 10));
+        await settle();
+        const at = read();
+        if (at.links || at.href) seen.push(at);
+      }
+      return { seen, marks: [...new Set(seen.map((s) => s.href))] };
+    })()`);
+    assert.ok(spy.seen.length > 0, 'the rail marked nothing anywhere in the document');
+    for (const at of spy.seen) {
+      // One at each level: the previous mark has to be cleared, not added to.
+      assert.equal(at.links, 1, `${at.links} rail links were active at once`);
+      assert.equal(at.groups, 1, `${at.groups} nav groups claimed to be current`);
+      assert.equal(at.secs, 1, `${at.secs} nav sections claimed to be current`);
+      // Section / document / heading — the heading is the mark's own link text.
+      assert.ok(at.crumb.endsWith(at.text), `breadcrumb "${at.crumb}" does not end at ${at.text}`);
+    }
+    assert.ok(spy.marks.length >= 2,
+      `the mark never moved: it sat on ${spy.marks[0]} down the whole document`);
+  });
+
+  test('driving the diagram and the rail logs no error', async () => {
+    assert.deepEqual(page.errors, []);
+  });
 });

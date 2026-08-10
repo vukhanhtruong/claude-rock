@@ -1,3 +1,7 @@
+import { existsSync } from 'node:fs';
+import { readFile, writeFile, rename, open, unlink } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+
 // scripts/lib/registry.mjs
 // new-lead-dashboard v1
 export const STATUSES = new Set(['active', 'won', 'lost']);
@@ -40,4 +44,42 @@ function validateClosed(lead, at) {
 function isValue(v) {
   return typeof v?.low === 'number' && typeof v?.high === 'number'
     && v.low <= v.high && typeof v.currency === 'string';
+}
+
+const REGISTRY_FILE = 'leads.json';
+
+export function findLeadsRoot(startDir) {
+  let dir = resolve(startDir);
+  while (true) {
+    if (existsSync(join(dir, REGISTRY_FILE))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+export async function readRegistry(root) {
+  return JSON.parse(await readFile(join(root, REGISTRY_FILE), 'utf8'));
+}
+
+export async function writeRegistry(root, registry) {
+  const findings = validateRegistry(registry);
+  if (findings.length) throw new Error(`invalid registry: ${findings.join('; ')}`);
+  const lock = await acquireLock(root);
+  try {
+    await writeFile(join(root, `${REGISTRY_FILE}.tmp`), JSON.stringify(registry, null, 2) + '\n');
+    await rename(join(root, `${REGISTRY_FILE}.tmp`), join(root, REGISTRY_FILE));
+  } finally {
+    await lock.close();
+    await unlink(join(root, `${REGISTRY_FILE}.lock`));
+  }
+}
+
+async function acquireLock(root) {
+  try {
+    return await open(join(root, `${REGISTRY_FILE}.lock`), 'wx');
+  } catch (err) {
+    if (err.code === 'EEXIST') throw new Error('leads.json is locked by another session');
+    throw err;
+  }
 }

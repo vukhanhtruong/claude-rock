@@ -1,0 +1,446 @@
+<!doctype html>
+<!-- new-lead-dashboard v1 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Leads workspace dashboard">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
+<title>Leads</title>
+<style>
+:root {
+  color-scheme:light;
+  --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
+  --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
+  --ok:#15803d; --ok-soft:rgba(21,128,61,.1);
+  --bad:#b91c1c;
+  --card:#fffdf9; --border:#e6e1d5; --border-strong:#cfc8b8;
+  --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
+}
+@media (prefers-color-scheme:dark) {
+  :root {
+    color-scheme:dark;
+    --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
+    --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
+    --ok:#5dbb7a; --ok-soft:rgba(93,187,122,.12);
+    --bad:#e5726b;
+    --card:#181d1c; --border:#263230; --border-strong:#3a4a46;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
+}
+* { box-sizing:border-box; }
+body {
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); margin:0; line-height:1.45;
+}
+.mono { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+button, select, input { font-family:inherit; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+a { color:var(--accent-ink); }
+header {
+  position:sticky; top:0; z-index:10;
+  padding:.9rem max(1.25rem, calc((100% - 1160px) / 2));
+  border-bottom:1px solid var(--border); background:var(--card);
+}
+header h1 { margin:0; font-size:1.15rem; font-weight:600; letter-spacing:-.01em; }
+main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
+
+/* stats strip: one bordered cluster, no card-per-tile clutter */
+.stats {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
+  box-shadow:var(--shadow); margin-bottom:1.1rem; overflow:hidden;
+}
+.stat { padding:.85rem 1.1rem; border-right:1px solid var(--border); }
+.stat:last-child { border-right:none; }
+.stat .label { margin:0 0 .3rem; font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+.stat .value { margin:0; font-size:1.3rem; font-weight:600; }
+@media (max-width:640px) {
+  .stats { grid-template-columns:repeat(2,1fr); }
+  .stat:nth-child(2n) { border-right:none; }
+  .stat:nth-child(n+3) { border-top:1px solid var(--border); }
+}
+
+/* toolbar */
+.toolbar {
+  display:flex; flex-wrap:wrap; align-items:center; gap:.6rem;
+  margin-bottom:1.1rem; padding:.7rem .9rem;
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem; box-shadow:var(--shadow);
+}
+.seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:.4rem; overflow:hidden; }
+.seg button {
+  border:none; background:var(--card); color:var(--ink-dim); cursor:pointer;
+  font-size:.8rem; padding:.35rem .7rem; border-right:1px solid var(--border-strong);
+}
+.seg button:last-child { border-right:none; }
+.seg button[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent-ink); font-weight:600; }
+.toolbar input[type="search"], .toolbar select {
+  font-size:.82rem; padding:.35rem .6rem; border:1px solid var(--border-strong);
+  border-radius:.4rem; background:var(--card); color:var(--ink);
+}
+.toolbar input[type="search"] { flex:1; min-width:9rem; }
+#dir-toggle {
+  border:1px solid var(--border-strong); border-radius:.4rem; background:var(--card);
+  color:var(--ink); font-size:.82rem; padding:.35rem .6rem; cursor:pointer;
+}
+.spacer { flex:1 1 auto; }
+
+/* cards view */
+.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.9rem; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:.6rem; padding:1rem; box-shadow:var(--shadow); }
+.card-head { display:flex; justify-content:space-between; align-items:start; gap:.5rem; margin-bottom:.4rem; }
+.card-head h3 { margin:0; font-size:1rem; font-weight:600; }
+.card-client { margin:0 0 .3rem; color:var(--ink-dim); font-size:.85rem; }
+.card-dates, .card-value { margin:0 0 .3rem; font-size:.8rem; color:var(--ink-dim); }
+.pill {
+  font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600;
+  padding:.15rem .5rem; border-radius:1rem; white-space:nowrap;
+}
+.pill-active { background:var(--accent-soft); color:var(--accent-ink); }
+.pill-won { background:var(--ok-soft); color:var(--ok); }
+.pill-lost { background:var(--border); color:var(--ink-dim); }
+.artifacts { display:flex; gap:.4rem; margin:.6rem 0; flex-wrap:wrap; }
+.chip {
+  font-size:.72rem; padding:.2rem .5rem; border-radius:.35rem; text-decoration:none;
+  border:1px solid var(--border-strong);
+}
+.chip-ready { background:var(--accent-soft); color:var(--accent-ink); border-color:transparent; }
+.chip-pending { color:var(--ink-dim); }
+.card-actions { display:flex; gap:.5rem; margin-top:.7rem; }
+.card-actions button, .card-actions a {
+  font-size:.78rem; padding:.35rem .7rem; border-radius:.4rem; text-decoration:none;
+  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
+}
+.card-actions a { color:var(--ink); }
+.card-actions [data-action="won"] { border-color:var(--ok); color:var(--ok); }
+.card-actions [data-action="lost"] { border-color:var(--border-strong); color:var(--ink-dim); }
+
+/* timeline view */
+.month-marker { margin:1.1rem 0 .5rem; font-size:.75rem; font-weight:600; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+.month-marker:first-child { margin-top:0; }
+.t-row { display:flex; align-items:center; gap:.7rem; padding:.5rem 0; border-bottom:1px solid var(--border); }
+.t-date { font-size:.78rem; color:var(--ink-dim); width:5.5rem; flex:none; }
+.t-bar { display:flex; align-items:center; width:6rem; flex:none; }
+.t-dot { width:.5rem; height:.5rem; border-radius:50%; background:var(--ink-dim); flex:none; }
+.t-line { height:2px; flex:1; background:var(--border-strong); }
+.t-line.dashed { background:repeating-linear-gradient(90deg,var(--border-strong) 0 4px,transparent 4px 8px); }
+.t-row.won .t-dot, .t-row.won .t-line { background:var(--ok); }
+.t-row.lost .t-dot, .t-row.lost .t-line { background:var(--ink-dim); opacity:.6; }
+.t-info { flex:1; min-width:0; font-size:.85rem; }
+.t-info .pill { margin-left:.4rem; }
+
+/* wall view */
+.wall-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--border); border-radius:.6rem; box-shadow:var(--shadow); }
+table.wall { border-collapse:collapse; width:100%; font-size:.8rem; }
+table.wall th, table.wall td { padding:.5rem .7rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+table.wall th { color:var(--ink-dim); font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
+table.wall th[data-sort] { cursor:pointer; }
+table.wall th[data-sort]:hover { color:var(--accent-ink); }
+table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { color:var(--accent-ink); }
+.tick { color:var(--ok); }
+.no { color:var(--ink-dim); }
+
+.empty { text-align:center; padding:3rem 1rem; color:var(--ink-dim); }
+#view-cards .empty { grid-column:1/-1; }
+.empty p { margin:0; font-size:.95rem; }
+.empty code { font-family:ui-monospace,monospace; background:var(--accent-soft); color:var(--accent-ink); padding:.1rem .35rem; border-radius:.3rem; }
+[hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header><h1>Leads</h1></header>
+<main>
+  <section class="stats" id="stats" aria-label="Pipeline stats"></section>
+
+  <div class="toolbar">
+    <div class="seg" id="view-switch" role="group" aria-label="View">
+      <button type="button" data-view="cards">Cards</button>
+      <button type="button" data-view="timeline">Timeline</button>
+      <button type="button" data-view="wall">Wall</button>
+    </div>
+    <div class="seg" id="status-filter" role="group" aria-label="Status filter">
+      <button type="button" data-status="all">All</button>
+      <button type="button" data-status="active">Active</button>
+      <button type="button" data-status="won">Won</button>
+      <button type="button" data-status="lost">Lost</button>
+    </div>
+    <input type="search" id="search" placeholder="Search leads" aria-label="Search leads">
+    <div class="spacer"></div>
+    <select id="sort-key" aria-label="Sort by">
+      <option value="created">Sort: created</option>
+      <option value="closed">Sort: closed</option>
+      <option value="value">Sort: value</option>
+      <option value="client">Sort: client</option>
+    </select>
+    <button type="button" id="dir-toggle" aria-label="Sort direction"></button>
+  </div>
+
+  <div id="empty" class="empty" hidden>
+    <p>No leads yet. Run <code>/new-lead</code> to create one.</p>
+  </div>
+
+  <section id="view-cards" class="cards"></section>
+
+  <section id="view-timeline" hidden></section>
+
+  <section id="view-wall" hidden>
+    <div class="wall-wrap">
+      <table class="wall">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th data-sort="client">Client</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th data-sort="created">Created</th>
+            <th data-sort="closed">Closed</th>
+            <th data-sort="value">Value</th>
+            <th>Scenario</th>
+            <th>Docs</th>
+            <th>Estimate</th>
+            <th>Proposal</th>
+            <th>Brief</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="wall-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { computeStats, filterLeads, sortLeads } from './stats.mjs';
+
+const LS = 'newlead.dashboard.';
+const todayISO = new Date().toISOString().slice(0, 10);
+const state = {
+  view: localStorage.getItem(LS + 'view') || 'cards',
+  status: localStorage.getItem(LS + 'status') || 'all',
+  text: localStorage.getItem(LS + 'text') || '',
+  sortKey: localStorage.getItem(LS + 'sortKey') || 'created',
+  sortDir: localStorage.getItem(LS + 'sortDir') || 'asc',
+};
+let leads = [];
+
+function persist(key, value) {
+  state[key] = value;
+  localStorage.setItem(LS + key, value);
+}
+
+async function load() {
+  const res = await fetch('/api/leads');
+  const data = await res.json();
+  leads = data.leads;
+  render();
+}
+
+async function setStatus(id, status) {
+  await fetch(`/api/leads/${id}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  await load();
+}
+
+function fmtRange(v) {
+  if (!v) return '';
+  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: v.currency, maximumFractionDigits: 0 });
+  return `${fmt.format(v.low)} - ${fmt.format(v.high)}`;
+}
+
+function renderStats() {
+  const s = computeStats(leads, todayISO);
+  const winRate = s.winRate === null ? '—' : Math.round(s.winRate * 100) + '%';
+  const cycle = s.avgCycleDays === null ? '—' : s.avgCycleDays + ' days';
+  document.getElementById('stats').innerHTML = [
+    ['Won this month', s.wonThisMonth],
+    ['Win rate', winRate],
+    ['Pipeline value', s.pipelineValue ? fmtRange(s.pipelineValue) : '—'],
+    ['Avg cycle', cycle],
+  ].map(([label, value]) => `
+    <div class="stat">
+      <p class="label">${label}</p>
+      <p class="value mono">${value}</p>
+    </div>`).join('');
+}
+
+function artifactChip(ready, href, label) {
+  return ready
+    ? `<a class="chip chip-ready" href="${href}">${label}</a>`
+    : `<span class="chip chip-pending">${label} pending</span>`;
+}
+
+function statusPill(status) {
+  return `<span class="pill pill-${status}">${status}</span>`;
+}
+
+function cardTemplate(l) {
+  const dates = l.closed ? `${l.created} to ${l.closed}` : `${l.created}, active`;
+  const actions = l.closed ? '' : `
+    <button type="button" data-action="won" data-id="${l.id}">Won</button>
+    <button type="button" data-action="lost" data-id="${l.id}">Lost</button>`;
+  return `
+    <article class="card">
+      <div class="card-head">
+        <h3>${l.title}</h3>
+        ${statusPill(l.status)}
+      </div>
+      <p class="card-client">${l.client}</p>
+      <p class="card-dates mono">${dates}</p>
+      ${l.value ? `<p class="card-value mono">${fmtRange(l.value)}</p>` : ''}
+      <div class="artifacts">
+        ${artifactChip(l.artifacts.docs, `/${l.id}/dist/index.html`, 'Docs')}
+        ${artifactChip(l.artifacts.estimate, `/${l.id}/dist/estimate.html`, 'Estimate')}
+        ${artifactChip(l.artifacts.proposal, `/${l.id}/dist/proposal.html`, 'Proposal')}
+      </div>
+      <div class="card-actions">
+        <a href="/detail/${l.id}">Open</a>
+        ${actions}
+      </div>
+    </article>`;
+}
+
+const NO_MATCH = 'No leads match the current filters.';
+
+function renderCards(list) {
+  document.getElementById('view-cards').innerHTML = list.length
+    ? list.map(cardTemplate).join('')
+    : `<p class="empty">${NO_MATCH}</p>`;
+}
+
+function monthLabel(iso) {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+function timelineRow(l) {
+  const bar = l.closed
+    ? `<span class="t-dot"></span><span class="t-line"></span><span class="t-dot"></span>`
+    : `<span class="t-dot"></span><span class="t-line dashed"></span>`;
+  return `
+    <div class="t-row ${l.status}">
+      <span class="t-date mono">${l.created}</span>
+      <span class="t-bar">${bar}</span>
+      <span class="t-info"><strong>${l.client}</strong> - ${l.title}${statusPill(l.status)}</span>
+      <span class="t-date mono">${l.closed || ''}</span>
+    </div>`;
+}
+
+function renderTimeline(list) {
+  if (!list.length) {
+    document.getElementById('view-timeline').innerHTML = `<p class="empty">${NO_MATCH}</p>`;
+    return;
+  }
+  const chronological = [...list].sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : 0);
+  let month = null;
+  const rows = chronological.map((l) => {
+    const m = l.created.slice(0, 7);
+    const marker = m !== month ? `<p class="month-marker">${monthLabel(l.created)}</p>` : '';
+    month = m;
+    return marker + timelineRow(l);
+  });
+  document.getElementById('view-timeline').innerHTML = rows.join('');
+}
+
+function tick(flag) {
+  return flag ? '<span class="tick">✓</span>' : '<span class="no">-</span>';
+}
+
+function wallRow(l) {
+  return `
+    <tr>
+      <td class="mono">${l.id}</td>
+      <td>${l.client}</td>
+      <td>${l.title}</td>
+      <td>${l.status}</td>
+      <td class="mono">${l.created}</td>
+      <td class="mono">${l.closed || '-'}</td>
+      <td class="mono">${l.value ? fmtRange(l.value) : '-'}</td>
+      <td>${l.scenario || '-'}</td>
+      <td>${tick(l.artifacts.docs)}</td>
+      <td>${tick(l.artifacts.estimate)}</td>
+      <td>${tick(l.artifacts.proposal)}</td>
+      <td>${tick(l.hasBrief)}</td>
+      <td>${tick(l.hasNotes)}</td>
+    </tr>`;
+}
+
+function renderWall(list) {
+  document.getElementById('wall-body').innerHTML = list.length
+    ? list.map(wallRow).join('')
+    : `<tr><td colspan="13" class="empty">${NO_MATCH}</td></tr>`;
+  document.querySelectorAll('#view-wall th[data-sort]').forEach((th) => {
+    th.setAttribute('aria-sort', th.dataset.sort === state.sortKey ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+  });
+}
+
+function syncToolbar() {
+  document.querySelectorAll('#view-switch button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === state.view)));
+  document.querySelectorAll('#status-filter button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.status === state.status)));
+  document.getElementById('search').value = state.text;
+  document.getElementById('sort-key').value = state.sortKey;
+  document.getElementById('dir-toggle').textContent = state.sortDir === 'asc' ? '↑ Ascending' : '↓ Descending';
+}
+
+function render() {
+  syncToolbar();
+  renderStats();
+  const filtered = filterLeads(leads, { status: state.status, text: state.text });
+  const sorted = sortLeads(filtered, state.sortKey, state.sortDir);
+
+  document.getElementById('empty').hidden = leads.length !== 0;
+  ['cards', 'timeline', 'wall'].forEach((v) => {
+    document.getElementById('view-' + v).hidden = v !== state.view || leads.length === 0;
+  });
+  if (leads.length === 0) return;
+
+  if (state.view === 'cards') renderCards(sorted);
+  else if (state.view === 'timeline') renderTimeline(filtered);
+  else renderWall(sorted);
+}
+
+document.getElementById('view-switch').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if (!btn) return;
+  persist('view', btn.dataset.view);
+  render();
+});
+document.getElementById('status-filter').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-status]');
+  if (!btn) return;
+  persist('status', btn.dataset.status);
+  render();
+});
+document.getElementById('search').addEventListener('input', (e) => {
+  persist('text', e.target.value);
+  render();
+});
+document.getElementById('sort-key').addEventListener('change', (e) => {
+  persist('sortKey', e.target.value);
+  render();
+});
+document.getElementById('dir-toggle').addEventListener('click', () => {
+  persist('sortDir', state.sortDir === 'asc' ? 'desc' : 'asc');
+  render();
+});
+document.getElementById('view-cards').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  setStatus(btn.dataset.id, btn.dataset.action);
+});
+document.getElementById('view-wall').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-sort]');
+  if (!th) return;
+  const key = th.dataset.sort;
+  const nextDir = state.sortKey === key && state.sortDir === 'asc' ? 'desc' : 'asc';
+  persist('sortKey', key);
+  persist('sortDir', nextDir);
+  render();
+});
+
+load();
+</script>
+</body>
+</html>

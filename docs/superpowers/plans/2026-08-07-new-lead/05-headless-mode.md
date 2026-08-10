@@ -29,10 +29,11 @@ file. Without that file this section does not apply — run the flow above
 unchanged.
 
 - Skip step 3 (Interview): read the interview's outputs from the answers
-  file instead — project type and mode from `lead` + `evidence`, scope from
-  `scope`, stack/hosting/compliance from `tech`, constraints from
-  `delivery`. A question the answers file does not cover is an honest
-  absence — render it as one (hard rule 3), never invent an answer.
+  file instead — scope from `scope`, stack/integrations/hosting/compliance
+  from `tech`, constraints from `delivery`, background from `evidence`.
+  Mode and project type stay scan-derived, as in standalone. A question the
+  answers file does not cover is an honest absence — render it as one (hard
+  rule 3), never invent an answer.
 - Skip every user confirmation: mode-detection override (step 1) and
   dropped-research surfacing (step 4) are logged to a `decisions` list in
   your final report instead of asked.

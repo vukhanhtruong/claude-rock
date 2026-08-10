@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "lead": { "id": "acme-crm", "client": "Acme Corp", "title": "CRM Rebuild" },
+  "client": { "name": "Acme Corp", "industry": "Retail", "techLevel": "intermediate" },
+  "scope": {
+    "summary": "Rebuild Acme's CRM to support omnichannel sales workflows.",
+    "mustHave": ["Lead pipeline", "Contact management"]
+  },
+  "tech": { "stack": ["Node.js", "PostgreSQL"] },
+  "delivery": { "deadline": "2026-12-01" },
+  "evidence": {
+    "sources": [
+      { "type": "rfp", "path": "rfp.md", "summary": "Initial RFP outlining CRM replacement needs." }
+    ]
+  }
+}

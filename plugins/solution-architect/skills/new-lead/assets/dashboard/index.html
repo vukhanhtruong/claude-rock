@@ -13,7 +13,7 @@
   --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
   --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
   --ok:#15803d; --ok-soft:rgba(21,128,61,.1);
-  --bad:#b91c1c;
+  --warn:#b45309; --warn-soft:rgba(180,83,9,.1);
   --card:#fffdf9; --border:#e6e1d5; --border-strong:#cfc8b8;
   --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
 }
@@ -23,7 +23,7 @@
     --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
     --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
     --ok:#5dbb7a; --ok-soft:rgba(93,187,122,.12);
-    --bad:#e5726b;
+    --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
     --card:#181d1c; --border:#263230; --border-strong:#3a4a46;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
   }
@@ -87,7 +87,7 @@ main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
 
 /* cards view */
 .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.9rem; }
-.card { background:var(--card); border:1px solid var(--border); border-radius:.6rem; padding:1rem; box-shadow:var(--shadow); }
+.card { background:var(--card); border:1px solid var(--border); border-radius:.6rem; padding:1rem; }
 .card-head { display:flex; justify-content:space-between; align-items:start; gap:.5rem; margin-bottom:.4rem; }
 .card-head h3 { margin:0; font-size:1rem; font-weight:600; }
 .card-client { margin:0 0 .3rem; color:var(--ink-dim); font-size:.85rem; }
@@ -111,7 +111,7 @@ main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
   font-size:.78rem; padding:.35rem .7rem; border-radius:.4rem; text-decoration:none;
   border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
 }
-.card-actions a { color:var(--ink); }
+.card-actions a { background:var(--accent-soft); color:var(--accent-ink); border-color:transparent; font-weight:600; }
 .card-actions [data-action="won"] { border-color:var(--ok); color:var(--ok); }
 .card-actions [data-action="lost"] { border-color:var(--border-strong); color:var(--ink-dim); }
 
@@ -140,6 +140,7 @@ table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { co
 .tick { color:var(--ok); }
 .no { color:var(--ink-dim); }
 
+.banner { margin:0 0 1.1rem; padding:.6rem .9rem; border-radius:.5rem; font-size:.85rem; border:1px solid var(--warn); background:var(--warn-soft); color:var(--warn); }
 .empty { text-align:center; padding:3rem 1rem; color:var(--ink-dim); }
 #view-cards .empty { grid-column:1/-1; }
 .empty p { margin:0; font-size:.95rem; }
@@ -175,6 +176,8 @@ table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { co
     <button type="button" id="dir-toggle" aria-label="Sort direction"></button>
   </div>
 
+  <p id="banner" class="banner" role="alert" hidden></p>
+
   <div id="empty" class="empty" hidden>
     <p>No leads yet. Run <code>/new-lead</code> to create one.</p>
   </div>
@@ -186,23 +189,7 @@ table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { co
   <section id="view-wall" hidden>
     <div class="wall-wrap">
       <table class="wall">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th data-sort="client">Client</th>
-            <th>Title</th>
-            <th>Status</th>
-            <th data-sort="created">Created</th>
-            <th data-sort="closed">Closed</th>
-            <th data-sort="value">Value</th>
-            <th>Scenario</th>
-            <th>Docs</th>
-            <th>Estimate</th>
-            <th>Proposal</th>
-            <th>Brief</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
+        <thead><tr></tr></thead>
         <tbody id="wall-body"></tbody>
       </table>
     </div>
@@ -228,26 +215,58 @@ function persist(key, value) {
   localStorage.setItem(LS + key, value);
 }
 
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
+}
+
+function showBanner(msg) {
+  const b = document.getElementById('banner');
+  b.textContent = msg;
+  b.hidden = false;
+}
+function clearBanner() {
+  document.getElementById('banner').hidden = true;
+}
+
 async function load() {
-  const res = await fetch('/api/leads');
-  const data = await res.json();
-  leads = data.leads;
-  render();
+  try {
+    const res = await fetch('/api/leads');
+    if (!res.ok) throw new Error(`server returned ${res.status}`);
+    const data = await res.json();
+    leads = data.leads;
+    clearBanner();
+    render();
+  } catch (err) {
+    showBanner(`Could not load leads (${err.message}). Try reloading the page.`);
+  }
 }
 
 async function setStatus(id, status) {
-  await fetch(`/api/leads/${id}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  await load();
+  try {
+    const res = await fetch(`/api/leads/${id}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `request failed (${res.status})`);
+    }
+    await load();
+  } catch (err) {
+    showBanner(`Could not update lead: ${err.message}`);
+  }
 }
 
 function fmtRange(v) {
   if (!v) return '';
-  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: v.currency, maximumFractionDigits: 0 });
-  return `${fmt.format(v.low)} - ${fmt.format(v.high)}`;
+  try {
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: v.currency, maximumFractionDigits: 0 });
+    return `${fmt.format(v.low)} - ${fmt.format(v.high)}`;
+  } catch {
+    return `${v.low} - ${v.high} ${esc(v.currency)}`;
+  }
 }
 
 function renderStats() {
@@ -273,30 +292,31 @@ function artifactChip(ready, href, label) {
 }
 
 function statusPill(status) {
-  return `<span class="pill pill-${status}">${status}</span>`;
+  return `<span class="pill pill-${esc(status)}">${esc(status)}</span>`;
 }
 
 function cardTemplate(l) {
-  const dates = l.closed ? `${l.created} to ${l.closed}` : `${l.created}, active`;
+  const id = esc(l.id);
+  const dates = l.closed ? `${esc(l.created)} to ${esc(l.closed)}` : `${esc(l.created)}, active`;
   const actions = l.closed ? '' : `
-    <button type="button" data-action="won" data-id="${l.id}">Won</button>
-    <button type="button" data-action="lost" data-id="${l.id}">Lost</button>`;
+    <button type="button" data-action="won" data-id="${id}">Won</button>
+    <button type="button" data-action="lost" data-id="${id}">Lost</button>`;
   return `
     <article class="card">
       <div class="card-head">
-        <h3>${l.title}</h3>
+        <h3>${esc(l.title)}</h3>
         ${statusPill(l.status)}
       </div>
-      <p class="card-client">${l.client}</p>
+      <p class="card-client">${esc(l.client)}</p>
       <p class="card-dates mono">${dates}</p>
       ${l.value ? `<p class="card-value mono">${fmtRange(l.value)}</p>` : ''}
       <div class="artifacts">
-        ${artifactChip(l.artifacts.docs, `/${l.id}/dist/index.html`, 'Docs')}
-        ${artifactChip(l.artifacts.estimate, `/${l.id}/dist/estimate.html`, 'Estimate')}
-        ${artifactChip(l.artifacts.proposal, `/${l.id}/dist/proposal.html`, 'Proposal')}
+        ${artifactChip(l.artifacts.docs, `/${id}/dist/index.html`, 'Docs')}
+        ${artifactChip(l.artifacts.estimate, `/${id}/dist/estimate.html`, 'Estimate')}
+        ${artifactChip(l.artifacts.proposal, `/${id}/dist/proposal.html`, 'Proposal')}
       </div>
       <div class="card-actions">
-        <a href="/detail/${l.id}">Open</a>
+        <a href="/detail/${id}">Open</a>
         ${actions}
       </div>
     </article>`;
@@ -320,11 +340,11 @@ function timelineRow(l) {
     ? `<span class="t-dot"></span><span class="t-line"></span><span class="t-dot"></span>`
     : `<span class="t-dot"></span><span class="t-line dashed"></span>`;
   return `
-    <div class="t-row ${l.status}">
-      <span class="t-date mono">${l.created}</span>
+    <div class="t-row ${esc(l.status)}">
+      <span class="t-date mono">${esc(l.created)}</span>
       <span class="t-bar">${bar}</span>
-      <span class="t-info"><strong>${l.client}</strong> - ${l.title}${statusPill(l.status)}</span>
-      <span class="t-date mono">${l.closed || ''}</span>
+      <span class="t-info"><strong>${esc(l.client)}</strong> - ${esc(l.title)}${statusPill(l.status)}</span>
+      <span class="t-date mono">${esc(l.closed || '')}</span>
     </div>`;
 }
 
@@ -333,7 +353,8 @@ function renderTimeline(list) {
     document.getElementById('view-timeline').innerHTML = `<p class="empty">${NO_MATCH}</p>`;
     return;
   }
-  const chronological = [...list].sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : 0);
+  // delegates to stats.mjs rather than restating its comparator
+  const chronological = sortLeads(list, 'created', 'asc');
   let month = null;
   const rows = chronological.map((l) => {
     const m = l.created.slice(0, 7);
@@ -348,31 +369,42 @@ function tick(flag) {
   return flag ? '<span class="tick">✓</span>' : '<span class="no">-</span>';
 }
 
+// One source of truth for the wall table: drives both the header row and each
+// body row, so the two can't drift out of sync.
+const COLUMNS = [
+  { label: 'ID', cell: (l) => `<td class="mono">${esc(l.id)}</td>` },
+  { label: 'Client', sort: 'client', cell: (l) => `<td>${esc(l.client)}</td>` },
+  { label: 'Title', cell: (l) => `<td>${esc(l.title)}</td>` },
+  { label: 'Status', cell: (l) => `<td>${esc(l.status)}</td>` },
+  { label: 'Created', sort: 'created', cell: (l) => `<td class="mono">${esc(l.created)}</td>` },
+  { label: 'Closed', sort: 'closed', cell: (l) => `<td class="mono">${esc(l.closed || '-')}</td>` },
+  { label: 'Value', sort: 'value', cell: (l) => `<td class="mono">${l.value ? fmtRange(l.value) : '-'}</td>` },
+  { label: 'Scenario', cell: (l) => `<td>${esc(l.scenario || '-')}</td>` },
+  { label: 'Docs', cell: (l) => `<td>${tick(l.artifacts.docs)}</td>` },
+  { label: 'Estimate', cell: (l) => `<td>${tick(l.artifacts.estimate)}</td>` },
+  { label: 'Proposal', cell: (l) => `<td>${tick(l.artifacts.proposal)}</td>` },
+  { label: 'Brief', cell: (l) => `<td>${tick(l.hasBrief)}</td>` },
+  { label: 'Notes', cell: (l) => `<td>${tick(l.hasNotes)}</td>` },
+];
+
+function renderWallHead() {
+  document.querySelector('#view-wall thead tr').innerHTML = COLUMNS.map((c) =>
+    c.sort ? `<th data-sort="${c.sort}" data-label="${c.label}">${c.label}</th>` : `<th>${c.label}</th>`
+  ).join('');
+}
+
 function wallRow(l) {
-  return `
-    <tr>
-      <td class="mono">${l.id}</td>
-      <td>${l.client}</td>
-      <td>${l.title}</td>
-      <td>${l.status}</td>
-      <td class="mono">${l.created}</td>
-      <td class="mono">${l.closed || '-'}</td>
-      <td class="mono">${l.value ? fmtRange(l.value) : '-'}</td>
-      <td>${l.scenario || '-'}</td>
-      <td>${tick(l.artifacts.docs)}</td>
-      <td>${tick(l.artifacts.estimate)}</td>
-      <td>${tick(l.artifacts.proposal)}</td>
-      <td>${tick(l.hasBrief)}</td>
-      <td>${tick(l.hasNotes)}</td>
-    </tr>`;
+  return `<tr>${COLUMNS.map((c) => c.cell(l)).join('')}</tr>`;
 }
 
 function renderWall(list) {
   document.getElementById('wall-body').innerHTML = list.length
     ? list.map(wallRow).join('')
-    : `<tr><td colspan="13" class="empty">${NO_MATCH}</td></tr>`;
+    : `<tr><td colspan="${COLUMNS.length}" class="empty">${NO_MATCH}</td></tr>`;
   document.querySelectorAll('#view-wall th[data-sort]').forEach((th) => {
-    th.setAttribute('aria-sort', th.dataset.sort === state.sortKey ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+    const active = th.dataset.sort === state.sortKey;
+    th.setAttribute('aria-sort', active ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+    th.textContent = th.dataset.label + (active ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '');
   });
 }
 
@@ -401,17 +433,28 @@ function render() {
   else renderWall(sorted);
 }
 
-document.getElementById('view-switch').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-view]');
-  if (!btn) return;
-  persist('view', btn.dataset.view);
-  render();
-});
-document.getElementById('status-filter').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-status]');
-  if (!btn) return;
-  persist('status', btn.dataset.status);
-  render();
+// One delegated click listener with a small dispatch table, instead of a
+// separate addEventListener per control.
+const CLICK_ACTIONS = [
+  ['#view-switch button[data-view]', (el) => { persist('view', el.dataset.view); render(); }],
+  ['#status-filter button[data-status]', (el) => { persist('status', el.dataset.status); render(); }],
+  ['#dir-toggle', () => { persist('sortDir', state.sortDir === 'asc' ? 'desc' : 'asc'); render(); }],
+  // setStatus manages its own re-render (via load()) once the request settles, so it
+  // must not be followed by an immediate render() here.
+  ['#view-cards button[data-action]', (el) => setStatus(el.dataset.id, el.dataset.action)],
+  ['#view-wall th[data-sort]', (el) => {
+    const key = el.dataset.sort;
+    const nextDir = state.sortKey === key && state.sortDir === 'asc' ? 'desc' : 'asc';
+    persist('sortKey', key);
+    persist('sortDir', nextDir);
+    render();
+  }],
+];
+document.querySelector('main').addEventListener('click', (e) => {
+  for (const [selector, handler] of CLICK_ACTIONS) {
+    const el = e.target.closest(selector);
+    if (el) return handler(el);
+  }
 });
 document.getElementById('search').addEventListener('input', (e) => {
   persist('text', e.target.value);
@@ -421,25 +464,8 @@ document.getElementById('sort-key').addEventListener('change', (e) => {
   persist('sortKey', e.target.value);
   render();
 });
-document.getElementById('dir-toggle').addEventListener('click', () => {
-  persist('sortDir', state.sortDir === 'asc' ? 'desc' : 'asc');
-  render();
-});
-document.getElementById('view-cards').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
-  setStatus(btn.dataset.id, btn.dataset.action);
-});
-document.getElementById('view-wall').addEventListener('click', (e) => {
-  const th = e.target.closest('th[data-sort]');
-  if (!th) return;
-  const key = th.dataset.sort;
-  const nextDir = state.sortKey === key && state.sortDir === 'asc' ? 'desc' : 'asc';
-  persist('sortKey', key);
-  persist('sortDir', nextDir);
-  render();
-});
 
+renderWallHead();
 load();
 </script>
 </body>

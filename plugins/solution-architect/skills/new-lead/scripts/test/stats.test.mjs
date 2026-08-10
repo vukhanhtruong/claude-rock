@@ -31,3 +31,16 @@ test('sortLeads by value desc, non-mutating', () => {
   assert.deepEqual(sortLeads(leads, 'value', 'desc').map(l => l.id), ['a', 'd', 'b', 'c']);
   assert.deepEqual(leads, input);
 });
+// Pins brief-specified behavior (task-1-brief.md: "currency from the first counted lead"):
+// active leads with different currencies are summed together with no conversion, and the
+// mixed total is labeled with whichever currency belongs to the first counted lead in array
+// order. This is intentional per the brief, not a bug — this test documents it so a future
+// change to the rule shows up here first.
+test('computeStats pipelineValue: mixed currencies summed without conversion', () => {
+  const mixed = [
+    L({ id: 'e', value: { low: 100, high: 200, currency: 'USD' } }),
+    L({ id: 'f', value: { low: 10, high: 20, currency: 'EUR' } }),
+  ];
+  const s = computeStats(mixed, '2026-08-10');
+  assert.deepEqual(s.pipelineValue, { low: 110, high: 220, currency: 'USD' });
+});

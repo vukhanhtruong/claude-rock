@@ -1,7 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, writeFile, mkdir, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { relative } from 'node:path';
 import { join } from 'node:path';
 import { startServer } from '../serve.mjs';
 
@@ -17,7 +18,10 @@ before(async () => {
   server = await startServer(root, 0);
   base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => server.close());
+after(async () => {
+  await new Promise((resolve) => server.close(resolve));
+  await rm(root, { recursive: true, force: true });
+});
 
 test('GET /api/leads returns enriched registry', async () => {
   const body = await (await fetch(`${base}/api/leads`)).json();
@@ -61,15 +65,51 @@ test('static serving with traversal guard', async () => {
   assert.equal((await fetch(`${base}/acme-crm/..%2F..%2Fetc%2Fpasswd`)).status, 403);
   assert.equal((await fetch(`${base}/acme-crm/..%2Fleads.json.lock`)).status, 403);
 });
-test('static allowlist: leads.json, notes.md, answers.json -> 404; stats.mjs, vendor -> 200', async () => {
+test('static allowlist: leads.json, notes.md, answers.json, brief.md -> 404; stats.mjs, vendor -> 200', async () => {
   assert.equal((await fetch(`${base}/leads.json`)).status, 404);
   assert.equal((await fetch(`${base}/acme-crm/notes.md`)).status, 404);
   assert.equal((await fetch(`${base}/acme-crm/new-lead-answers.json`)).status, 404);
+  assert.equal((await fetch(`${base}/acme-crm/brief.md`)).status, 404);
   assert.equal((await fetch(`${base}/stats.mjs`)).status, 200);
   assert.equal((await fetch(`${base}/vendor/reactflow-bundle.js`)).status, 200);
+});
+test('static content-type and body are correct for allowlisted files', async () => {
+  const stats = await fetch(`${base}/stats.mjs`);
+  assert.equal(stats.headers.get('content-type'), 'text/javascript');
+  assert.equal(await stats.text(), 'export const x = 1;\n');
+  const doc = await fetch(`${base}/acme-crm/dist/index.html`);
+  assert.equal(doc.headers.get('content-type'), 'text/html');
 });
 test('id validation guards every :id route before touching the lead dir or map builder', async () => {
   assert.equal((await fetch(`${base}/api/leads/-bad/map`)).status, 404);
   assert.equal((await fetch(`${base}/api/leads/-bad`, { method: 'POST', body: '{"status":"won"}' })).status, 404);
   assert.equal((await fetch(`${base}/api/leads/-bad/notes`, { method: 'POST', body: '{"content":"x"}' })).status, 404);
+});
+test('directory GET on an allowlisted prefix 4xxs cleanly and the server stays up', async () => {
+  const distDir = await fetch(`${base}/acme-crm/dist/`);
+  assert.ok(distDir.status >= 400 && distDir.status < 500);
+  const vendorDir = await fetch(`${base}/vendor/`);
+  assert.ok(vendorDir.status >= 400 && vendorDir.status < 500);
+  // server must still be listening -- this is the crash the reviewer reproduced
+  const stillUp = await fetch(`${base}/api/leads`);
+  assert.equal(stillUp.status, 200);
+});
+test('symlink inside dist/ pointing outside root is rejected, not followed', async () => {
+  const outside = join(root, '..', 'outside-secret.txt');
+  await writeFile(outside, 'top secret');
+  await symlink(outside, join(root, 'acme-crm', 'dist', 'link.html'));
+  const res = await fetch(`${base}/acme-crm/dist/link.html`);
+  assert.equal(res.status, 403);
+  await rm(outside, { force: true });
+});
+test('POST to a static-only path is rejected, not served', async () => {
+  const res = await fetch(`${base}/stats.mjs`, { method: 'POST', body: '' });
+  assert.notEqual(res.status, 200);
+});
+test('relative --root still resolves to real, absolute paths for static serving', async () => {
+  const rel = relative(process.cwd(), root);
+  const s2 = await startServer(rel, 0);
+  const b2 = `http://127.0.0.1:${s2.address().port}`;
+  assert.equal((await fetch(`${b2}/acme-crm/dist/index.html`)).status, 200);
+  await new Promise((resolve) => s2.close(resolve));
 });

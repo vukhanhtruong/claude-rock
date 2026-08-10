@@ -1,7 +1,7 @@
 // scripts/serve.mjs
 // new-lead-dashboard v1
 import { createServer } from 'node:http';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, realpath, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve, sep, extname } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -11,7 +11,7 @@ import { enrichLead } from './lib/enrich.mjs';
 import { buildLeadMap } from './lib/map.mjs';
 
 const MIME = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.md': 'text/plain',
 };
 const ID = ID_RE.source.slice(1, -1);
@@ -27,9 +27,13 @@ const ROUTES = [
   ['POST', new RegExp(`^/api/leads/(${ID})$`), apiUpdate],
 ];
 
-export function startServer(root, port) {
-  const server = createServer((req, res) => route(root, req, res)
-    .catch((err) => send(res, 500, { error: err.message })));
+export async function startServer(root, port) {
+  root = await realpath(resolve(root));
+  const server = createServer((req, res) => route(root, req, res).catch((err) => {
+    console.error(err);
+    if (res.headersSent) return res.destroy();
+    send(res, 500, { error: 'internal error' });
+  }));
   return new Promise((ok) => server.listen(port, '127.0.0.1', () => ok(server)));
 }
 
@@ -40,11 +44,17 @@ async function route(root, req, res) {
     const found = re.exec(url.pathname);
     if (found) return handler({ root, id: found[1] }, req, res);
   }
+  if (req.method !== 'GET') return send(res, 404, { error: 'not found' });
   return serveStatic(root, url.pathname, res);
 }
 
 async function serveFile(root, res, name) {
-  const data = await readFile(join(root, name));
+  let data;
+  try {
+    data = await readFile(join(root, name));
+  } catch {
+    return send(res, 404, { error: 'not found' });
+  }
   res.writeHead(200, { 'content-type': 'text/html' });
   res.end(data);
 }
@@ -102,9 +112,14 @@ async function serveStatic(root, pathname, res) {
   const p = resolve(root, '.' + decoded);
   if (p !== root && !p.startsWith(root + sep)) return send(res, 403);
   const allowed = decoded === '/stats.mjs' || decoded.startsWith('/vendor/') || DIST_RE.test(decoded);
-  if (!allowed || !existsSync(p)) return send(res, 404);
-  res.writeHead(200, { 'content-type': MIME[extname(p)] ?? 'application/octet-stream' });
-  res.end(await readFile(p));
+  if (!allowed) return send(res, 404);
+  let real;
+  try { real = await realpath(p); } catch { return send(res, 404); }
+  if (real !== root && !real.startsWith(root + sep)) return send(res, 403);
+  const st = await stat(real);
+  if (!st.isFile()) return send(res, 404);
+  res.writeHead(200, { 'content-type': MIME[extname(real)] ?? 'application/octet-stream' });
+  res.end(await readFile(real));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

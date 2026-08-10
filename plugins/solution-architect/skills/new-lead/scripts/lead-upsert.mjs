@@ -16,7 +16,7 @@ const patch = JSON.parse(values.patch);
 const registry = await readRegistry(values.root);
 const index = registry.leads.findIndex((l) => l.id === values.id);
 const existing = index === -1 ? {} : registry.leads[index];
-const merged = { ...DEFAULTS, id: values.id, ...existing, ...patch };
+const merged = { ...DEFAULTS, ...existing, ...patch, id: values.id };
 
 if (index === -1) registry.leads.push(merged);
 else registry.leads[index] = merged;

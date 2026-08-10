@@ -34,3 +34,26 @@ test('invalid merge rejected, registry untouched', async () => {
   const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
   assert.equal(reg.leads.length, 0);
 });
+test('unrelated patch does not revert a won lead to active', async () => {
+  const root = await makeRoot();
+  await run('node', [CLI, '--root', root, '--id', 'acme-crm',
+    '--patch', '{"client":"Acme","title":"CRM","created":"2026-08-07"}']);
+  await run('node', [CLI, '--root', root, '--id', 'acme-crm',
+    '--patch', '{"status":"won","closed":"2026-08-10","value":{"low":1,"high":2,"currency":"USD"}}']);
+  await run('node', [CLI, '--root', root, '--id', 'acme-crm', '--patch', '{"title":"CRM v2"}']);
+  const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
+  assert.equal(reg.leads[0].status, 'won');
+  assert.equal(reg.leads[0].closed, '2026-08-10');
+  assert.deepEqual(reg.leads[0].value, { low: 1, high: 2, currency: 'USD' });
+  assert.equal(reg.leads[0].title, 'CRM v2');
+});
+test('patch id key cannot spoof the target lead id', async () => {
+  const root = await makeRoot();
+  await run('node', [CLI, '--root', root, '--id', 'acme-crm',
+    '--patch', '{"id":"bar-baz","client":"Acme","title":"CRM","created":"2026-08-07"}']);
+  await run('node', [CLI, '--root', root, '--id', 'acme-crm', '--patch', '{"title":"CRM v2"}']);
+  const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
+  assert.equal(reg.leads.length, 1);
+  assert.equal(reg.leads[0].id, 'acme-crm');
+  assert.equal(reg.leads[0].title, 'CRM v2');
+});

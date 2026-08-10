@@ -1,11 +1,18 @@
 // Structural limits every skill's scripts must hold. Shared by the three
 // skills' quality-gates tests so the thresholds live in one place.
 //
-// A limit set with a key omitted skips that check.
-import { readdirSync } from 'node:fs';
+// A limit set with a key omitted skips that check — template JavaScript gets
+// the per-function limits only, because a self-contained page is one file by
+// design and can never meet a per-file line or function count.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const LIMITS = { fileLines: 200, functions: 10, functionLines: 22, params: 3 };
+
+// A rendered page is one self-contained file by design — it inlines its fonts and
+// carries no external URL — so a per-file line or function count can never be met
+// and would say nothing if it were. The per-function limits still apply.
+export const TEMPLATE_LIMITS = { functionLines: 22, params: 3 };
 
 // Braces inside a regex, string or comment are not structure. Counting them
 // makes a short function measure long, and the overshoot runs on into whatever
@@ -83,4 +90,24 @@ export function moduleFiles(base, dirs) {
   return dirs.flatMap((d) => readdirSync(join(base, d), { withFileTypes: true })
     .filter((e) => e.isFile() && /\.(mjs|js)$/.test(e.name))
     .map((e) => join(base, d, e.name)));
+}
+
+// Keep every byte at its original offset — blank the markup, restore the script
+// bodies in place — so a reported span still counts lines of the real file. The
+// JSON data island is data, not code.
+function scriptText(html) {
+  let out = blank(html);
+  for (const m of html.matchAll(/<script(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)) {
+    const at = m.index + m[0].indexOf(m[1]);
+    out = out.slice(0, at) + m[1] + out.slice(at + m[1].length);
+  }
+  return out;
+}
+
+export function templateScripts(base) {
+  const dir = join(base, 'assets');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith('.html'))
+    .map((e) => ({ file: join(dir, e.name), js: scriptText(readFileSync(join(dir, e.name), 'utf8')) }));
 }

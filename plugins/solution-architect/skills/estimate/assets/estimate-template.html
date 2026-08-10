@@ -836,7 +836,10 @@ function bandSegments(band) {
       title="${esc(`${names[c] ?? c} · ${h.toFixed(2)}h (${Math.round((h / sum) * 100)}%)`)}"></span>`).join('');
 }
 
-function roadmapRow(band, total, names, ticks) {
+// total, names and ticks are one thing — the chart's scale, shared by every row
+// and by the axis beneath them — so they travel together.
+function roadmapRow(band, scale) {
+  const { total, names, ticks } = scale;
   const left = (band.startMonths / total) * 100;
   const width = ((band.endMonths - band.startMonths) / total) * 100;
   const gridlines = ticks.map((m) => {
@@ -858,7 +861,7 @@ function roadmapRow(band, total, names, ticks) {
 
 // The two edge ticks are pinned to the track's own edges instead of centered,
 // so they never overhang the section.
-function roadmapAxis(total, ticks) {
+function roadmapAxis({ total, ticks }) {
   const tick = (m) => {
     const pct = tickPct(m, total);
     const style = pct <= 0 ? 'left:0;transform:none'
@@ -879,14 +882,14 @@ function renderRoadmap() {
   if (!roadmap) { el.remove(); return; }
   const total = roadmap[roadmap.length - 1].endMonths;
   const names = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.name]));
-  const ticks = roadmapTicks(total, roadmap);
+  const scale = { total, names, ticks: roadmapTicks(total, roadmap) };
   el.innerHTML = secHead('Roadmap',
     'Sequential delivery by the recommended scenario team. Bands are relative months from '
     + 'kickoff, not calendar dates; each milestone\'s width is its share of the work. Band '
     + 'colors are the containers the milestone touches (same palette as the chart above). '
     + 'Click a row to filter the breakdown below to that milestone, grouped by container.')
-    + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, total, names, ticks)).join('')}`
-    + `${roadmapAxis(total, ticks)}</div>`;
+    + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, scale)).join('')}`
+    + `${roadmapAxis(scale)}</div>`;
 }
 
 // Committed numbers only, like every section: expected hours summed per

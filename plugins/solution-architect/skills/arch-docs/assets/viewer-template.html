@@ -1268,20 +1268,22 @@ function spineEntry(title) {
   return helpSpine[helpKey(title)];
 }
 
-function injectSectionHelp(h, title) {
+/* Keyed on heading text, not on the id: slugify keeps both spaces around a
+   stripped "&", and subheadings share one dedupe registry with h2, so the slug
+   can shift under a heading without anything failing. Which heading levels get
+   an explainer is settled at the heading loop below. */
+function helpEntryFor(h, title) {
   var help = window.ARCH_DOCS_HELP || {};
   var page = h.closest('.page');
   var kind = page && page.dataset.kind;
-  var entry = h.tagName === 'H1'
-    ? (help.companions || {})[kind]
-    : (h.tagName === 'H2' && kind === 'spine' ? spineEntry(title) : null);
-  if (!entry) return;
-  var panel = helpPanel(entry);
-  /* aria-expanded says a state; aria-controls says what is in that state. The
-     panel's summary is hidden because the button drives it, so this pairing is
-     the only thing connecting the two for a screen reader. */
-  helpSeq += 1;
-  panel.id = 'help-' + helpSeq;
+  if (h.tagName === 'H1') return (help.companions || {})[kind];
+  return h.tagName === 'H2' && kind === 'spine' ? spineEntry(title) : null;
+}
+
+/* aria-expanded says a state; aria-controls says what is in that state. The
+   panel's summary is hidden because the button drives it, so this pairing is
+   the only thing connecting the two for a screen reader. */
+function helpButton(panel, title) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'help-btn';
@@ -1289,20 +1291,34 @@ function injectSectionHelp(h, title) {
   btn.setAttribute('aria-expanded', 'false');
   btn.setAttribute('aria-controls', panel.id);
   btn.setAttribute('aria-label', 'What belongs in ' + title);
-  h.appendChild(btn);
-  h.after(panel);
+  return btn;
+}
+
+/* Read from the <details> element's own event rather than set inside the click
+   handler, so anything that opens the panel without a click — not just this
+   button — still leaves aria-expanded matching panel.open. */
+function wireHelpToggle(btn, panel) {
   btn.addEventListener('click', function () {
     panel.open = !panel.open;
   });
-  /* Read from the <details> element's own event rather than set inside the
-     click handler above, so anything that opens the panel without a click —
-     not just this button — still leaves aria-expanded matching panel.open. */
   panel.addEventListener('toggle', function () {
     btn.setAttribute('aria-expanded', String(panel.open));
     /* Reading progress is measured from scroll offsets, so the panel changing
        the section's height leaves the readout stale until the next scroll. */
     tick();
   });
+}
+
+function injectSectionHelp(h, title) {
+  var entry = helpEntryFor(h, title);
+  if (!entry) return;
+  var panel = helpPanel(entry);
+  helpSeq += 1;
+  panel.id = 'help-' + helpSeq;
+  var btn = helpButton(panel, title);
+  h.appendChild(btn);
+  h.after(panel);
+  wireHelpToggle(btn, panel);
 }
 
 /* h1 for a companion document's single explainer, h2 for the spine's sixteen.
@@ -1481,23 +1497,31 @@ function setCrumb(parts) {
   });
 }
 
-function activate(el) {
-  if (el === current) return;
-  current = el;
-  var a = byId[el.id];
+function clearActive() {
   links.forEach(function (l) { l.classList.remove('is-active'); });
   groups.forEach(function (g) { g.classList.remove('is-current'); });
   sections.forEach(function (s) { s.classList.remove('is-current'); });
+}
 
-  var group = a ? a.closest('.nav-group')
-    : document.querySelector('.nav-group[data-doc="' + CSS.escape(el.id) + '"]');
-  var sec = group ? group.closest('.nav-sec') : null;
-  // A hit inside a collapsed section is invisible, so open both levels.
+// A hit inside a collapsed section is invisible, so open both levels.
+function revealIn(sec, group) {
   if (sec) { sec.classList.add('is-current'); if (!filter.value) sec.open = true; }
   if (group) {
     group.classList.add('is-current');
     if (!filter.value) group.open = true;
   }
+}
+
+function activate(el) {
+  if (el === current) return;
+  current = el;
+  var a = byId[el.id];
+  clearActive();
+
+  var group = a ? a.closest('.nav-group')
+    : document.querySelector('.nav-group[data-doc="' + CSS.escape(el.id) + '"]');
+  var sec = group ? group.closest('.nav-sec') : null;
+  revealIn(sec, group);
   if (a) {
     a.classList.add('is-active');
     if (innerWidth > 960) a.scrollIntoView({ block: 'nearest' });
@@ -1999,6 +2023,18 @@ function showDiagramError(el, err) {
   el.replaceChildren(msg);
 }
 
+// Mermaid pins the SVG to its natural width (~300px for an ER diagram), which
+// leaves labels unreadable in a full-width shell. The viewBox lets it scale.
+function fitSvg(svg) {
+  if (!svg.getAttribute('viewBox')) return;
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+  svg.style.width = '100%';
+  svg.style.height = 'auto';
+  svg.style.maxWidth = '100%';
+  svg.style.maxHeight = '72vh';
+}
+
 async function renderMermaid(el) {
   var code = el.dataset.src || el.textContent.trim();
   if (!code) return;
@@ -2014,16 +2050,7 @@ async function renderMermaid(el) {
   }
   var svg = new DOMParser().parseFromString(out.svg, 'text/html').body.querySelector('svg');
   if (!svg) return;
-  // Mermaid pins the SVG to its natural width (~300px for an ER diagram), which
-  // leaves labels unreadable in a full-width shell. The viewBox lets it scale.
-  if (svg.getAttribute('viewBox')) {
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    svg.style.width = '100%';
-    svg.style.height = 'auto';
-    svg.style.maxWidth = '100%';
-    svg.style.maxHeight = '72vh';
-  }
+  fitSvg(svg);
   el.replaceChildren(svg);
 }
 
@@ -2180,7 +2207,10 @@ function wireKeys(viewport, ctl) {
   });
 }
 
-function wireDiagram(shell) {
+/* The shell arrives holding the raw diagram; it leaves holding a toolbar over a
+   viewport over a canvas over that same content, so the pan/zoom transform has a
+   single element to write to. */
+function buildStage(shell) {
   var toolbar = buildToolbar();
   var viewport = document.createElement('div');
   viewport.className = 'diagram-viewport';
@@ -2194,8 +2224,21 @@ function wireDiagram(shell) {
   shell.replaceChildren(toolbar, viewport);
   viewport.appendChild(canvas);
   canvas.appendChild(content);
+  return { toolbar: toolbar, viewport: viewport, canvas: canvas };
+}
 
-  var readout = toolbar.querySelector('[data-zoom-reset]');
+// The readout doubles as the reset button, so its accessible name has to carry
+// the live value as well as the action.
+function showZoom(readout, zoom) {
+  var pct = Math.round(zoom * 100) + '%';
+  readout.textContent = pct;
+  readout.setAttribute('aria-label', 'Reset zoom, currently ' + pct);
+}
+
+/* Owns the zoom and pan state. */
+function makeControls(stage, shell) {
+  var viewport = stage.viewport, canvas = stage.canvas;
+  var readout = stage.toolbar.querySelector('[data-zoom-reset]');
   var zoom = 1, panX = 0, panY = 0;
   /* Clamped here rather than in each of zoom, pan and reset: this is the one
      place the transform is written, so it is the one place that cannot be
@@ -2208,20 +2251,19 @@ function wireDiagram(shell) {
   function apply() {
     clampPan();
     canvas.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
-    var pct = Math.round(zoom * 100) + '%';
-    readout.textContent = pct;
-    readout.setAttribute('aria-label', 'Reset zoom, currently ' + pct);
+    showZoom(readout, zoom);
   }
   function sync() { viewport.classList.toggle('is-pannable', pannable(shell, zoom)); }
-  var ctl = {
+  return {
+    sync: sync,
     zoomBy: function (f) { zoom = Math.min(4, Math.max(0.25, zoom * f)); apply(); sync(); },
     panBy: function (dx, dy) { panX += dx; panY += dy; apply(); },
     reset: function () { zoom = 1; panX = 0; panY = 0; apply(); sync(); },
   };
-  /* Escape is handled once for the whole page rather than per shell, and it needs
-     to put each shell's pannable state back the way its own zoom says. */
-  shell.archDocsSync = sync;
+}
 
+function wireToolbar(stage, shell, ctl) {
+  var toolbar = stage.toolbar;
   toolbar.querySelector('[data-zoom-in]').onclick = function () { ctl.zoomBy(1.2); };
   toolbar.querySelector('[data-zoom-out]').onclick = function () { ctl.zoomBy(1 / 1.2); };
   toolbar.querySelector('[data-zoom-reset]').onclick = ctl.reset;
@@ -2232,28 +2274,42 @@ function wireDiagram(shell) {
     var on = !shell.classList.contains('is-expanded');
     shell.classList.toggle('is-expanded', on);
     this.setAttribute('aria-pressed', String(on));
-    sync();
+    ctl.sync();
   };
   toolbar.querySelector('[data-fullscreen]').onclick = function () { shell.requestFullscreen().catch(function () {}); };
   toolbar.querySelector('[data-exit-fullscreen]').onclick = function () { document.exitFullscreen(); };
-  shell.addEventListener('fullscreenchange', sync);
+  shell.addEventListener('fullscreenchange', ctl.sync);
+}
 
+// Ctrl/Cmd held: the gesture is a zoom, not a page scroll.
+function wireWheel(viewport, ctl) {
   viewport.addEventListener('wheel', function (e) {
     if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
     ctl.zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
   }, { passive: false });
+}
 
-  wirePan(viewport, ctl);
-  wireKeys(viewport, ctl);
-
+function markDiagramKind(shell, canvas) {
   if (canvas.querySelector('c4-view')) shell.classList.add('is-c4');
   var mermaidEl = canvas.querySelector('.mermaid-canvas');
-  if (mermaidEl) {
-    shell.classList.add('is-mermaid');
-    mermaidEls.push(mermaidEl);
-    renderMermaid(mermaidEl);
-  }
+  if (!mermaidEl) return;
+  shell.classList.add('is-mermaid');
+  mermaidEls.push(mermaidEl);
+  renderMermaid(mermaidEl);
+}
+
+function wireDiagram(shell) {
+  var stage = buildStage(shell);
+  var ctl = makeControls(stage, shell);
+  /* Escape is handled once for the whole page rather than per shell, and it needs
+     to put each shell's pannable state back the way its own zoom says. */
+  shell.archDocsSync = ctl.sync;
+  wireToolbar(stage, shell, ctl);
+  wireWheel(stage.viewport, ctl);
+  wirePan(stage.viewport, ctl);
+  wireKeys(stage.viewport, ctl);
+  markDiagramKind(shell, stage.canvas);
 }
 
 document.querySelectorAll('.diagram-shell').forEach(wireDiagram);

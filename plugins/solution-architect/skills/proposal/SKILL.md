@@ -56,3 +56,26 @@ one exists, else beside proposal.md.
 ## Dependency
 
 Node ≥ 20. Scripts are dependency-free.
+
+## Orchestrated mode
+
+Active only when the caller provides a path to a `new-lead-answers.json`
+file. Without that file this section does not apply — run the flow above
+unchanged.
+
+- Skip step 2 (Interview): client context and tech level come from
+  `client`, validity and firm profile (with storage scope) from `proposal`,
+  and the scenario pick from `proposal.scenario` — the orchestrator sets it
+  at the estimate gate before this skill runs. No scenario in the file →
+  stop and report; never pick one yourself.
+- Step 6 (Fresh-eyes review) is run by the orchestrator's workflow — when
+  invoked as the writer agent inside it, write and validate, then stop
+  after step 5; the review, fix, and re-validate stages happen as separate
+  agents.
+- Step 7 (Human review) is owned by the orchestrator's proposal gate — do
+  not wait for approval yourself; report and stop.
+- Skip steps 8–9 (Render, serve) — the orchestrator owns rendering.
+- Everything else — hard rules 1–4, the prereq gate, `derive.mjs` as the
+  only source of numbers, `validate.mjs` until exit 0 — applies unchanged.
+  Hard rule 5 is satisfied by the orchestrator's gate, not skipped.
+- Report back: files written, final validate exit code, `decisions[]`.

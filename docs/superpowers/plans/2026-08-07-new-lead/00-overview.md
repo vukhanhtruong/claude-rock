@@ -67,7 +67,7 @@ plugins/solution-architect/skills/new-lead/
     └── vendor-build/             (04: entry.jsx, package.json — build-time only)
 ```
 
-Copied into `<leads-root>/` on init/refresh: `serve.mjs`, `lib/*.mjs`, `index.html`, `detail.html`, `vendor/reactflow-bundle.js`, `start.sh`.
+Copied into `<leads-root>/` on init/refresh: `serve.mjs`, `lib/*.mjs`, `index.html`, `detail.html`, `stats.mjs`, `vendor/reactflow-bundle.js`, `start.sh`.
 
 ## Interface registry (cross-milestone contracts)
 

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url));
-const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'vendor/reactflow-bundle.js'];
+const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'stats.mjs', 'vendor/reactflow-bundle.js'];
 const SCRIPT_FILES = ['serve.mjs', 'lib/registry.mjs', 'lib/enrich.mjs', 'lib/map.mjs'];
 
 export async function initRoot(root, assetsDir) {

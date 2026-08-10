@@ -29,3 +29,23 @@ served on localhost for review.
 ## Dependency
 
 Node ≥ 20 with npm (`npx likec4`). State this upfront; without it, stop before step 5.
+
+## Orchestrated mode
+
+Active only when the caller provides a path to a `new-lead-answers.json`
+file. Without that file this section does not apply — run the flow above
+unchanged.
+
+- Skip step 3 (Interview): read the interview's outputs from the answers
+  file instead — project type and mode from `lead` + `evidence`, scope from
+  `scope`, stack/hosting/compliance from `tech`, constraints from
+  `delivery`. A question the answers file does not cover is an honest
+  absence — render it as one (hard rule 3), never invent an answer.
+- Skip every user confirmation: mode-detection override (step 1) and
+  dropped-research surfacing (step 4) are logged to a `decisions` list in
+  your final report instead of asked.
+- Skip step 7 (Render + serve) entirely — the orchestrator owns rendering.
+- Everything else — hard rules 1–5, scanning, research, writing,
+  `validate.mjs` until exit 0 — applies unchanged.
+- Report back (as your final structured output, not prose): files written,
+  final validate exit code, `decisions[]`.

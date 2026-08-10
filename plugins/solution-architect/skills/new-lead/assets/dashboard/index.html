@@ -235,10 +235,15 @@ async function load() {
     if (!res.ok) throw new Error(`server returned ${res.status}`);
     const data = await res.json();
     leads = data.leads;
+  } catch (err) {
+    showBanner(`Could not load leads (${err.message}). Try reloading the page.`);
+    return;
+  }
+  try {
     clearBanner();
     render();
   } catch (err) {
-    showBanner(`Could not load leads (${err.message}). Try reloading the page.`);
+    showBanner(`Could not display leads (${err.message}).`);
   }
 }
 
@@ -265,7 +270,7 @@ function fmtRange(v) {
     const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: v.currency, maximumFractionDigits: 0 });
     return `${fmt.format(v.low)} - ${fmt.format(v.high)}`;
   } catch {
-    return `${v.low} - ${v.high} ${esc(v.currency)}`;
+    return `${esc(v.low)} - ${esc(v.high)} ${esc(v.currency)}`;
   }
 }
 

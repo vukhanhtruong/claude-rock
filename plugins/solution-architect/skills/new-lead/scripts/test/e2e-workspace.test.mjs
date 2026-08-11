@@ -1,0 +1,45 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, cp } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { initRoot } from '../init-root.mjs';
+import { findLeadsRoot } from '../lib/registry.mjs';
+import { startServer } from '../serve.mjs';
+const run = promisify(execFile);
+const UPSERT = new URL('../lead-upsert.mjs', import.meta.url).pathname;
+const ASSETS = new URL('../../assets/dashboard', import.meta.url).pathname;
+const FIXTURE_LEAD = new URL('./fixtures/root/acme-crm', import.meta.url).pathname;
+
+test('init -> register -> serve -> mark won, end to end', async () => {
+  // init a fresh root
+  const root = join(await mkdtemp(join(tmpdir(), 'e2e-')), 'leads');
+  await initRoot(root, ASSETS);
+  assert.ok(existsSync(join(root, 'serve.mjs')), 'server copied');
+  assert.ok(existsSync(join(root, 'index.html')), 'dashboard copied');
+  assert.equal(findLeadsRoot(join(root)), root);
+
+  // simulate the pipeline having produced a lead dir (fixture stands in for gates 1-3)
+  await cp(FIXTURE_LEAD, join(root, 'acme-crm'), { recursive: true });
+  await run('node', [UPSERT, '--root', root, '--id', 'acme-crm',
+    '--patch', '{"client":"Acme","title":"CRM rebuild","created":"2026-08-07"}']);
+
+  // serve and exercise the API like the dashboard would
+  const server = await startServer(root, 0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const { leads } = await (await fetch(`${base}/api/leads`)).json();
+    assert.equal(leads[0].artifacts.docs, true);
+    const map = await (await fetch(`${base}/api/leads/acme-crm/map`)).json();
+    assert.ok(map.nodes.length > 3);
+    const won = await (await fetch(`${base}/api/leads/acme-crm`, {
+      method: 'POST', body: '{"status":"won"}',
+      headers: { 'content-type': 'application/json' } })).json();
+    assert.equal(won.status, 'won');
+    // refresh is a no-op at same stamp
+    assert.deepEqual((await initRoot(root, ASSETS)).copied, []);
+  } finally { server.close(); }
+});

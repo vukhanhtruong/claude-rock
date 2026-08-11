@@ -480,47 +480,35 @@ function esc(s) {
  * activates the last section whose top has passed the activation line,
  * pinned to the final entry at the true page bottom. No tail padding.
  * ================================================================== */
-(function () {
-  const toc = document.getElementById('toc');
-  if (!toc) return;
-  const links = toc.querySelectorAll('a');
+function collectSections(links) {
   const sections = [];
   links.forEach((link) => {
     const el = document.getElementById(link.getAttribute('href').slice(1));
     if (el) sections.push({ el, link });
   });
-  if (!sections.length) return;
-
-  function setActive(link) {
-    if (link.classList.contains('active')) return;
-    links.forEach((l) => l.classList.remove('active'));
-    link.classList.add('active');
-    if (window.innerWidth <= 1000) link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  return sections;
+}
+function setActiveLink(links, link) {
+  if (link.classList.contains('active')) return;
+  links.forEach((l) => l.classList.remove('active'));
+  link.classList.add('active');
+  if (window.innerWidth <= 1000) link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+// Active section = the last one (in document order) whose activation line
+// has been passed; falls back to the first section if none has.
+function findActiveSection(sections) {
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  const offset = window.innerHeight * 0.1;
+  const step = window.innerHeight * 0.12;
+  let ceiling = maxScroll + step;
+  for (let i = sections.length - 1; i >= 0; i--) {
+    const docTop = sections[i].el.getBoundingClientRect().top + window.scrollY;
+    ceiling = Math.min(docTop - offset, ceiling - step);
+    if (window.scrollY >= ceiling) return sections[i];
   }
-
-  function updateActive() {
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const offset = window.innerHeight * 0.1;
-    const step = window.innerHeight * 0.12;
-    let ceiling = maxScroll + step;
-    let current = sections[0];
-    for (let i = sections.length - 1; i >= 0; i--) {
-      const docTop = sections[i].el.getBoundingClientRect().top + window.scrollY;
-      ceiling = Math.min(docTop - offset, ceiling - step);
-      if (window.scrollY >= ceiling) { current = sections[i]; break; }
-    }
-    setActive(current.link);
-  }
-
-  setActive(sections[0].link);
-  updateActive();
-  let ticking = false;
-  window.addEventListener('scroll', () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => { updateActive(); ticking = false; });
-  }, { passive: true });
-
+  return sections[0];
+}
+function wireTocClicks(links) {
   links.forEach((link) => link.addEventListener('click', (e) => {
     e.preventDefault();
     const el = document.getElementById(link.getAttribute('href').slice(1));
@@ -528,6 +516,26 @@ function esc(s) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     history.replaceState(null, '', '#' + link.getAttribute('href').slice(1));
   }));
+}
+function initScrollSpy(links, sections) {
+  const update = () => setActiveLink(links, findActiveSection(sections).link);
+  setActiveLink(links, sections[0].link);
+  update();
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { update(); ticking = false; });
+  }, { passive: true });
+  wireTocClicks(links);
+}
+(function () {
+  const toc = document.getElementById('toc');
+  if (!toc) return;
+  const links = toc.querySelectorAll('a');
+  const sections = collectSections(links);
+  if (!sections.length) return;
+  initScrollSpy(links, sections);
 })();
 
 /* ================================================================== *

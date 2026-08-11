@@ -26,6 +26,7 @@ for generation. This file is generation truth.
   "delivery": { "deadline": "", "budgetRange": "", "depth": "QUICK|STANDARD|DEEP",
                 "technique": "", "teamNotes": "" },
   "proposal": { "validityDays": 30, "firmProfile": "", "storageScope": "",
+                "priority": "price|speed|reliability",
                 "scenario": null },           // set by the orchestrator at gate 2
   "decisions": []                             // appended by orchestrator + agents
 }
@@ -41,7 +42,7 @@ for generation. This file is generation truth.
 | `scope` | `summary`, `mustHave[]`, `niceToHave[]`, `outOfScope[]`, `assumed[]` | arch-docs (scope), estimate (`mustHave`/`niceToHave` are stated, `assumed` items are proposed — labeled `proposed`, never silently resolved) |
 | `tech` | `stack[]`, `integrations[]`, `hosting`, `compliance[]` | arch-docs (stack/integrations/hosting/compliance) |
 | `delivery` | `deadline`, `budgetRange`, `depth` (`QUICK\|STANDARD\|DEEP`), `technique`, `teamNotes` | arch-docs (constraints), estimate (`depth` and `technique` — technique is taken as already confirmed, not re-asked) |
-| `proposal` | `validityDays`, `firmProfile`, `storageScope`, `scenario` | proposal (validity, firm profile, storage scope, and the scenario picked at the estimate gate — no `scenario` means proposal stops and reports rather than picking one) |
+| `proposal` | `validityDays`, `firmProfile`, `storageScope`, `priority` (`price\|speed\|reliability`), `scenario` | proposal (validity, firm profile, storage scope, the client's stated priority — shapes the Executive Summary's emphasis — and the scenario picked at the estimate gate — no `scenario` means proposal stops and reports rather than picking one; no `priority` means the Executive Summary is written without a stated emphasis, the same as when the standalone interview's question goes unanswered — proposal never picks a default emphasis) |
 | `decisions` | array, appended only | every skill's orchestrated-mode report includes `decisions[]`; the orchestrator appends at every gate |
 
 ## Rules

@@ -156,6 +156,8 @@ Questions:
    → `proposal.firmProfile`
 3. Where should firm-profile edits be stored — project-level or global?
    → `proposal.storageScope`
+4. What the client cares about most: price, speed, or reliability?
+   → `proposal.priority` (`price`/`speed`/`reliability`)
 
 Note (deliberate): **scenario is not asked here.** `proposal.scenario` is
 set by the orchestrator at gate 2, after estimate has produced scenarios to
@@ -174,7 +176,7 @@ interview this batch replaces under orchestration.
 | Batch 2 — Scope | §1 Goals & Scope (goal, problem — not "users", see below) | §3 Clear-vs-assumed gate; §4 item 1 (scope confirm) | §1 item 3 (business problem, folded into `scope.summary` — see Batch 2 note); §2 both bullets (out-of-scope gaps; anything already rejected/demanded — reachable via `scope.outOfScope[]`/`scope.mustHave[]`) |
 | Batch 3 — Tech & evidence | §2 Constraints (mandated tech, compliance portion); §10 Deployment & Infrastructure (hosting) | §1 Evidence detection table (evidence confirmation) | §0 (state known tech stack for correction) |
 | Batch 4 — Delivery & estimation | §2 Constraints (budget, timeline portion); frontmatter `team` (ownership, folded into `teamNotes`) | §2 Depth question; §4 item 6 (deadline/budget); SKILL.md step 4 (technique — not part of interview.md itself, folded in here since it must be confirmed once, up front) | — |
-| Batch 5 — Proposal prefs | — | — | §1 items 5 (scenario — explicitly gate-set, not asked), 6 (validity); §3 (firm profile) |
+| Batch 5 — Proposal prefs | — | — | §1 items 4 (priority — price/speed/reliability), 5 (scenario — explicitly gate-set, not asked), 6 (validity); §3 (firm profile) |
 
 ### Rows with no combined coverage, and why
 
@@ -208,12 +210,6 @@ interview this batch replaces under orchestration.
 - **estimate §5 Loop rule** — a runtime behavior (stop and re-gate on a
   scope hole discovered mid-sizing), not a question. Not applicable to an
   interview reference.
-- **proposal §1 item 4** (priority among price / speed / reliability) — no
-  schema field fits. Dropped deliberately: an orchestrated proposal loses
-  the interview-driven Executive Summary emphasis this answer used to
-  provide. Adding a field for it is a schema change and therefore a
-  recommendation to raise with whoever owns `answers-schema.md`, not
-  something this task does.
 
 ## Prefill rules
 

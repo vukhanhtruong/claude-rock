@@ -92,6 +92,7 @@ test('invalid merge rejected, registry untouched', async () => {
   "delivery": { "deadline": "", "budgetRange": "", "depth": "QUICK|STANDARD|DEEP",
                 "technique": "", "teamNotes": "" },
   "proposal": { "validityDays": 30, "firmProfile": "", "storageScope": "",
+                "priority": "price|speed|reliability",
                 "scenario": null },           // set by the orchestrator at gate 2
   "decisions": []                             // appended by orchestrator + agents
 }

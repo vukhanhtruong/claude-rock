@@ -67,7 +67,10 @@ unchanged.
   `client`, validity and firm profile (with storage scope) from `proposal`,
   and the scenario pick from `proposal.scenario` — the orchestrator sets it
   at the estimate gate before this skill runs. No scenario in the file →
-  stop and report; never pick one yourself.
+  stop and report; never pick one yourself. `proposal.priority` (price,
+  speed, or reliability), when present, shapes the Executive Summary's
+  emphasis the same way the standalone interview's answer would; absent, do
+  not pick a default emphasis.
 - Background & Objectives' client-problem line comes from `scope.summary`
   — the one field this skill reads outside the `client`/`proposal` groups
   named above.

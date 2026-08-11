@@ -1,0 +1,405 @@
+<!doctype html>
+<!-- new-lead-dashboard v1: throwaway card-detail mockup for milestone 04 gate. Deleted in Task 3. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lead detail mockup, acme-crm">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
+<title>Lead detail mockup: acme-crm</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f7f5f0; --ink: #1c1b18; --ink-dim: #6f6a5e;
+  --accent: #0f766e; --accent-ink: #0b5a54; --accent-soft: rgba(15,118,110,.08);
+  --ok: #15803d; --ok-soft: rgba(21,128,61,.1);
+  --warn: #b45309; --warn-soft: rgba(180,83,9,.1);
+  --card: #fffdf9; --border: #e6e1d5; --border-strong: #cfc8b8;
+  --pending-bg: #efece3; --pending-border: #cfc8b8; --pending-ink: #8f8a7b;
+  --shadow: 0 1px 2px rgba(28,27,24,.05), 0 6px 20px rgba(28,27,24,.05);
+  --radius: .6rem; --radius-sm: .4rem; --radius-pill: 999px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #101413; --ink: #e8e6e1; --ink-dim: #93a09b;
+    --accent: #3ba99f; --accent-ink: #6fd1c7; --accent-soft: rgba(59,169,159,.12);
+    --ok: #5dbb7a; --ok-soft: rgba(93,187,122,.12);
+    --warn: #d98b3d; --warn-soft: rgba(217,139,61,.12);
+    --card: #181d1c; --border: #263230; --border-strong: #3a4a46;
+    --pending-bg: #1a1f1e; --pending-border: #333f3b; --pending-ink: #6b756f;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101413; --ink: #e8e6e1; --ink-dim: #93a09b;
+  --accent: #3ba99f; --accent-ink: #6fd1c7; --accent-soft: rgba(59,169,159,.12);
+  --ok: #5dbb7a; --ok-soft: rgba(93,187,122,.12);
+  --warn: #d98b3d; --warn-soft: rgba(217,139,61,.12);
+  --card: #181d1c; --border: #263230; --border-strong: #3a4a46;
+  --pending-bg: #1a1f1e; --pending-border: #333f3b; --pending-ink: #6b756f;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+}
+* { box-sizing: border-box; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--ink); margin: 0; line-height: 1.45;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+button, textarea { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between;
+  padding: .9rem max(1.25rem, calc((100% - 1200px) / 2));
+  border-bottom: 1px solid var(--border); background: var(--card);
+}
+.topbar-left { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.crumb { font-size: .78rem; color: var(--ink-dim); }
+.topbar h1 { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; }
+.topbar-right { display: flex; align-items: center; gap: .6rem; }
+
+.pill {
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .03em; font-weight: 600;
+  padding: .15rem .55rem; border-radius: var(--radius-pill); white-space: nowrap;
+}
+.pill-active { background: var(--accent-soft); color: var(--accent-ink); }
+
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.seg button {
+  border: none; background: var(--card); color: var(--ink-dim); cursor: pointer;
+  font-size: .78rem; padding: .35rem .65rem; border-right: 1px solid var(--border-strong);
+}
+.seg button:last-child { border-right: none; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+
+.btn {
+  font-size: .82rem; padding: .4rem .8rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--card); color: var(--ink); cursor: pointer;
+}
+.btn-won { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.btn-lost { color: var(--ink-dim); }
+
+main {
+  max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.25rem 3rem;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.1rem;
+}
+
+.banner {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; min-width: 0;
+  background: var(--accent-soft); color: var(--accent-ink); border: 1px solid transparent;
+  border-radius: var(--radius); padding: .7rem 1rem; font-size: .88rem;
+}
+.banner .arrow { font-weight: 700; }
+.banner .banner-text { flex: 1 1 220px; min-width: 0; }
+.src-tag {
+  font-size: .68rem; color: var(--ink-dim); background: var(--border);
+  padding: .1rem .45rem; border-radius: var(--radius-sm); white-space: nowrap;
+}
+.banner .src-tag { background: transparent; border: 1px solid var(--border-strong); margin-left: auto; }
+
+.src-legend {
+  display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; min-width: 0;
+  font-size: .78rem; color: var(--ink-dim); padding: 0 .1rem;
+}
+.src-legend strong { color: var(--ink); font-weight: 600; }
+.src-legend span { min-width: 0; }
+
+.panel {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 1rem 1.1rem;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .7rem; }
+.panel-head h2 { margin: 0; font-size: .92rem; font-weight: 600; }
+
+.exec-summary p { margin: 0 0 .5rem; max-width: 68ch; }
+.exec-summary p:last-of-type { margin-bottom: .6rem; }
+.tag-inline { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .5rem; }
+.must-haves { margin: 0; padding-left: 1.1rem; font-size: .88rem; }
+.must-haves li { margin-bottom: .2rem; }
+
+.facts-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem;
+  margin: 0 0 .8rem;
+}
+.facts-grid > div { display: flex; flex-direction: column; gap: .15rem; }
+.facts-grid dt { margin: 0; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); }
+.facts-grid dd { margin: 0; font-size: .95rem; font-weight: 600; }
+.facts-grid dd.muted { font-weight: 500; color: var(--ink-dim); font-size: .82rem; }
+.chip-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip {
+  font-size: .78rem; padding: .25rem .6rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); color: var(--ink-dim);
+}
+
+.middle-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.1rem; }
+.middle-grid .panel.lineage { display: flex; flex-direction: column; }
+
+.lineage .panel-head .hint { font-size: .78rem; color: var(--ink-dim); }
+.svg-scroll { overflow-x: auto; }
+.svg-scroll svg { display: block; min-width: 760px; width: 100%; height: auto; }
+.node-box { fill: var(--card); stroke: var(--border-strong); }
+.node-title { fill: var(--ink); font-weight: 600; }
+.node-src { fill: var(--ink-dim); }
+.node-body { fill: var(--ink-dim); }
+.node-arrow { stroke: var(--border-strong); stroke-width: 2; fill: none; }
+.node-arrow-head { fill: var(--border-strong); }
+.node-pending { fill: var(--pending-bg); stroke: var(--pending-border); stroke-dasharray: 5 4; }
+.node-pending-text { fill: var(--pending-ink); }
+.node-inner { fill: var(--bg); stroke: var(--border); }
+.chip-picked { fill: var(--accent-soft); stroke: none; }
+.chip-picked-text { fill: var(--accent-ink); font-weight: 600; }
+.chip-alt { fill: none; stroke: var(--border-strong); }
+.chip-alt-text { fill: var(--ink-dim); }
+.judgment-text { fill: var(--ink-dim); font-style: italic; }
+
+.right-rail { display: grid; gap: 1.1rem; align-content: start; }
+.right-rail ol, .right-rail ul { margin: 0; padding-left: 1.1rem; font-size: .86rem; }
+.right-rail li { margin-bottom: .45rem; }
+.right-rail li:last-child { margin-bottom: 0; }
+.panel-note { margin: .5rem 0 0; font-size: .76rem; color: var(--ink-dim); }
+.log-list { list-style: none; padding-left: 0; }
+.log-list li { display: flex; gap: .5rem; align-items: baseline; }
+.log-date { flex: 0 0 auto; font-size: .74rem; color: var(--ink-dim); }
+
+.bottom-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.1rem; }
+.activity-list { list-style: none; margin: 0; padding: 0; font-size: .86rem; }
+.activity-list li { display: flex; gap: .6rem; padding: .45rem 0; border-top: 1px solid var(--border); }
+.activity-list li:first-child { border-top: none; }
+.activity-list .mono { flex: 0 0 auto; color: var(--ink-dim); font-size: .78rem; }
+
+textarea.notes-box {
+  width: 100%; min-height: 6rem; padding: .6rem .7rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); background: var(--bg); color: var(--ink);
+  font-size: .86rem; resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .middle-grid, .bottom-grid { grid-template-columns: minmax(0, 1fr); }
+  .facts-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .facts-grid { grid-template-columns: 1fr; }
+  header.topbar { padding: .8rem 1rem; }
+  main { padding: 1rem 1rem 2rem; }
+  .banner .src-tag { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="crumb mono">acme-crm</span>
+    <h1>Acme Corp: CRM Rebuild</h1>
+    <span class="pill pill-active">Active</span>
+  </div>
+  <div class="topbar-right">
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" data-set-theme="light" aria-pressed="true">Light</button>
+      <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+    </div>
+    <button type="button" class="btn btn-lost" data-action="lost">Mark lost</button>
+    <button type="button" class="btn btn-won" data-action="won">Mark won</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="banner">
+    <span class="arrow" aria-hidden="true">-&gt;</span>
+    <span class="banner-text">Client deadline in 112 days (2026-12-01). No proposal has been generated for this lead yet.</span>
+    <span class="src-tag mono">answers.json</span>
+  </div>
+
+  <div class="src-legend">
+    <strong>Source tags:</strong>
+    <span><code class="mono">answers.json</code> = intake JSON</span>
+    <span><code class="mono">estimation.json</code> = scenarios/risks JSON</span>
+    <span><code class="mono">brief.md</code> = qualitative brief</span>
+    <span><code class="mono">git log</code> = versioned docs and history (notes.md, ARCHITECTURE.md, commits)</span>
+  </div>
+
+  <section class="panel exec-summary">
+    <div class="panel-head">
+      <h2>Executive summary</h2>
+      <span class="src-tag mono">brief.md</span>
+    </div>
+    <p>Acme wants a CRM rebuild to replace their aging spreadsheet-based sales tracking with a proper pipeline tool that supports omnichannel sales.</p>
+    <p>Scope summary: rebuild Acme's CRM to support omnichannel sales workflows.</p>
+    <div class="tag-inline"><span class="src-tag mono">answers.json</span></div>
+    <ul class="must-haves">
+      <li>Lead pipeline</li>
+      <li>Contact management</li>
+    </ul>
+  </section>
+
+  <section class="panel key-facts">
+    <div class="panel-head">
+      <h2>Key facts</h2>
+      <span class="src-tag mono">answers.json</span>
+    </div>
+    <dl class="facts-grid">
+      <div><dt>Client</dt><dd>Acme Corp</dd></div>
+      <div><dt>Industry</dt><dd>Retail</dd></div>
+      <div><dt>Deadline</dt><dd>2026-12-01</dd></div>
+      <div><dt>Budget</dt><dd class="muted">Not captured in intake</dd></div>
+    </dl>
+    <div class="chip-row">
+      <span class="chip">Node.js</span>
+      <span class="chip">PostgreSQL</span>
+    </div>
+  </section>
+
+  <div class="middle-grid">
+    <section class="panel lineage">
+      <div class="panel-head">
+        <h2>Lead lineage</h2>
+        <span class="hint">evidence through proposal, current state</span>
+      </div>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 360" role="img" aria-label="Lineage from evidence to proposal for acme-crm">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" class="node-arrow-head" />
+            </marker>
+          </defs>
+
+          <!-- Evidence -->
+          <rect x="20" y="140" width="150" height="100" rx="8" class="node-box" />
+          <text x="35" y="165" class="node-title" font-size="14">Evidence</text>
+          <text x="35" y="182" class="node-src mono" font-size="9">answers.json</text>
+          <text x="35" y="202" class="node-body" font-size="11">Initial RFP</text>
+          <text x="35" y="216" class="node-body" font-size="11">outlining CRM</text>
+          <text x="35" y="230" class="node-body" font-size="11">replacement needs</text>
+
+          <line x1="172" y1="190" x2="206" y2="190" class="node-arrow" marker-end="url(#arrowhead)" />
+
+          <!-- Interview -->
+          <rect x="208" y="140" width="150" height="100" rx="8" class="node-box" />
+          <text x="223" y="165" class="node-title" font-size="14">Interview</text>
+          <text x="223" y="182" class="node-src mono" font-size="9">git log</text>
+          <text x="223" y="202" class="node-body" font-size="11">Discovery call</text>
+          <text x="223" y="216" class="node-body" font-size="11">2026-07-05</text>
+          <text x="223" y="230" class="node-body" font-size="11">Scope confirmed</text>
+
+          <line x1="360" y1="190" x2="396" y2="190" class="node-arrow" marker-end="url(#arrowhead)" />
+
+          <!-- Arch (expanded, 2 components) -->
+          <rect x="398" y="60" width="280" height="260" rx="8" class="node-box" />
+          <text x="414" y="85" class="node-title" font-size="14">Arch (expanded)</text>
+          <text x="414" y="102" class="node-src mono" font-size="9">git log</text>
+
+          <rect x="414" y="118" width="248" height="90" rx="6" class="node-inner" />
+          <text x="426" y="138" class="node-title mono" font-size="11">atlas.api</text>
+          <text x="426" y="154" class="node-body" font-size="10">Serves REST endpoints</text>
+          <text x="426" y="168" class="node-body" font-size="10">for the CRM backend</text>
+
+          <rect x="414" y="216" width="248" height="90" rx="6" class="node-inner" />
+          <text x="426" y="236" class="node-title mono" font-size="11">atlas.web</text>
+          <text x="426" y="252" class="node-body" font-size="10">Renders the CRM</text>
+          <text x="426" y="266" class="node-body" font-size="10">web application</text>
+
+          <line x1="680" y1="190" x2="716" y2="190" class="node-arrow" marker-end="url(#arrowhead)" />
+
+          <!-- Estimate -->
+          <rect x="718" y="90" width="220" height="210" rx="8" class="node-box" />
+          <text x="734" y="115" class="node-title" font-size="14">Estimate</text>
+          <text x="734" y="132" class="node-src mono" font-size="9">estimation.json</text>
+
+          <rect x="734" y="145" width="188" height="38" rx="19" class="chip-picked" />
+          <text x="828" y="169" text-anchor="middle" class="chip-picked-text" font-size="12">Balanced (picked)</text>
+
+          <rect x="734" y="193" width="188" height="38" rx="19" class="chip-alt" />
+          <text x="828" y="217" text-anchor="middle" class="chip-alt-text" font-size="12">Fast</text>
+
+          <text x="734" y="248" class="judgment-text" font-size="9">Picked flag shown for layout</text>
+          <text x="734" y="260" class="judgment-text" font-size="9">only, not present in source data.</text>
+
+          <line x1="940" y1="190" x2="976" y2="190" class="node-arrow" marker-end="url(#arrowhead)" />
+
+          <!-- Proposal (pending) -->
+          <rect x="978" y="140" width="180" height="100" rx="8" class="node-pending" />
+          <text x="994" y="180" class="node-pending-text" font-size="14" font-weight="600">Proposal</text>
+          <text x="994" y="200" class="node-pending-text" font-size="11">Not yet generated</text>
+          <text x="994" y="220" class="node-src mono" font-size="9">git log</text>
+        </svg>
+      </div>
+    </section>
+
+    <aside class="right-rail">
+      <div class="panel risks">
+        <div class="panel-head">
+          <h2>Top risks</h2>
+          <span class="src-tag mono">estimation.json</span>
+        </div>
+        <ol>
+          <li>Legacy data migration</li>
+          <li>SSO unknowns</li>
+        </ol>
+        <p class="panel-note">Only two risks are recorded for this lead; the fixture has no third entry.</p>
+      </div>
+
+      <div class="panel questions">
+        <div class="panel-head">
+          <h2>Open questions</h2>
+        </div>
+        <ul>
+          <li><span class="src-tag mono">estimation.json</span> Is Reporting in scope? Logged as proposed, not yet confirmed with the client.</li>
+          <li><span class="src-tag mono">answers.json</span> What is Acme's budget ceiling? Not captured during intake.</li>
+        </ul>
+      </div>
+
+      <div class="panel decision-log">
+        <div class="panel-head">
+          <h2>Decision log</h2>
+          <span class="src-tag mono">git log</span>
+        </div>
+        <ul class="log-list">
+          <li><span class="log-date mono">2026-07-05</span><span>Discovery call confirmed omnichannel scope.</span></li>
+          <li><span class="log-date mono">eb2f3e3</span><span>Lead artifact enrichment and shared fixture added.</span></li>
+          <li><span class="log-date mono">mockup</span><span>Balanced scenario shown as picked for this walkthrough; source data records no selection.</span></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <div class="bottom-grid">
+    <section class="panel activity-feed">
+      <div class="panel-head">
+        <h2>Activity</h2>
+        <span class="src-tag mono">git log</span>
+      </div>
+      <ul class="activity-list">
+        <li><span class="mono">2026-07-05</span><span>Discovery call held. Stakeholders confirmed omnichannel scope.</span></li>
+        <li><span class="mono">eb2f3e3</span><span>feat(new-lead): add lead artifact enrichment and shared fixture</span></li>
+        <li><span class="mono">now</span><span>Detail mockup drafted for panel review.</span></li>
+      </ul>
+    </section>
+
+    <section class="panel notes">
+      <div class="panel-head">
+        <h2>Notes</h2>
+        <span class="src-tag mono">git log</span>
+      </div>
+      <textarea class="notes-box" placeholder="Add a note...">Discovery call held 2026-07-05. Stakeholders confirmed omnichannel scope.</textarea>
+    </section>
+  </div>
+
+</main>
+
+<script>
+document.querySelectorAll('[data-set-theme]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.documentElement.dataset.theme = btn.dataset.setTheme;
+    document.querySelectorAll('[data-set-theme]').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+</script>
+
+</body>
+</html>

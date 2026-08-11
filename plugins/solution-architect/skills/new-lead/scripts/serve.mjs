@@ -105,17 +105,26 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+function isAllowlisted(decoded) {
+  return decoded === '/stats.mjs' || decoded.startsWith('/vendor/') || DIST_RE.test(decoded);
+}
+
 async function serveStatic(root, pathname, res) {
   let decoded;
   try { decoded = decodeURIComponent(pathname); } catch { return send(res, 403); }
   if (decoded.split('/').some((s) => s.startsWith('.'))) return send(res, 403);
   const p = resolve(root, '.' + decoded);
   if (p !== root && !p.startsWith(root + sep)) return send(res, 403);
-  const allowed = decoded === '/stats.mjs' || decoded.startsWith('/vendor/') || DIST_RE.test(decoded);
-  if (!allowed) return send(res, 404);
+  if (!isAllowlisted(decoded)) return send(res, 404);
   let real;
   try { real = await realpath(p); } catch { return send(res, 404); }
   if (real !== root && !real.startsWith(root + sep)) return send(res, 403);
+  // Re-check the allowlist against where the symlink actually resolved: a link can stay
+  // inside root (passing the containment check above) while landing on a file the
+  // URL-path allowlist would have refused, e.g. dist/link.json -> ../../leads.json.
+  // real is either root itself or root + sep + rest, per the check just above.
+  const realDecoded = real === root ? '' : real.slice(root.length).split(sep).join('/');
+  if (!isAllowlisted(realDecoded)) return send(res, 403);
   const st = await stat(real);
   if (!st.isFile()) return send(res, 404);
   res.writeHead(200, { 'content-type': MIME[extname(real)] ?? 'application/octet-stream' });

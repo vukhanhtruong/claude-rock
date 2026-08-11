@@ -102,6 +102,31 @@ test('symlink inside dist/ pointing outside root is rejected, not followed', asy
   assert.equal(res.status, 403);
   await rm(outside, { force: true });
 });
+test('symlink inside dist/ escaping to leads.json is rejected, not the registry', async () => {
+  await symlink(join(root, 'leads.json'), join(root, 'acme-crm', 'dist', 'rel-escape.json'));
+  const res = await fetch(`${base}/acme-crm/dist/rel-escape.json`);
+  assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
+  assert.doesNotMatch(await res.text(), /Beta Shop/);
+});
+test('symlink inside dist/ escaping to notes.md is rejected, not the notes', async () => {
+  await symlink(join(root, 'acme-crm', 'notes.md'), join(root, 'acme-crm', 'dist', 'notes-leak.md'));
+  const res = await fetch(`${base}/acme-crm/dist/notes-leak.md`);
+  assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
+  assert.doesNotMatch(await res.text(), /omnichannel/);
+});
+test('symlinks inside dist/ escaping to brief.md and answers.json are also rejected', async () => {
+  const targets = ['brief.md', 'new-lead-answers.json'];
+  for (const name of targets) {
+    await symlink(join(root, 'acme-crm', name), join(root, 'acme-crm', 'dist', `escape-${name}`));
+    const res = await fetch(`${base}/acme-crm/dist/escape-${name}`);
+    assert.ok(res.status >= 400 && res.status < 500, `${name}: expected 4xx, got ${res.status}`);
+  }
+});
+test('symlink inside dist/ pointing at another allowlisted dist file still serves 200', async () => {
+  await symlink(join(root, 'acme-crm', 'dist', 'index.html'), join(root, 'acme-crm', 'dist', 'alias.html'));
+  const res = await fetch(`${base}/acme-crm/dist/alias.html`);
+  assert.equal(res.status, 200);
+});
 test('POST to a static-only path is rejected, not served', async () => {
   const res = await fetch(`${base}/stats.mjs`, { method: 'POST', body: '' });
   assert.notEqual(res.status, 200);

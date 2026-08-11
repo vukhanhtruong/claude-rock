@@ -24,7 +24,7 @@ Base dir: `plugins/solution-architect/skills/new-lead/`. Depends on milestone 02
 Semantics:
 - `wonThisMonth`: `status === 'won'` and `closed` in the same `YYYY-MM` as `todayISO`.
 - `winRate`: `won / (won + lost)` rounded to 2 decimals; `null` when no closed leads.
-- `pipelineValue`: sum of `value.low` / `value.high` over **active** leads that have a value, grouped per currency (`{currency, low, high, count}` per group); `null` when none; groups ordered alphabetically by currency code so render order stays stable.
+- `pipelineValue`: sum of `value.low` / `value.high` over **active** leads that have a value, grouped per currency (`{currency, low, high, count}` per group); `null` when none; groups ordered by descending `high` total (biggest pipeline number first), tie-broken ascending by currency code so render order stays stable when totals match.
 - `avgCycleDays`: mean of `(closed - created)` in days over won+lost leads with both dates; `null` when none.
 
 - [ ] **Step 1: Write failing tests**

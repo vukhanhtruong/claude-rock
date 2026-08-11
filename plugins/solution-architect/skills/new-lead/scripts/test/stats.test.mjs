@@ -33,9 +33,11 @@ test('sortLeads by value desc, non-mutating', () => {
 });
 // Pins the current rule (owner decision, 2026-08-11, supersedes the old
 // "currency from the first counted lead" behavior): active leads are grouped by
-// currency, each group summed separately, and groups are ordered alphabetically
-// by currency code so the rendered order never reshuffles between renders.
-test('computeStats pipelineValue: grouped subtotals per currency', () => {
+// currency, each group summed separately, and groups are ordered by descending
+// `high` total (biggest pipeline number first, matching the owner's approved
+// mock) with an ascending-currency-code tie-break so the order never reshuffles
+// between renders when two currencies total the same.
+test('computeStats pipelineValue: grouped subtotals, biggest total first', () => {
   const mixed = [
     L({ id: 'e', value: { low: 100, high: 200, currency: 'USD' } }),
     L({ id: 'f', value: { low: 10, high: 20, currency: 'EUR' } }),
@@ -43,11 +45,11 @@ test('computeStats pipelineValue: grouped subtotals per currency', () => {
   ];
   const s = computeStats(mixed, '2026-08-10');
   assert.deepEqual(s.pipelineValue, [
-    { currency: 'EUR', low: 10, high: 20, count: 1 },
     { currency: 'USD', low: 150, high: 260, count: 2 },
+    { currency: 'EUR', low: 10, high: 20, count: 1 },
   ]);
 });
-test('computeStats pipelineValue: three currencies stay alphabetical, null-value lead excluded', () => {
+test('computeStats pipelineValue: three currencies ordered by total, null-value lead excluded', () => {
   const mixed = [
     L({ id: 'h', value: { low: 1, high: 2, currency: 'GBP' } }),
     L({ id: 'i', value: null }),
@@ -56,8 +58,19 @@ test('computeStats pipelineValue: three currencies stay alphabetical, null-value
   ];
   const s = computeStats(mixed, '2026-08-10');
   assert.deepEqual(s.pipelineValue, [
+    { currency: 'JPY', low: 5, high: 6, count: 1 },
     { currency: 'AUD', low: 3, high: 4, count: 1 },
     { currency: 'GBP', low: 1, high: 2, count: 1 },
-    { currency: 'JPY', low: 5, high: 6, count: 1 },
+  ]);
+});
+test('computeStats pipelineValue: equal totals tie-break ascending by currency code', () => {
+  const tied = [
+    L({ id: 'm', value: { low: 40, high: 100, currency: 'USD' } }),
+    L({ id: 'n', value: { low: 40, high: 100, currency: 'EUR' } }),
+  ];
+  const s = computeStats(tied, '2026-08-10');
+  assert.deepEqual(s.pipelineValue, [
+    { currency: 'EUR', low: 40, high: 100, count: 1 },
+    { currency: 'USD', low: 40, high: 100, count: 1 },
   ]);
 });

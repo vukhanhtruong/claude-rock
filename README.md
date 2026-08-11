@@ -33,11 +33,12 @@ Use `--force` to overwrite collisions.
 |---|---|---|
 | `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals. | 1.0.0 |
 
-`solution-architect` ships three skills: `arch-docs` (architecture
+`solution-architect` ships four skills: `arch-docs` (architecture
 documentation), `estimate` (interview-driven, AI-aware project estimation
-with an interactive what-if page), and `proposal` (pre-sales client
-proposal rendered as a print-ready page). `-p solution-architect` installs
-all three.
+with an interactive what-if page), `proposal` (pre-sales client proposal
+rendered as a print-ready page), and `new-lead` (orchestrates all three into
+one pipeline with a human gate per document, plus a leads dashboard).
+`-p solution-architect` installs all four.
 
 ## Repo conventions
 

@@ -71,6 +71,9 @@ unchanged.
   speed, or reliability), when present, shapes the Executive Summary's
   emphasis the same way the standalone interview's answer would; absent, do
   not pick a default emphasis.
+- `client.techLevel` uses the answers-file vocabulary; the frontmatter uses
+  proposal's. Translate: `non-technical → non-tech`, `mixed → low-tech`,
+  `technical → technical`.
 - Background & Objectives' client-problem line comes from `scope.summary`
   — the one field this skill reads outside the `client`/`proposal` groups
   named above.

@@ -47,7 +47,10 @@ persistent `leads.json` registry and a self-contained local server.
    overwrite. If it's the *same* lead, this is a resume (see Resume).
 5. **Write + register**: write `new-lead-answers.json`; run
    `node scripts/lead-upsert.mjs --root <root> --id <id> --patch '<json>'`
-   to create the registry entry (`status: active` by default); commit.
+   to create the registry entry — the patch must include `client`, `title`,
+   and `created` (`YYYY-MM-DD`); `lead-upsert.mjs`'s own defaults cover
+   `status: active`, `closed: null`, `value: null`, `scenario: null`, but
+   not `created`, and the registry rejects an entry without one. Commit.
 6. **Workflow ARCH**: launch the ARCH script from `references/workflows.md`
    with `topics` prepared from `answers.tech` + `evidence` (3-4 of: stack,
    integrations, hosting, compliance, per arch-docs `references/research.md`).
@@ -61,22 +64,30 @@ persistent `leads.json` registry and a self-contained local server.
 9. **Gate 2**: show `estimation.md` plus its report. The user picks the
    scenario here — write it to `answers.proposal.scenario` and to the
    registry's `value`/`scenario` via `lead-upsert.mjs`. On approval: render
-   `estimate.html` (estimate `SKILL.md` step 9:
-   `render.mjs --json estimation.json --md estimation.md --out <leadDir>/dist`)
-   into `dist/`, brief-writer prompt, commit.
+   `estimate.html` (estimate `SKILL.md` step 9, Companion mode's
+   render-into-viewer form: `node scripts/render.mjs --json estimation.json
+   --md estimation.md --out <leadDir>/dist --viewer index.html` — the
+   `--viewer` flag is required here, since `dist/` already holds the arch
+   viewer from Gate 1; omitting it drops the back-link) into `dist/`,
+   brief-writer prompt, commit.
 10. **Workflow PROPOSAL**: launch the PROPOSAL script —
     `answers.proposal.scenario` is already set, so this workflow never asks.
     `client.techLevel` and proposal's `client_tech_level` frontmatter use two
     different vocabularies for the same idea — the Assemble phase's writer
     must translate, not copy: `non-technical → non-tech`,
-    `mixed → low-tech`, `technical → technical`. Copying the answers-file
-    spelling straight into the frontmatter fails proposal's `validate.mjs`
-    (`checks-doc.mjs`'s `TECH_LEVELS` only accepts `non-tech`/`low-tech`/
-    `technical`) and the workflow never reaches exit 0.
+    `mixed → low-tech`, `technical → technical` (also stated in proposal's
+    own Orchestrated mode section). Copying the answers-file spelling
+    straight into the frontmatter is a validation failure the writer's
+    exit-0 loop will simply retry away from — the real risk is a writer
+    that guesses wrong on the non-obvious leg (`mixed → technical` is a
+    legal value, so it passes `checks-doc.mjs`) and silently disables
+    proposal's jargon scan, which `checks-client.mjs` only runs when
+    `client_tech_level` is `non-tech`.
 11. **Gate 3**: show `proposal.md` plus its report. On approval: render
     `proposal.html` (proposal `SKILL.md` step 8:
-    `render.mjs --md proposal.md --estimation estimation.json --mermaid-bundle <path> --out <leadDir>/dist`)
-    into `dist/`, brief-writer prompt, commit.
+    `node scripts/render.mjs --md proposal.md --estimation estimation.json
+    --mermaid-bundle <path> --out <leadDir>/dist`) into `dist/`,
+    brief-writer prompt, commit.
 12. **Wrap**: report the dashboard URL; start it (`node serve.mjs` from the
     root, or its `start.sh`) if it isn't already running.
 

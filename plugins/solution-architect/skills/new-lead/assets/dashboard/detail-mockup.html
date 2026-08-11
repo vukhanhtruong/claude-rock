@@ -1,5 +1,32 @@
 <!doctype html>
 <!-- new-lead-dashboard v2: throwaway card-detail mockup for milestone 04 gate. Deleted in Task 3. -->
+<!--
+  APPROVED 2026-08-11 by the plan owner. Task 3 carries this set into detail.html.
+
+  Panel set: all 8 panels approved as shown, no cuts.
+    s-summary    Executive summary   full width
+    s-facts      Key facts           full width
+    s-lineage    Lead lineage        full width (zoom/pan diagram)
+    s-risks      Risks               left of the paired "open items" band
+    s-questions  Questions           right of the same band
+    s-decisions  Decisions           left of the paired "history" band
+    s-activity   Activity            right of the same band
+    s-notes      Notes               full width
+
+  Layout: approved. The two paired bands stay side by side.
+
+  Table of contents: 6 vertical bands approved, NOT 8 per-panel entries. Each
+  paired band gets one entry because both of its panels are on screen at the
+  same moment, which makes a per-panel highlight ambiguous. All 8 panels keep
+  their own ids above, so direct links still work.
+
+  Bottom padding: the owner declined both "keep the visible gap" and "accept a
+  dead last band" and asked for a third fix, so the 34vh bottom padding under
+  Notes is NOT part of the approved design. It was replaced with a
+  position-based scroll-spy (last section whose top has passed the
+  activation line, pinned to the final entry at the true page bottom) that
+  needs no tail; see the scroll-spy block near the end of the script.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -358,9 +385,7 @@ html::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); bac
 .wrap {
   max-width: 1280px;
   margin: 0 auto;
-  /* Tail room: without it the last bands can never reach the scroll-spy
-     band (10%-20% of the viewport) and their TOC entries never light up. */
-  padding: 1.4rem 1.25rem max(5rem, 34vh);
+  padding: 1.4rem 1.25rem 5rem;
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
   gap: 0 2rem;
@@ -1350,29 +1375,39 @@ html::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); bac
     }
   }
 
-  function atPageEnd() {
-    return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+  /* Active section = the last one (in document order) whose top edge has
+     passed an activation line 10% down the viewport, falling back to the
+     first section above that. That alone activates a section as soon as
+     the reader reaches it, with no dependence on scroll room after it -
+     except for the two paired bands right before Notes: they're short
+     enough, relative to the small amount of page left below them, that
+     their own 10% line sits past the document's true bottom and can never
+     be crossed. Sections whose line is out of reach get pulled back
+     (in reverse order, each at least one `step` before the next) so every
+     one still gets a real, distinct window before the page bottoms out,
+     where the true last section's window ends exactly at that bottom. */
+  function updateActive() {
+    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    var offset = window.innerHeight * 0.1;
+    var step = window.innerHeight * 0.12;
+    var ceiling = maxScroll + step;
+    var current = sections[0];
+    for (var i = sections.length - 1; i >= 0; i--) {
+      var docTop = sections[i].el.getBoundingClientRect().top + window.scrollY;
+      ceiling = Math.min(docTop - offset, ceiling - step);
+      if (window.scrollY >= ceiling) { current = sections[i]; break; }
+    }
+    setActive(current.link);
   }
 
-  var observer = new IntersectionObserver(function (entries) {
-    if (atPageEnd()) { setActive(sections[sections.length - 1].link); return; }
-    entries.forEach(function (entry) {
-      if (!entry.isIntersecting) return;
-      var match = sections.find(function (s) { return s.el === entry.target; });
-      if (match) setActive(match.link);
-    });
-  }, { rootMargin: '-10% 0px -80% 0px' });
-
-  sections.forEach(function (s) { observer.observe(s.el); });
-
-  /* Added: at scroll 0 nothing has crossed the band yet, so the TOC would
-     start with no entry marked. */
   setActive(sections[0].link);
+  updateActive();
 
-  /* Added: at the very end of the document nothing new crosses the observer
-     band, so the final entry would never light up. Pin it explicitly. */
+  var ticking = false;
   window.addEventListener('scroll', function () {
-    if (atPageEnd()) setActive(sections[sections.length - 1].link);
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { updateActive(); ticking = false; });
   }, { passive: true });
 
   links.forEach(function (link) {

@@ -115,17 +115,48 @@ test('symlink inside dist/ escaping to notes.md is rejected, not the notes', asy
   assert.doesNotMatch(await res.text(), /omnichannel/);
 });
 test('symlinks inside dist/ escaping to brief.md and answers.json are also rejected', async () => {
-  const targets = ['brief.md', 'new-lead-answers.json'];
-  for (const name of targets) {
+  const targets = [
+    ['brief.md', /aging spreadsheet-based/],
+    ['new-lead-answers.json', /PostgreSQL/],
+  ];
+  for (const [name, marker] of targets) {
     await symlink(join(root, 'acme-crm', name), join(root, 'acme-crm', 'dist', `escape-${name}`));
     const res = await fetch(`${base}/acme-crm/dist/escape-${name}`);
     assert.ok(res.status >= 400 && res.status < 500, `${name}: expected 4xx, got ${res.status}`);
+    assert.doesNotMatch(await res.text(), marker);
   }
+});
+test('symlinked directory inside dist/ cannot reach leads.json through it', async () => {
+  await symlink(root, join(root, 'acme-crm', 'dist', 'sub'));
+  const res = await fetch(`${base}/acme-crm/dist/sub/leads.json`);
+  assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
+  assert.doesNotMatch(await res.text(), /Beta Shop/);
+});
+test('a two-hop symlink chain inside dist/ cannot reach leads.json either', async () => {
+  await symlink(join(root, 'leads.json'), join(root, 'hop.json'));
+  await symlink(join(root, 'hop.json'), join(root, 'acme-crm', 'dist', 'chain.json'));
+  const res = await fetch(`${base}/acme-crm/dist/chain.json`);
+  assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
+  assert.doesNotMatch(await res.text(), /Beta Shop/);
 });
 test('symlink inside dist/ pointing at another allowlisted dist file still serves 200', async () => {
   await symlink(join(root, 'acme-crm', 'dist', 'index.html'), join(root, 'acme-crm', 'dist', 'alias.html'));
   const res = await fetch(`${base}/acme-crm/dist/alias.html`);
   assert.equal(res.status, 200);
+});
+test('GET / 404s cleanly when index.html has not been built yet', async () => {
+  assert.equal((await fetch(`${base}/`)).status, 404);
+});
+test('serveFile does not leak the registry when index.html or detail.html is symlinked to it', async () => {
+  const cases = [['index.html', `${base}/`], ['detail.html', `${base}/detail/acme-crm`]];
+  for (const [name, url] of cases) {
+    const target = join(root, name);
+    await symlink(join(root, 'leads.json'), target);
+    const res = await fetch(url);
+    assert.notEqual(res.status, 200, `${name}: unexpectedly served`);
+    assert.doesNotMatch(await res.text(), /Beta Shop/);
+    await rm(target, { force: true });
+  }
 });
 test('POST to a static-only path is rejected, not served', async () => {
   const res = await fetch(`${base}/stats.mjs`, { method: 'POST', body: '' });

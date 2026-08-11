@@ -49,9 +49,16 @@ async function route(root, req, res) {
 }
 
 async function serveFile(root, res, name) {
+  const target = join(root, name);
+  let real;
+  try { real = await realpath(target); } catch { return send(res, 404, { error: 'not found' }); }
+  // name is a fixed literal (index.html/detail.html), so unlike serveStatic there's no
+  // pattern to match: the only file this route may ever serve is target itself. If a
+  // symlink swapped it for something else, realpath resolves to a different identity.
+  if (real !== target) return send(res, 403);
   let data;
   try {
-    data = await readFile(join(root, name));
+    data = await readFile(real);
   } catch {
     return send(res, 404, { error: 'not found' });
   }
@@ -119,10 +126,10 @@ async function serveStatic(root, pathname, res) {
   let real;
   try { real = await realpath(p); } catch { return send(res, 404); }
   if (real !== root && !real.startsWith(root + sep)) return send(res, 403);
-  // Re-check the allowlist against where the symlink actually resolved: a link can stay
-  // inside root (passing the containment check above) while landing on a file the
-  // URL-path allowlist would have refused, e.g. dist/link.json -> ../../leads.json.
-  // real is either root itself or root + sep + rest, per the check just above.
+  // Re-check the allowlist against the resolved path: a symlink can stay inside root
+  // (containment above) yet land on a file the URL-path check refused, e.g.
+  // dist/link.json -> ../../leads.json. Side effect: a directory GET on an allowlisted
+  // prefix now 403s here (no trailing slash post-realpath) instead of 404 below.
   const realDecoded = real === root ? '' : real.slice(root.length).split(sep).join('/');
   if (!isAllowlisted(realDecoded)) return send(res, 403);
   const st = await stat(real);

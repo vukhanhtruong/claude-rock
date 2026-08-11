@@ -17,14 +17,14 @@ Base dir: `plugins/solution-architect/skills/new-lead/`. Depends on milestone 02
 
 **Interfaces:**
 - Produces (all pure, no DOM, no fetch):
-  - `computeStats(leads, todayISO) -> {wonThisMonth: number, winRate: number|null, pipelineValue: {low, high, currency}|null, avgCycleDays: number|null}`
+  - `computeStats(leads, todayISO) -> {wonThisMonth: number, winRate: number|null, pipelineValue: Array<{currency, low, high, count}>|null, avgCycleDays: number|null}`
   - `filterLeads(leads, {status, text}) -> leads` — `status` `'all'|'active'|'won'|'lost'`; `text` case-insensitive substring over `id`, `client`, `title`.
   - `sortLeads(leads, key, dir) -> leads` — `key` `'created'|'closed'|'value'|'client'`; `value` sorts by `value.high ?? -1`; `dir` `'asc'|'desc'`; stable, non-mutating.
 
 Semantics:
 - `wonThisMonth`: `status === 'won'` and `closed` in the same `YYYY-MM` as `todayISO`.
 - `winRate`: `won / (won + lost)` rounded to 2 decimals; `null` when no closed leads.
-- `pipelineValue`: sum of `value.low` / `value.high` over **active** leads that have a value; `null` when none; currency from the first counted lead.
+- `pipelineValue`: sum of `value.low` / `value.high` over **active** leads that have a value, grouped per currency (`{currency, low, high, count}` per group); `null` when none; groups ordered alphabetically by currency code so render order stays stable.
 - `avgCycleDays`: mean of `(closed - created)` in days over won+lost leads with both dates; `null` when none.
 
 - [ ] **Step 1: Write failing tests**

@@ -42,14 +42,21 @@ function computeWinRate(leads) {
   return total === 0 ? null : Math.round((won / total) * 100) / 100;
 }
 
+// Groups active pipeline value by currency instead of summing everything into one
+// (mislabeled) total. Groups are ordered alphabetically by currency code so the
+// tile's row order stays stable across renders regardless of lead order.
 function computePipelineValue(leads) {
   const active = leads.filter((l) => l.status === 'active' && l.value);
   if (active.length === 0) return null;
-  return {
-    low: active.reduce((sum, l) => sum + l.value.low, 0),
-    high: active.reduce((sum, l) => sum + l.value.high, 0),
-    currency: active[0].value.currency,
-  };
+  const groups = new Map();
+  for (const l of active) {
+    const g = groups.get(l.value.currency) ?? { currency: l.value.currency, low: 0, high: 0, count: 0 };
+    g.low += l.value.low;
+    g.high += l.value.high;
+    g.count += 1;
+    groups.set(l.value.currency, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0));
 }
 
 function computeAvgCycleDays(leads) {

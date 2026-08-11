@@ -55,6 +55,8 @@ main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
 .stat:last-child { border-right:none; }
 .stat .label { margin:0 0 .3rem; font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
 .stat .value { margin:0; font-size:1.3rem; font-weight:600; }
+.stat .value + .value { margin-top:.2rem; }
+.stat .value .count { margin-left:.35rem; font-size:.72rem; font-weight:500; color:var(--ink-dim); }
 @media (max-width:640px) {
   .stats { grid-template-columns:repeat(2,1fr); }
   .stat:nth-child(2n) { border-right:none; }
@@ -274,19 +276,27 @@ function fmtRange(v) {
   }
 }
 
+// One <p class="value"> line per currency group, each with a dim lead count -
+// stacked, not a bulleted list, so one currency still reads as a single clean line.
+function pipelineValueLines(pv) {
+  if (!pv) return '<p class="value mono">—</p>';
+  return pv.map((g) => `<p class="value mono">${fmtRange(g)}&nbsp;<span class="count">(${g.count})</span></p>`).join('');
+}
+
 function renderStats() {
   const s = computeStats(leads, todayISO);
   const winRate = s.winRate === null ? '—' : Math.round(s.winRate * 100) + '%';
   const cycle = s.avgCycleDays === null ? '—' : s.avgCycleDays + ' days';
-  document.getElementById('stats').innerHTML = [
-    ['Won this month', s.wonThisMonth],
-    ['Win rate', winRate],
-    ['Pipeline value', s.pipelineValue ? fmtRange(s.pipelineValue) : '—'],
-    ['Avg cycle', cycle],
-  ].map(([label, value]) => `
+  const tiles = [
+    ['Won this month', `<p class="value mono">${s.wonThisMonth}</p>`],
+    ['Win rate', `<p class="value mono">${winRate}</p>`],
+    ['Pipeline value', pipelineValueLines(s.pipelineValue)],
+    ['Avg cycle', `<p class="value mono">${cycle}</p>`],
+  ];
+  document.getElementById('stats').innerHTML = tiles.map(([label, html]) => `
     <div class="stat">
       <p class="label">${label}</p>
-      <p class="value mono">${value}</p>
+      ${html}
     </div>`).join('');
 }
 

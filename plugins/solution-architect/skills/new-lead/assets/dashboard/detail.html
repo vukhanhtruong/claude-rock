@@ -1,0 +1,843 @@
+<!doctype html>
+<!-- new-lead-dashboard v1 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lead detail page">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
+<title>Lead detail</title>
+<style>
+/* Tokens: same vocabulary as index.html. Full light palette on bare :root,
+   dark redefines via media query; [data-theme] lets this page's own toggle
+   force an override in either direction. */
+:root {
+  color-scheme:light;
+  --bg:#f6f4ef; --bg-sunk:#edeae1; --card:#fffdf9; --card-raised:#fff;
+  --ink:#1c1b18; --ink-soft:#45423a; --ink-dim:#6c6759;
+  --border:#e4dfd3; --border-strong:#cec7b6;
+  --accent:#0f766e; --accent-ink:#0a544f; --accent-soft:rgba(15,118,110,.09); --accent-line:rgba(15,118,110,.38);
+  --ok:#15803d; --ok-soft:rgba(21,128,61,.1);
+  --warn:#a55708; --warn-soft:rgba(165,87,8,.1);
+  --pending-bg:#eae7dd; --pending-border:#c8c1b0; --pending-ink:#857f70;
+  --focus:#0f766e; --focus-halo:rgba(15,118,110,.22);
+  --scroll-thumb:#cec7b6; --scroll-thumb-hover:#b3aa95; --scroll-track:transparent;
+  --tier-flat:0 0 0 1px rgba(0,0,0,.06);
+  --tier-raised:0 0 0 1px rgba(0,0,0,.06), 0 1px 2px -1px rgba(0,0,0,.06), 0 2px 4px 0 rgba(0,0,0,.04);
+  --tier-raised-hover:0 0 0 1px rgba(0,0,0,.08), 0 1px 2px -1px rgba(0,0,0,.08), 0 2px 4px 0 rgba(0,0,0,.06);
+  --tier-hero:0 0 0 1px rgba(15,118,110,.16), 0 2px 6px -2px rgba(0,0,0,.07), 0 10px 26px -8px rgba(0,0,0,.09);
+  --tier-sunk:inset 0 1px 3px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.04);
+  --r-lg:.875rem; --r-md:.625rem; --r-sm:.5rem; --r-xs:.375rem; --r-pill:999px;
+  --topbar-h:4.25rem; --ease:cubic-bezier(.16, 1, .3, 1);
+}
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme:dark;
+    --bg:#0f1413; --bg-sunk:#0a0e0d; --card:#171d1c; --card-raised:#1c2322;
+    --ink:#e9e7e2; --ink-soft:#bdc4c0; --ink-dim:#8d9a95;
+    --border:#26312f; --border-strong:#3a4946;
+    --accent:#3fb3a8; --accent-ink:#74d6cc; --accent-soft:rgba(63,179,168,.13); --accent-line:rgba(63,179,168,.42);
+    --ok:#62c082; --ok-soft:rgba(98,192,130,.13);
+    --warn:#dd9247; --warn-soft:rgba(221,146,71,.13);
+    --pending-bg:#171d1c; --pending-border:#35423f; --pending-ink:#737e79;
+    --focus:#74d6cc; --focus-halo:rgba(116,214,204,.25);
+    --scroll-thumb:#3a4946; --scroll-thumb-hover:#4f6360;
+    --tier-flat:0 0 0 1px rgba(255,255,255,.08);
+    --tier-raised:0 0 0 1px rgba(255,255,255,.08);
+    --tier-raised-hover:0 0 0 1px rgba(255,255,255,.13);
+    --tier-hero:0 0 0 1px rgba(116,214,204,.22), 0 10px 30px -12px rgba(0,0,0,.7);
+    --tier-sunk:inset 0 1px 3px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.05);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme:dark;
+  --bg:#0f1413; --bg-sunk:#0a0e0d; --card:#171d1c; --card-raised:#1c2322;
+  --ink:#e9e7e2; --ink-soft:#bdc4c0; --ink-dim:#8d9a95;
+  --border:#26312f; --border-strong:#3a4946;
+  --accent:#3fb3a8; --accent-ink:#74d6cc; --accent-soft:rgba(63,179,168,.13); --accent-line:rgba(63,179,168,.42);
+  --ok:#62c082; --ok-soft:rgba(98,192,130,.13);
+  --warn:#dd9247; --warn-soft:rgba(221,146,71,.13);
+  --pending-bg:#171d1c; --pending-border:#35423f; --pending-ink:#737e79;
+  --focus:#74d6cc; --focus-halo:rgba(116,214,204,.25);
+  --scroll-thumb:#3a4946; --scroll-thumb-hover:#4f6360;
+  --tier-flat:0 0 0 1px rgba(255,255,255,.08);
+  --tier-raised:0 0 0 1px rgba(255,255,255,.08);
+  --tier-raised-hover:0 0 0 1px rgba(255,255,255,.13);
+  --tier-hero:0 0 0 1px rgba(116,214,204,.22), 0 10px 30px -12px rgba(0,0,0,.7);
+  --tier-sunk:inset 0 1px 3px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.05);
+}
+
+/* base */
+* { box-sizing:border-box; }
+html { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) var(--scroll-track); }
+html::-webkit-scrollbar { width:11px; height:11px; }
+html::-webkit-scrollbar-track { background:var(--scroll-track); }
+html::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:var(--r-pill); border:3px solid transparent; background-clip:content-box; }
+html::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); background-clip:content-box; }
+body {
+  margin:0; color:var(--ink); background-color:var(--bg);
+  background-image:radial-gradient(ellipse 90% 55% at 50% -8%, var(--accent-soft) 0%, transparent 70%);
+  background-repeat:no-repeat;
+  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:clamp(15px, .35vw + 14px, 16.5px); line-height:1.6; overflow-wrap:break-word;
+}
+.mono { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+button, textarea, input { font:inherit; color:inherit; }
+h1, h2, h3 { margin:0; text-wrap:balance; letter-spacing:-.011em; }
+p, li, dd { text-wrap:pretty; }
+:focus-visible { outline:2px solid var(--focus); outline-offset:2px; border-radius:var(--r-xs); }
+[hidden] { display:none !important; }
+.wrap > *, .main > *, .panel-head > *, .topbar > *, .facts > * { min-width:0; }
+
+/* themed scrollbars on every scrolling region */
+.scroll-region { scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) var(--scroll-track); }
+.scroll-region::-webkit-scrollbar { width:9px; height:9px; }
+.scroll-region::-webkit-scrollbar-track { background:var(--scroll-track); }
+.scroll-region::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:var(--r-pill); border:2px solid transparent; background-clip:content-box; }
+.scroll-region::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); background-clip:content-box; }
+.scroll-region::-webkit-scrollbar-corner { background:transparent; }
+
+/* enter, staggered */
+.enter { opacity:0; transform:translateY(10px); animation:enter-up 420ms var(--ease) both; animation-delay:calc(var(--i, 0) * 70ms); }
+@keyframes enter-up { to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after {
+    animation-duration:.001ms !important; animation-delay:0ms !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+  .enter { opacity:1; transform:none; }
+}
+
+/* top bar */
+.topbar {
+  position:sticky; top:0; z-index:30; min-height:var(--topbar-h);
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem 1rem;
+  padding:.7rem max(1.25rem, calc((100% - 1280px) / 2));
+  background:color-mix(in srgb, var(--card) 88%, transparent);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 1px 0 0 var(--border);
+}
+.topbar-left { display:flex; align-items:baseline; flex-wrap:wrap; gap:.3rem .6rem; }
+.crumb { font-size:.74rem; color:var(--ink-dim); }
+.topbar h1 { font-size:clamp(1.05rem, .5vw + .95rem, 1.3rem); font-weight:620; line-height:1.25; }
+.topbar-right { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+
+/* badges: same tone vocabulary as index.html */
+.badge {
+  display:inline-flex; align-items:center; gap:.35rem; font-size:.68rem; font-weight:650;
+  letter-spacing:.045em; text-transform:uppercase; padding:.18rem .5rem; border-radius:var(--r-pill);
+  white-space:nowrap; background:var(--pending-bg); color:var(--pending-ink);
+}
+.badge::before { content:""; width:.4rem; height:.4rem; border-radius:50%; background:currentColor; }
+.badge-active { background:var(--accent-soft); color:var(--accent-ink); }
+.badge-won { background:var(--ok-soft); color:var(--ok); }
+.badge-lost { background:var(--pending-bg); color:var(--pending-ink); }
+
+.src {
+  font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.69rem; color:var(--ink-dim);
+  background:var(--bg-sunk); padding:.1rem .4rem; border-radius:var(--r-xs); white-space:nowrap;
+}
+
+/* buttons */
+.btn {
+  min-height:2.5rem; display:inline-flex; align-items:center; gap:.4rem; padding:0 .85rem;
+  font-size:.84rem; font-weight:550; border:0; border-radius:var(--r-sm);
+  background:var(--card); color:var(--ink); box-shadow:var(--tier-raised); cursor:pointer;
+  transition-property:box-shadow, background-color, color, scale; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.btn:hover { box-shadow:var(--tier-raised-hover); }
+.btn:active { scale:.96; }
+.btn-won { color:var(--ok); font-weight:620; }
+.btn-lost { color:var(--ink-dim); }
+
+.seg { display:inline-flex; padding:3px; gap:2px; border-radius:11px; background:var(--bg-sunk); box-shadow:var(--tier-flat); } /* concentric: 8 + 3 = 11 */
+.seg button {
+  min-height:2.125rem; padding:0 .7rem; border:0; border-radius:8px; background:transparent;
+  color:var(--ink-dim); font-size:.78rem; cursor:pointer;
+  transition-property:background-color, color, scale; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.seg button:hover { color:var(--ink); }
+.seg button:active { scale:.96; }
+.seg button[aria-pressed="true"] { background:var(--card); color:var(--accent-ink); font-weight:620; box-shadow:var(--tier-flat); }
+
+/* shell: sticky TOC + main column */
+.wrap { max-width:1280px; margin:0 auto; padding:1.4rem 1.25rem 3rem; display:grid; grid-template-columns:190px minmax(0, 1fr); gap:0 2rem; }
+.toc {
+  grid-row:1 / -1; position:sticky; top:calc(var(--topbar-h) + .85rem); align-self:start;
+  max-height:calc(100dvh - var(--topbar-h) - 2.5rem); overflow-y:auto; padding:.1rem .3rem .5rem 0;
+}
+.toc-title { font-size:.66rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim); padding:0 .55rem .55rem; margin-bottom:.45rem; border-bottom:1px solid var(--border); }
+.toc a {
+  display:block; min-height:2.125rem; padding:.45rem .55rem; margin-bottom:1px; font-size:.8rem; line-height:1.35;
+  color:var(--ink-dim); text-decoration:none; border-left:2px solid transparent; border-radius:0 var(--r-sm) var(--r-sm) 0;
+  transition-property:color, background-color, border-color; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.toc a:hover { color:var(--ink); background:var(--accent-soft); }
+.toc a.active { color:var(--accent-ink); font-weight:620; border-left-color:var(--accent); background:var(--accent-soft); }
+
+.main { min-width:0; display:grid; gap:1.1rem; align-content:start; }
+[id] { scroll-margin-top:calc(var(--topbar-h) + 1rem); }
+
+/* panels + depth tiers */
+.panel { background:var(--card); border-radius:var(--r-lg); box-shadow:var(--tier-raised); padding:1.05rem 1.15rem; transition-property:box-shadow; transition-duration:200ms; transition-timing-function:var(--ease); }
+.panel:hover { box-shadow:var(--tier-raised-hover); }
+.panel--hero { background:var(--card-raised); box-shadow:var(--tier-hero); }
+.panel-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem 1rem; flex-wrap:wrap; margin-bottom:.75rem; }
+.panel-head h2 { font-size:.78rem; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-dim); }
+.panel--hero .panel-head h2 { color:var(--accent-ink); }
+.panel-head .hint { font-size:.76rem; color:var(--ink-dim); }
+
+.prose { max-width:65ch; line-height:1.7; }
+.prose p { margin:0 0 .9rem; }
+.prose p:last-child { margin-bottom:0; }
+.prose h1, .prose h2, .prose h3 { margin:0 0 .5rem; font-size:1em; font-weight:650; }
+.prose ul { margin:0 0 .9rem; padding-left:1.15rem; }
+.note { margin:.7rem 0 0; font-size:.78rem; line-height:1.55; color:var(--ink-dim); max-width:62ch; }
+
+/* error + next-action banners */
+.banner {
+  display:flex; align-items:center; gap:.5rem; margin:0; padding:.65rem .9rem; font-size:.85rem;
+  border-radius:var(--r-md); border-left:3px solid var(--warn); background:var(--warn-soft); color:var(--warn);
+}
+.callout {
+  display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .8rem; padding:.8rem 1rem; border-radius:var(--r-lg);
+  border-left:3px solid var(--accent); background:var(--accent-soft); color:var(--accent-ink); font-size:.9rem;
+}
+
+/* source legend, collapsible */
+.legend summary {
+  list-style:none; cursor:pointer; display:flex; align-items:center; gap:.5rem; min-height:2.25rem;
+  padding:.25rem .35rem; font-size:.78rem; font-weight:620; color:var(--ink-dim); border-radius:var(--r-sm);
+  transition-property:color; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.legend summary:hover { color:var(--ink); }
+.legend summary::-webkit-details-marker { display:none; }
+.legend summary::before {
+  content:""; width:.4rem; height:.4rem; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+  transform:rotate(-45deg); transition-property:transform; transition-duration:200ms; transition-timing-function:var(--ease);
+}
+.legend[open] summary::before { transform:rotate(45deg); }
+.legend-body { display:grid; grid-template-columns:repeat(auto-fit, minmax(15rem, 1fr)); gap:.3rem 1.25rem; padding:.5rem .55rem .2rem 1.3rem; font-size:.79rem; color:var(--ink-dim); }
+
+/* key facts */
+.facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(11rem, 1fr)); gap:.9rem 1rem; margin:0 0 .95rem; }
+.facts > div { display:flex; flex-direction:column; gap:.15rem; min-width:0; }
+.facts dt { font-size:.68rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-dim); }
+.facts dd { margin:0; font-size:1rem; font-weight:620; }
+.facts dd.muted { font-weight:500; font-size:.84rem; color:var(--ink-dim); }
+.cluster { display:flex; flex-wrap:wrap; gap:.4rem; }
+.chip { font-size:.78rem; padding:.25rem .6rem; border-radius:var(--r-sm); color:var(--ink-soft); background:var(--bg-sunk); box-shadow:var(--tier-flat); }
+
+/* lineage diagram: React Flow mounts into #canvas; the bundle injects its
+   own (light-only) stylesheet on first render, so these rules override it
+   to track the page tokens in both themes. No extra vendor CSS file. */
+.diagram-hint { font-size:.76rem; color:var(--ink-dim); margin:0 0 .55rem; }
+.diagram-hint kbd { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.72rem; padding:.05rem .3rem; border-radius:var(--r-xs); background:var(--bg-sunk); box-shadow:var(--tier-flat); }
+.diagram-wrap { border-radius:var(--r-md); background:var(--bg-sunk); box-shadow:var(--tier-sunk); overflow:hidden; }
+.rf-canvas { width:100%; height:min(62vh, 460px); min-height:320px; }
+/* #canvas-prefixed for specificity: the bundle's stylesheet is appended to
+   <head> AFTER this one (on first render), so same-specificity rules would
+   lose the cascade tie-break; qualifying by the container id wins outright. */
+#canvas .react-flow__attribution { display:none; }
+#canvas .react-flow__node {
+  padding:.5rem .7rem; border-radius:var(--r-sm); font-size:.78rem; font-weight:560; width:auto;
+  background:var(--card); color:var(--ink); border:1px solid var(--border-strong); box-shadow:var(--tier-flat);
+}
+#canvas .react-flow__node.lead-node-pending { background:var(--pending-bg); border-color:var(--pending-border); color:var(--pending-ink); border-style:dashed; }
+#canvas .react-flow__node.lead-node-picked { outline:2px solid var(--accent); outline-offset:2px; }
+#canvas .react-flow__edge-path { stroke:var(--border-strong); stroke-width:1.5; }
+#canvas .react-flow__handle { background:var(--border-strong); width:6px; height:6px; }
+#canvas .react-flow__controls { box-shadow:var(--tier-raised); border-radius:var(--r-sm); overflow:hidden; }
+#canvas .react-flow__controls-button { background:var(--card); border-bottom:1px solid var(--border); }
+#canvas .react-flow__controls-button:hover { background:var(--accent-soft); }
+#canvas .react-flow__controls-button svg { fill:var(--ink-dim); }
+#canvas .react-flow__minimap { border-radius:var(--r-sm); box-shadow:var(--tier-raised); background-color:var(--bg-sunk); }
+#canvas .react-flow__minimap-mask { fill:var(--accent-soft); }
+#canvas .react-flow__minimap-node { fill:var(--border-strong); stroke:none; }
+#canvas .react-flow__background { opacity:.6; }
+
+/* inline node detail (expand-in-place, for nodes without an href) */
+.node-detail { margin-top:.75rem; padding:.75rem .9rem; border-radius:var(--r-md); background:var(--bg-sunk); box-shadow:var(--tier-sunk); }
+.node-detail-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem; }
+.node-detail-head h3 { font-size:.82rem; font-weight:620; }
+.node-detail-close { border:0; background:transparent; color:var(--ink-dim); font-size:1.1rem; line-height:1; cursor:pointer; padding:.2rem .4rem; border-radius:var(--r-xs); }
+.node-detail-close:hover { color:var(--ink); background:var(--accent-soft); }
+#node-detail-body { margin:0; font-size:.85rem; color:var(--ink-soft); }
+
+/* bands: one vertical slice, one TOC entry each */
+.band { display:grid; grid-template-columns:repeat(auto-fit, minmax(19rem, 1fr)); gap:1.1rem; align-items:start; }
+.band > * { min-width:0; }
+
+.list { margin:0; padding-left:1.15rem; font-size:.89rem; line-height:1.6; }
+.list li { margin-bottom:.5rem; max-width:60ch; }
+.list li:last-child { margin-bottom:0; }
+.list li.note { list-style:none; margin-left:-1.15rem; color:var(--ink-dim); font-size:.82rem; }
+
+.timeline { list-style:none; margin:0; padding:0; font-size:.87rem; }
+.timeline li { display:grid; grid-template-columns:max-content minmax(0, 1fr); gap:.1rem .75rem; padding:.5rem 0; border-top:1px solid var(--border); }
+.timeline li:first-child { border-top:none; }
+.timeline-when { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.74rem; color:var(--ink-dim); padding-top:.13rem; }
+.timeline-what { min-width:0; max-width:58ch; }
+
+.fold > summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:.5rem 1rem; flex-wrap:wrap; min-height:2.25rem; margin:-.15rem 0 .6rem; border-radius:var(--r-sm); }
+.fold > summary::-webkit-details-marker { display:none; }
+.fold > summary h2 { font-size:.78rem; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-dim); display:flex; align-items:center; gap:.45rem; }
+.fold > summary h2::before { content:""; width:.4rem; height:.4rem; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(-45deg); transition-property:transform; transition-duration:200ms; transition-timing-function:var(--ease); }
+.fold[open] > summary h2::before { transform:rotate(45deg); }
+.fold > summary:hover h2 { color:var(--ink); }
+
+.notes-box { width:100%; min-height:7rem; padding:.65rem .75rem; border:0; border-radius:var(--r-md); background:var(--bg-sunk); box-shadow:var(--tier-sunk); font-size:.87rem; line-height:1.6; resize:vertical; }
+.notes-status { margin:.4rem 0 0; font-size:.76rem; color:var(--ink-dim); }
+
+/* responsive */
+@media (max-width:1000px) {
+  .topbar { position:static; }
+  .wrap { grid-template-columns:minmax(0, 1fr); padding-top:0; }
+  .toc {
+    grid-row:auto; position:sticky; top:0; z-index:20; max-height:none; display:flex; align-items:center; gap:3px;
+    overflow-x:auto; overflow-y:hidden; padding:.45rem 0; margin-bottom:1.1rem;
+    background:color-mix(in srgb, var(--bg) 92%, transparent);
+    -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 1px 0 0 var(--border);
+  }
+  .toc-title { display:none; }
+  .toc a { flex:0 0 auto; white-space:nowrap; border-left:0; border-bottom:2px solid transparent; border-radius:var(--r-sm) var(--r-sm) 0 0; padding:.4rem .6rem; font-size:.78rem; }
+  .toc a.active { border-left:0; border-bottom-color:var(--accent); }
+  [id] { scroll-margin-top:3.6rem; }
+}
+@media (max-width:560px) {
+  .wrap { padding-left:1rem; padding-right:1rem; }
+  .topbar { padding:.7rem 1rem; }
+  .topbar-right { width:100%; justify-content:flex-start; }
+  .panel { padding:.9rem 1rem; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="crumb mono" id="crumb"></span>
+    <h1 id="lead-title">Lead detail</h1>
+    <span class="badge" id="status-badge"></span>
+  </div>
+  <div class="topbar-right">
+    <div class="seg" role="group" aria-label="Colour theme">
+      <button type="button" data-set-theme="light" aria-pressed="false">Light</button>
+      <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+    </div>
+    <button type="button" class="btn btn-lost" id="lost-btn">Mark lost</button>
+    <button type="button" class="btn btn-won" id="won-btn">Mark won</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc scroll-region" id="toc" aria-label="Page sections">
+    <div class="toc-title">Contents</div>
+    <a href="#s-summary">Executive summary</a>
+    <a href="#s-facts">Key facts</a>
+    <a href="#s-lineage">Lead lineage</a>
+    <a href="#band-open">Risks &amp; questions</a>
+    <a href="#band-history">Decisions &amp; activity</a>
+    <a href="#s-notes">Notes</a>
+  </nav>
+
+  <main class="main">
+
+    <p class="banner" id="error-banner" role="alert" hidden></p>
+    <div class="callout enter" id="next-banner" style="--i:0" hidden>
+      <span class="callout-text" id="next-banner-text"></span>
+    </div>
+
+    <details class="legend enter panel" style="--i:1">
+      <summary>Where each value comes from</summary>
+      <div class="legend-body">
+        <div><code class="src">answers.json</code> &mdash; intake JSON</div>
+        <div><code class="src">estimation.json</code> &mdash; scenarios and risks JSON</div>
+        <div><code class="src">brief.md</code> &mdash; qualitative brief</div>
+        <div><code class="src">git log</code> &mdash; versioned docs and history (notes.md, ARCHITECTURE.md, commits)</div>
+      </div>
+    </details>
+
+    <section class="panel panel--hero enter" id="s-summary" style="--i:2" aria-labelledby="h-summary">
+      <div class="panel-head">
+        <h2 id="h-summary">Executive summary</h2>
+        <span class="src">brief.md</span>
+      </div>
+      <div class="prose" id="brief-content"></div>
+    </section>
+
+    <section class="panel enter" id="s-facts" style="--i:3" aria-labelledby="h-facts">
+      <div class="panel-head">
+        <h2 id="h-facts">Key facts</h2>
+        <span class="src">answers.json</span>
+      </div>
+      <dl class="facts" id="facts-dl"></dl>
+      <div class="cluster" id="tech-chips"></div>
+    </section>
+
+    <section class="panel enter" id="s-lineage" style="--i:4" aria-labelledby="h-lineage">
+      <div class="panel-head">
+        <h2 id="h-lineage">Lead lineage</h2>
+        <span class="hint">evidence through proposal, current state</span>
+      </div>
+      <p class="diagram-hint">
+        Drag to pan. Use the on-canvas controls to zoom, or hold <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> and scroll.
+        Click a node to open its document, or view its detail inline.
+      </p>
+      <div class="diagram-wrap">
+        <div id="canvas" class="rf-canvas" role="group" aria-label="Lead lineage diagram"></div>
+      </div>
+      <div class="node-detail" id="node-detail" hidden>
+        <div class="node-detail-head">
+          <h3 id="node-detail-title"></h3>
+          <button type="button" class="node-detail-close" id="node-detail-close" aria-label="Close detail">&times;</button>
+        </div>
+        <p id="node-detail-body"></p>
+      </div>
+    </section>
+
+    <div class="band" id="band-open">
+      <section class="panel enter" id="s-risks" style="--i:5" aria-labelledby="h-risks">
+        <div class="panel-head">
+          <h2 id="h-risks">Top risks</h2>
+          <span class="src">estimation.json</span>
+        </div>
+        <ol class="list" id="risks-list"></ol>
+      </section>
+
+      <section class="panel enter" id="s-questions" style="--i:6" aria-labelledby="h-questions">
+        <div class="panel-head">
+          <h2 id="h-questions">Open questions</h2>
+          <span class="src">estimation-inputs.json</span>
+        </div>
+        <ul class="list" id="questions-list"></ul>
+      </section>
+    </div>
+
+    <div class="band" id="band-history">
+      <section class="panel enter" id="s-decisions" style="--i:7" aria-labelledby="h-decisions">
+        <details class="fold" open>
+          <summary><h2 id="h-decisions">Decision log</h2><span class="src">git log</span></summary>
+          <ul class="timeline" id="decisions-list"></ul>
+          <p class="note">This lead's log has no separate decision markers yet, so this shows the same commit history as Activity.</p>
+        </details>
+      </section>
+
+      <section class="panel enter" id="s-activity" style="--i:8" aria-labelledby="h-activity">
+        <details class="fold" open>
+          <summary><h2 id="h-activity">Activity</h2><span class="src">git log</span></summary>
+          <ul class="timeline" id="activity-list"></ul>
+        </details>
+      </section>
+    </div>
+
+    <section class="panel enter" id="s-notes" style="--i:9" aria-labelledby="h-notes">
+      <div class="panel-head">
+        <h2 id="h-notes">Notes</h2>
+        <span class="src">notes.md</span>
+      </div>
+      <textarea class="notes-box scroll-region" id="notes" aria-labelledby="h-notes" placeholder="Add a note..."></textarea>
+      <p class="notes-status" id="notes-status"></p>
+    </section>
+
+  </main>
+</div>
+
+<script src="/vendor/reactflow-bundle.js"></script>
+<script type="module">
+const LEAD_ID = location.pathname.split('/').pop();
+const GATES = { arch: 1, estimate: 2, scenario: 2, proposal: 3 };
+const PROPOSAL_ID = 'proposal';
+
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
+}
+
+/* ================================================================== *
+ * Theme toggle (three-state tokens; this only forces an override).
+ * ================================================================== */
+(function () {
+  const buttons = document.querySelectorAll('[data-set-theme]');
+  function mark(theme) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.setTheme === theme)));
+  }
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  function current() {
+    return document.documentElement.dataset.theme || (media.matches ? 'dark' : 'light');
+  }
+  mark(current());
+  media.addEventListener('change', () => { if (!document.documentElement.dataset.theme) mark(current()); });
+  buttons.forEach((btn) => btn.addEventListener('click', () => {
+    document.documentElement.dataset.theme = btn.dataset.setTheme;
+    mark(btn.dataset.setTheme);
+  }));
+})();
+
+/* ================================================================== *
+ * Sticky TOC scroll-spy. Ported unchanged from the approved mockup:
+ * activates the last section whose top has passed the activation line,
+ * pinned to the final entry at the true page bottom. No tail padding.
+ * ================================================================== */
+(function () {
+  const toc = document.getElementById('toc');
+  if (!toc) return;
+  const links = toc.querySelectorAll('a');
+  const sections = [];
+  links.forEach((link) => {
+    const el = document.getElementById(link.getAttribute('href').slice(1));
+    if (el) sections.push({ el, link });
+  });
+  if (!sections.length) return;
+
+  function setActive(link) {
+    if (link.classList.contains('active')) return;
+    links.forEach((l) => l.classList.remove('active'));
+    link.classList.add('active');
+    if (window.innerWidth <= 1000) link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  function updateActive() {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const offset = window.innerHeight * 0.1;
+    const step = window.innerHeight * 0.12;
+    let ceiling = maxScroll + step;
+    let current = sections[0];
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const docTop = sections[i].el.getBoundingClientRect().top + window.scrollY;
+      ceiling = Math.min(docTop - offset, ceiling - step);
+      if (window.scrollY >= ceiling) { current = sections[i]; break; }
+    }
+    setActive(current.link);
+  }
+
+  setActive(sections[0].link);
+  updateActive();
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { updateActive(); ticking = false; });
+  }, { passive: true });
+
+  links.forEach((link) => link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const el = document.getElementById(link.getAttribute('href').slice(1));
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    history.replaceState(null, '', '#' + link.getAttribute('href').slice(1));
+  }));
+})();
+
+/* ================================================================== *
+ * Error banner (load/save failures) vs. next-action callout (status).
+ * ================================================================== */
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.hidden = false;
+}
+function clearError() {
+  document.getElementById('error-banner').hidden = true;
+}
+
+/* ================================================================== *
+ * Minimal markdown: escape first, THEN apply heading/bold/list
+ * transforms to the already-escaped string. A brief containing
+ * <img src=x onerror=...> must render as visible literal text.
+ * ================================================================== */
+function bold(s) {
+  return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function headingTag(line) {
+  const m = line.match(/^(#{1,3})\s+(.*)$/);
+  return m ? [`h${m[1].length}`, m[2]] : null;
+}
+function mdLite(raw) {
+  const lines = esc(raw).trim().split('\n');
+  const blocks = [];
+  let para = [];
+  let list = null;
+  const flushPara = () => { if (para.length) { blocks.push(`<p>${bold(para.join(' '))}</p>`); para = []; } };
+  const flushList = () => { if (list) { blocks.push(`<ul>${list.map((i) => `<li>${bold(i)}</li>`).join('')}</ul>`); list = null; } };
+  for (const line of lines) {
+    const heading = headingTag(line);
+    const item = line.match(/^[-*]\s+(.*)$/);
+    if (heading) { flushPara(); flushList(); blocks.push(`<${heading[0]}>${bold(heading[1])}</${heading[0]}>`); }
+    else if (item) { flushPara(); (list ??= []).push(item[1]); }
+    else if (line.trim() === '') { flushPara(); flushList(); }
+    else { flushList(); para.push(line.trim()); }
+  }
+  flushPara();
+  flushList();
+  return blocks.join('');
+}
+
+/* ================================================================== *
+ * Header + status badge.
+ * ================================================================== */
+function renderHeader(lead) {
+  document.getElementById('crumb').textContent = lead.id;
+  document.getElementById('lead-title').textContent = `${lead.client}: ${lead.title}`;
+  document.title = `${lead.client}: ${lead.title}`;
+  const badge = document.getElementById('status-badge');
+  badge.className = `badge badge-${esc(lead.status)}`;
+  badge.textContent = lead.status;
+  document.getElementById('won-btn').hidden = !!lead.closed;
+  document.getElementById('lost-btn').hidden = !!lead.closed;
+}
+
+/* ================================================================== *
+ * Next-action banner: pure function over lead + panels + nodes.
+ * ================================================================== */
+function gateFor(node) {
+  return GATES[node.id] ?? GATES[node.type] ?? null;
+}
+function computeBanner(lead, panels, nodes) {
+  if (lead.closed) return `${lead.status} on ${lead.closed}`;
+  const proposal = nodes.find((n) => n.id === PROPOSAL_ID);
+  const validityDays = panels.facts?.proposal?.validityDays;
+  if (proposal?.data.status === 'ready' && validityDays != null) return `validity expires in ${validityDays}d`;
+  const pending = nodes.find((n) => n.data.status === 'pending');
+  if (!pending) return null;
+  const gate = gateFor(pending);
+  return `waiting: ${pending.data.label} (gate ${gate ?? '?'})`;
+}
+function renderBanner(text) {
+  const el = document.getElementById('next-banner');
+  el.hidden = !text;
+  if (text) document.getElementById('next-banner-text').textContent = text;
+}
+
+/* ================================================================== *
+ * Lead lineage canvas: mounts the vendored React Flow bundle, then
+ * layers on the states the bundle itself doesn't know about (pending /
+ * picked-scenario styling and a click-to-expand fallback for nodes
+ * with no href). All text below goes through textContent, never
+ * innerHTML, so no escaping is needed for lead-supplied node data.
+ * ================================================================== */
+function styleNode(el, node, pickedId) {
+  if (node.data.status === 'pending') {
+    el.classList.add('lead-node-pending');
+    const gate = gateFor(node);
+    el.title = gate ? `unlocks at gate ${gate}` : 'pending';
+  }
+  if (node.id === pickedId) el.classList.add('lead-node-picked');
+}
+function watchNodes(container, nodes, pickedId) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  function apply() {
+    const els = container.querySelectorAll('.react-flow__node');
+    if (els.length < nodes.length) return false;
+    els.forEach((el) => { const n = byId.get(el.dataset.id); if (n) styleNode(el, n, pickedId); });
+    return true;
+  }
+  if (apply()) return;
+  const mo = new MutationObserver(() => { if (apply()) mo.disconnect(); });
+  mo.observe(container, { childList: true, subtree: true });
+  // Safety net: if the bundle ever renders a different node count than
+  // the logical node list, don't watch the subtree forever.
+  setTimeout(() => mo.disconnect(), 5000);
+}
+// Only stop the wheel event from ever reaching React Flow's own zoom
+// handler when the gesture isn't a deliberate zoom (Ctrl/Cmd+wheel).
+// We never call preventDefault ourselves, so plain page scroll is
+// never hijacked while the pointer happens to be over the canvas.
+// Guarded so a won/lost click (which re-runs load() -> mountCanvas())
+// never stacks a second listener on the same persistent #canvas element.
+function guardWheel(container) {
+  if (container.dataset.wheelGuarded) return;
+  container.dataset.wheelGuarded = '1';
+  container.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) e.stopPropagation();
+  }, { capture: true });
+}
+function showNodeDetail(node) {
+  document.getElementById('node-detail-title').textContent = node.data.label;
+  document.getElementById('node-detail-body').textContent = node.data.detail || 'No additional detail recorded for this item.';
+  document.getElementById('node-detail').hidden = false;
+}
+function onNodeClick(node) {
+  if (node.data.href) { window.open(node.data.href, '_blank', 'noopener'); return; }
+  showNodeDetail(node);
+}
+function mountCanvas(map, lead) {
+  const container = document.getElementById('canvas');
+  guardWheel(container);
+  LeadFlow.render(container, map, { onNodeClick });
+  const pickedId = lead.scenario ? `scenario-${lead.scenario}` : null;
+  watchNodes(container, map.nodes, pickedId);
+}
+/* ================================================================== *
+ * Panels: brief (markdown), key facts, risks, open questions,
+ * decisions/activity (share one git-log-derived list; see note in
+ * the Decision log panel), notes.
+ * ================================================================== */
+function renderBrief(brief) {
+  const el = document.getElementById('brief-content');
+  el.innerHTML = brief ? mdLite(brief) : '<p class="note">No brief recorded yet.</p>';
+}
+function factRow(dl, label, value) {
+  const div = document.createElement('div');
+  const dt = document.createElement('dt');
+  dt.textContent = label;
+  const dd = document.createElement('dd');
+  if (value) { dd.textContent = value; } else { dd.textContent = 'Not captured'; dd.className = 'muted'; }
+  div.append(dt, dd);
+  dl.append(div);
+}
+function renderFacts(facts) {
+  const dl = document.getElementById('facts-dl');
+  dl.replaceChildren();
+  factRow(dl, 'Client', facts.client?.name);
+  factRow(dl, 'Industry', facts.client?.industry);
+  factRow(dl, 'Deadline', facts.delivery?.deadline);
+  const chips = document.getElementById('tech-chips');
+  chips.replaceChildren();
+  (facts.tech?.stack ?? []).forEach((s) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = s;
+    chips.append(chip);
+  });
+}
+function appendEmptyNote(el, text) {
+  const li = document.createElement('li');
+  li.className = 'note';
+  li.textContent = text;
+  el.append(li);
+}
+function renderList(id, items, emptyText) {
+  const el = document.getElementById(id);
+  el.replaceChildren();
+  if (!items.length) return appendEmptyNote(el, emptyText);
+  items.forEach((text) => { const li = document.createElement('li'); li.textContent = text; el.append(li); });
+}
+function timelineItems(entries) {
+  return entries.map((line) => {
+    const [when, ...rest] = line.split(' ');
+    return { when, what: rest.join(' ') || when };
+  });
+}
+function renderTimeline(id, entries, emptyText) {
+  const el = document.getElementById(id);
+  el.replaceChildren();
+  if (!entries.length) return appendEmptyNote(el, emptyText);
+  timelineItems(entries).forEach(({ when, what }) => {
+    const li = document.createElement('li');
+    const w = document.createElement('span'); w.className = 'timeline-when mono'; w.textContent = when;
+    const b = document.createElement('span'); b.className = 'timeline-what'; b.textContent = what;
+    li.append(w, b);
+    el.append(li);
+  });
+}
+function renderPanels(panels) {
+  renderBrief(panels.brief);
+  renderFacts(panels.facts);
+  renderList('risks-list', panels.risks, 'No risks recorded.');
+  renderList('questions-list', panels.openQuestions, 'No open questions recorded.');
+  renderTimeline('decisions-list', panels.activity, 'No activity recorded yet.');
+  renderTimeline('activity-list', panels.activity, 'No activity recorded yet.');
+}
+
+/* ================================================================== *
+ * Notes: save on blur + Ctrl/Cmd-S. There is no documented GET for an
+ * existing note's content, so this can save but can't prefill from
+ * disk on load — see the task report for that gap.
+ * ================================================================== */
+const notesBox = document.getElementById('notes');
+const notesStatus = document.getElementById('notes-status');
+let notesDirty = false;
+notesBox.addEventListener('input', () => { notesDirty = true; notesStatus.textContent = 'Unsaved changes'; });
+notesBox.addEventListener('blur', saveNotes);
+notesBox.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveNotes(); }
+});
+async function saveNotes() {
+  if (!notesDirty) return;
+  try {
+    const res = await fetch(`/api/leads/${LEAD_ID}/notes`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ content: notesBox.value }),
+    });
+    if (!res.ok) throw new Error(`save failed (${res.status})`);
+    notesDirty = false;
+    notesStatus.textContent = 'Saved';
+  } catch (err) {
+    showError(`Could not save notes: ${err.message}`);
+  }
+}
+
+/* ================================================================== *
+ * Won / lost.
+ * ================================================================== */
+async function setStatus(status) {
+  try {
+    const res = await fetch(`/api/leads/${LEAD_ID}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `request failed (${res.status})`);
+    }
+    await load();
+  } catch (err) {
+    showError(`Could not update lead: ${err.message}`);
+  }
+}
+// One delegated click listener with a small dispatch table, same pattern
+// as index.html's CLICK_ACTIONS — on document.body since the topbar
+// (won/lost) sits outside <main>.
+const CLICK_ACTIONS = [
+  ['#won-btn', () => setStatus('won')],
+  ['#lost-btn', () => setStatus('lost')],
+  ['#node-detail-close', () => { document.getElementById('node-detail').hidden = true; }],
+];
+document.body.addEventListener('click', (e) => {
+  for (const [selector, handler] of CLICK_ACTIONS) {
+    const el = e.target.closest(selector);
+    if (el) return handler(el);
+  }
+});
+
+/* ================================================================== *
+ * Load: two same-origin fetches, then header/canvas/panels render.
+ * Separate catches for the fetch step and the render step, per the
+ * three error paths index.html established.
+ * ================================================================== */
+async function fetchLeadAndMap() {
+  const [leadsRes, mapRes] = await Promise.all([fetch('/api/leads'), fetch(`/api/leads/${LEAD_ID}/map`)]);
+  if (!leadsRes.ok) throw new Error(`server returned ${leadsRes.status}`);
+  if (!mapRes.ok) throw new Error(`server returned ${mapRes.status}`);
+  const leadsBody = await leadsRes.json();
+  const map = await mapRes.json();
+  const lead = leadsBody.leads.find((l) => l.id === LEAD_ID);
+  if (!lead) throw new Error('lead not found in registry');
+  return { lead, map };
+}
+async function load() {
+  let lead, map;
+  try {
+    ({ lead, map } = await fetchLeadAndMap());
+  } catch (err) {
+    showError(`Could not load lead (${err.message}). Try reloading the page.`);
+    return;
+  }
+  try {
+    clearError();
+    renderHeader(lead);
+    renderBanner(computeBanner(lead, map.panels, map.nodes));
+    mountCanvas(map, lead);
+    renderPanels(map.panels);
+  } catch (err) {
+    showError(`Could not display lead (${err.message}).`);
+  }
+}
+
+load();
+</script>
+
+</body>
+</html>

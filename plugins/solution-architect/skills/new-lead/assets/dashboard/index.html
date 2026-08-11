@@ -8,154 +8,301 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
 <title>Leads</title>
 <style>
+/* Tokens: same vocabulary as the lead detail page. Full light palette on bare
+   :root, dark redefines only. No [data-theme] override block because this page
+   ships no theme control. */
 :root {
   color-scheme:light;
-  --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
-  --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
+  --bg:#f6f4ef; --bg-sunk:#edeae1; --card:#fffdf9; --card-raised:#fff;
+  --ink:#1c1b18; --ink-soft:#45423a; --ink-dim:#6c6759;
+  --border:#e4dfd3; --border-strong:#cec7b6;
+  --accent:#0f766e; --accent-ink:#0a544f; --accent-soft:rgba(15,118,110,.09); --accent-line:rgba(15,118,110,.38);
   --ok:#15803d; --ok-soft:rgba(21,128,61,.1);
-  --warn:#b45309; --warn-soft:rgba(180,83,9,.1);
-  --card:#fffdf9; --border:#e6e1d5; --border-strong:#cfc8b8;
-  --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
+  --warn:#a55708; --warn-soft:rgba(165,87,8,.1);
+  --pending-bg:#eae7dd; --pending-ink:#857f70;
+  --focus:#0f766e;
+  /* Opaque: sticky cells paint over scrolling content, so these two cannot be tints. */
+  --row-hover:#f2efe7; --th-active:#e6e9e4;
+  --scroll-thumb:#cec7b6; --scroll-thumb-hover:#b3aa95; --scroll-track:transparent;
+  /* Depth tiers: layered transparent shadows instead of borders. */
+  --tier-flat:0 0 0 1px rgba(0,0,0,.06);
+  --tier-raised:0 0 0 1px rgba(0,0,0,.06), 0 1px 2px -1px rgba(0,0,0,.06), 0 2px 4px 0 rgba(0,0,0,.04);
+  --tier-raised-hover:0 0 0 1px rgba(0,0,0,.08), 0 1px 2px -1px rgba(0,0,0,.08), 0 2px 4px 0 rgba(0,0,0,.06);
+  --tier-hero:0 0 0 1px rgba(15,118,110,.16), 0 2px 6px -2px rgba(0,0,0,.07), 0 10px 26px -8px rgba(0,0,0,.09);
+  --tier-sunk:inset 0 1px 3px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.04);
+  --r-lg:.875rem; --r-md:.625rem; --r-sm:.5rem; --r-xs:.375rem; --r-pill:999px;
+  --topbar-h:3.5rem; --ease:cubic-bezier(.16, 1, .3, 1);
 }
 @media (prefers-color-scheme:dark) {
   :root {
     color-scheme:dark;
-    --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
-    --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
-    --ok:#5dbb7a; --ok-soft:rgba(93,187,122,.12);
-    --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
-    --card:#181d1c; --border:#263230; --border-strong:#3a4a46;
-    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    --bg:#0f1413; --bg-sunk:#0a0e0d; --card:#171d1c; --card-raised:#1c2322;
+    --ink:#e9e7e2; --ink-soft:#bdc4c0; --ink-dim:#8d9a95;
+    --border:#26312f; --border-strong:#3a4946;
+    --accent:#3fb3a8; --accent-ink:#74d6cc; --accent-soft:rgba(63,179,168,.13); --accent-line:rgba(63,179,168,.42);
+    --ok:#62c082; --ok-soft:rgba(98,192,130,.13);
+    --warn:#dd9247; --warn-soft:rgba(221,146,71,.13);
+    --pending-bg:#1f2726; --pending-ink:#8d9a95;
+    --focus:#74d6cc;
+    --row-hover:#1d2523; --th-active:#152321;
+    --scroll-thumb:#3a4946; --scroll-thumb-hover:#4f6360;
+    --tier-flat:0 0 0 1px rgba(255,255,255,.08);
+    --tier-raised:0 0 0 1px rgba(255,255,255,.08);
+    --tier-raised-hover:0 0 0 1px rgba(255,255,255,.13);
+    --tier-hero:0 0 0 1px rgba(116,214,204,.22), 0 10px 30px -12px rgba(0,0,0,.7);
+    --tier-sunk:inset 0 1px 3px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.05);
   }
 }
-* { box-sizing:border-box; }
-body {
-  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  background:var(--bg); color:var(--ink); margin:0; line-height:1.45;
-}
-.mono { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
-button, select, input { font-family:inherit; }
-:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-a { color:var(--accent-ink); }
-header {
-  position:sticky; top:0; z-index:10;
-  padding:.9rem max(1.25rem, calc((100% - 1160px) / 2));
-  border-bottom:1px solid var(--border); background:var(--card);
-}
-header h1 { margin:0; font-size:1.15rem; font-weight:600; letter-spacing:-.01em; }
-main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
 
-/* stats strip: one bordered cluster, no card-per-tile clutter */
-.stats {
-  display:grid; grid-template-columns:repeat(4,1fr);
-  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
-  box-shadow:var(--shadow); margin-bottom:1.1rem; overflow:hidden;
+/* base */
+* { box-sizing:border-box; }
+html { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) var(--scroll-track); }
+html::-webkit-scrollbar { width:11px; height:11px; }
+html::-webkit-scrollbar-track { background:var(--scroll-track); }
+html::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:var(--r-pill); border:3px solid transparent; background-clip:content-box; }
+html::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); background-clip:content-box; }
+body {
+  margin:0; color:var(--ink); background-color:var(--bg);
+  background-image:radial-gradient(ellipse 90% 45% at 50% -6%, var(--accent-soft) 0%, transparent 70%);
+  background-repeat:no-repeat;
+  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:clamp(15px, .35vw + 14px, 16.5px); line-height:1.55; overflow-wrap:break-word;
 }
-.stat { padding:.85rem 1.1rem; border-right:1px solid var(--border); }
+.mono { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+button, select, input { font:inherit; color:inherit; }
+h1, h2, h3 { margin:0; text-wrap:balance; letter-spacing:-.011em; }
+p, li { text-wrap:pretty; }
+a { color:var(--accent-ink); }
+:focus-visible { outline:2px solid var(--focus); outline-offset:2px; border-radius:var(--r-xs); }
+[hidden] { display:none !important; }
+
+/* themed scrollbars on every scrolling region, same treatment as the detail page */
+.scroll-region { scrollbar-width:thin; scrollbar-color:var(--scroll-thumb) var(--scroll-track); }
+.scroll-region::-webkit-scrollbar { width:9px; height:9px; }
+.scroll-region::-webkit-scrollbar-track { background:var(--scroll-track); }
+.scroll-region::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:var(--r-pill); border:2px solid transparent; background-clip:content-box; }
+.scroll-region::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); background-clip:content-box; }
+.scroll-region::-webkit-scrollbar-corner { background:transparent; }
+
+/* Page chrome enters once, staggered. Rows and cards deliberately do not:
+   they are re-rendered on every keystroke, so a per-item enter would fire
+   continuously while typing in the search box. */
+.enter { opacity:0; transform:translateY(10px); animation:enter-up 420ms var(--ease) both; animation-delay:calc(var(--i, 0) * 70ms); }
+@keyframes enter-up { to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after {
+    animation-duration:.001ms !important; animation-delay:0ms !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+  .enter { opacity:1; transform:none; }
+}
+
+/* top bar */
+header {
+  position:sticky; top:0; z-index:30; min-height:var(--topbar-h);
+  display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:.3rem 1rem;
+  padding:.7rem max(1.25rem, calc((100% - 1160px) / 2));
+  background:color-mix(in srgb, var(--card) 88%, transparent);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 1px 0 0 var(--border);
+}
+header h1 { font-size:1.15rem; font-weight:620; }
+#result-count { margin:0; font-size:.78rem; color:var(--ink-dim); font-variant-numeric:tabular-nums; }
+main { max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem; }
+main > *, .views > *, .toolbar > * { min-width:0; }
+
+/* stats strip: the page's anchor, so it takes the hero tier and the cards sit below it */
+.stats {
+  display:grid; grid-template-columns:repeat(4,1fr); margin-bottom:1.05rem; overflow:hidden;
+  background:var(--card-raised); border-radius:var(--r-lg); box-shadow:var(--tier-hero);
+}
+.stat { padding:.8rem 1.05rem; border-right:1px solid var(--border); }
 .stat:last-child { border-right:none; }
-.stat .label { margin:0 0 .3rem; font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
-.stat .value { margin:0; font-size:1.3rem; font-weight:600; }
-.stat .value + .value { margin-top:.2rem; }
-.stat .value .count { margin-left:.35rem; font-size:.72rem; font-weight:500; color:var(--ink-dim); }
+.stat .label { margin:0 0 .3rem; font-size:.68rem; font-weight:600; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.07em; }
+.stat .value { margin:0; font-size:1.25rem; font-weight:620; line-height:1.3; font-variant-numeric:tabular-nums; }
+.stat .value-sm { font-size:1rem; }
+.stat .value + .value { margin-top:.15rem; }
+.stat .value .count { margin-left:.3rem; font-size:.7rem; font-weight:500; color:var(--ink-dim); }
+
+/* toolbar: chrome, not content — a plain row over a divider, so the stats
+   strip stays the only card at the top of the page */
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:0 0 1.05rem; padding:0 0 .85rem; border-bottom:1px solid var(--border); }
+.seg { display:inline-flex; gap:2px; padding:3px; border-radius:11px; background:var(--bg-sunk); box-shadow:var(--tier-flat); } /* concentric: 8 + 3 = 11 */
+.seg button {
+  min-height:2.125rem; padding:0 .7rem; border:0; border-radius:8px; background:transparent;
+  color:var(--ink-dim); font-size:.78rem; white-space:nowrap; cursor:pointer;
+  transition-property:background-color, color, scale; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.seg button:hover { color:var(--ink); }
+.seg button:active { scale:.96; }
+.seg button[aria-pressed="true"] { background:var(--card); color:var(--accent-ink); font-weight:620; box-shadow:var(--tier-flat); }
+.toolbar input[type="search"], .toolbar select {
+  min-height:2.375rem; padding:0 .6rem; font-size:.82rem; border:0; border-radius:var(--r-sm);
+  background:var(--bg-sunk); color:var(--ink); box-shadow:var(--tier-flat);
+  transition-property:box-shadow; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.toolbar input[type="search"]:hover, .toolbar select:hover { box-shadow:var(--tier-raised-hover); }
+.toolbar input[type="search"] { flex:1 1 10rem; min-width:8rem; }
+.toolbar input[type="search"]::placeholder { color:var(--ink-dim); }
+.spacer { flex:1 1 auto; }
+.btn {
+  min-height:2.375rem; display:inline-flex; align-items:center; gap:.35rem; padding:0 .85rem;
+  font-size:.82rem; font-weight:550; border:0; border-radius:var(--r-sm);
+  background:var(--card); color:var(--ink); box-shadow:var(--tier-raised);
+  text-decoration:none; white-space:nowrap; cursor:pointer;
+  transition-property:box-shadow, background-color, color, scale; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.btn:hover { box-shadow:var(--tier-raised-hover); }
+.btn:active { scale:.96; }
+#dir-toggle { padding:0 .85rem 0 .72rem; } /* optical: the arrow glyph side loses 2px */
+
+/* badges: shared tone vocabulary with the detail page; the bare .badge is a
+   readable fallback for a status value we have no rule for */
+.badge {
+  display:inline-flex; align-items:center; gap:.35rem; padding:.18rem .5rem; border-radius:var(--r-pill);
+  font-size:.66rem; font-weight:650; letter-spacing:.045em; text-transform:uppercase; white-space:nowrap;
+  background:var(--pending-bg); color:var(--pending-ink);
+}
+.badge::before { content:""; width:.4rem; height:.4rem; border-radius:50%; background:currentColor; }
+.badge-active { background:var(--accent-soft); color:var(--accent-ink); }
+.badge-won { background:var(--ok-soft); color:var(--ok); }
+.badge-lost { background:var(--pending-bg); color:var(--pending-ink); }
+
+/* cards */
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr)); gap:.85rem; }
+.card {
+  position:relative; display:flex; flex-direction:column; gap:.25rem; padding:.9rem 1rem;
+  border-radius:var(--r-lg); background:var(--card); box-shadow:var(--tier-raised);
+  transition-property:box-shadow; transition-duration:200ms; transition-timing-function:var(--ease);
+}
+.card:hover { box-shadow:var(--tier-raised-hover); }
+.card > * { min-width:0; }
+/* status rail: the one thing you scan a card grid for */
+.card::before { content:""; position:absolute; left:0; top:.9rem; bottom:.9rem; width:2px; border-radius:var(--r-pill); background:var(--pending-ink); }
+.card.active::before { background:var(--accent); }
+.card.won::before { background:var(--ok); }
+.card.lost::before { background:var(--border-strong); }
+.card-head { display:flex; justify-content:space-between; align-items:start; gap:.5rem; }
+.card-head h3 { font-size:.98rem; font-weight:620; line-height:1.35; }
+.card-client { margin:0; font-size:.8rem; color:var(--ink-dim); }
+.card-meta { display:flex; flex-wrap:wrap; gap:.1rem .6rem; margin:.2rem 0 0; font-size:.76rem; color:var(--ink-dim); }
+.card-value { font-weight:620; color:var(--ink-soft); }
+/* artifact tray: sunk, so the chips read as contents of the card */
+.artifacts { display:flex; flex-wrap:wrap; gap:2px; margin:.55rem 0 0; padding:4px; border-radius:var(--r-md); background:var(--bg-sunk); box-shadow:var(--tier-sunk); } /* concentric: 6 + 4 = 10 */
+.chip {
+  display:inline-flex; align-items:center; min-height:2.125rem; padding:0 .55rem;
+  border-radius:var(--r-xs); font-size:.72rem; text-decoration:none;
+  transition-property:background-color, color; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.chip-ready { background:var(--accent-soft); color:var(--accent-ink); font-weight:620; }
+.chip-ready:hover { background:color-mix(in srgb, var(--accent) 20%, transparent); }
+.chip-pending { color:var(--ink-dim); }
+.card-actions { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+.card-actions .btn { min-height:2.125rem; padding:0 .7rem; font-size:.78rem; }
+.btn-open { background:var(--accent-soft); color:var(--accent-ink); font-weight:620; box-shadow:var(--tier-flat); }
+.btn-won { color:var(--ok); font-weight:620; }
+.btn-lost { color:var(--ink-dim); }
+
+/* timeline */
+.month-marker {
+  position:sticky; top:var(--topbar-h); z-index:5; margin:1.1rem 0 .3rem; padding:.35rem 0;
+  font-size:.7rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-dim);
+  background:color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.month-marker:first-child { margin-top:0; }
+/* grid, never flex, on the row: flex creates an unshrinkable anonymous box */
+.t-row {
+  display:grid; grid-template-columns:5.5rem 4.5rem minmax(0, 1fr) 5.5rem; align-items:center;
+  gap:.15rem .7rem; margin:0 -.5rem; padding:.45rem .5rem; border-bottom:1px solid var(--border);
+  transition-property:background-color; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.t-row:hover { background:var(--accent-soft); }
+.t-row > * { min-width:0; }
+.t-date { font-size:.76rem; color:var(--ink-dim); }
+.t-closed { text-align:right; }
+.t-bar { display:flex; align-items:center; }
+.t-dot { width:.45rem; height:.45rem; border-radius:50%; background:var(--accent); flex:none; }
+.t-line { height:2px; flex:1; background:var(--accent-line); }
+.t-line.dashed { background:repeating-linear-gradient(90deg, var(--accent-line) 0 4px, transparent 4px 8px); }
+.t-row.won .t-dot, .t-row.won .t-line { background:var(--ok); }
+.t-row.lost .t-dot, .t-row.lost .t-line { background:var(--border-strong); }
+.t-info { display:flex; align-items:center; flex-wrap:wrap; gap:.15rem .4rem; font-size:.84rem; }
+.t-info strong { font-weight:620; }
+
+/* wall: its own scroll region, so the header row and the ID column can hold
+   still while the other twelve columns move under them */
+.wall-wrap { overflow:auto; max-height:calc(100dvh - 11rem); background:var(--card); border-radius:var(--r-lg); box-shadow:var(--tier-raised); }
+/* separate, not collapse: collapsed borders do not travel with sticky cells */
+table.wall { border-collapse:separate; border-spacing:0; width:100%; font-size:.78rem; }
+table.wall th, table.wall td { padding:.4rem .7rem; text-align:left; white-space:nowrap; background:var(--card); }
+table.wall td { border-bottom:1px solid var(--border); color:var(--ink-soft); }
+table.wall tbody tr:last-child td { border-bottom:none; }
+table.wall thead th {
+  position:sticky; top:0; z-index:2; background:var(--bg-sunk); color:var(--ink-dim);
+  font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+  box-shadow:inset 0 -1px 0 var(--border-strong);
+}
+table.wall th:first-child, table.wall td:first-child { position:sticky; left:0; }
+table.wall td:first-child { z-index:1; box-shadow:inset -1px 0 0 var(--border); }
+table.wall thead th:first-child { z-index:3; box-shadow:inset 0 -1px 0 var(--border-strong), inset -1px 0 0 var(--border); }
+table.wall tbody tr:hover td { background:var(--row-hover); }
+table.wall th.mid, table.wall td.mid { text-align:center; }
+table.wall th.right, table.wall td.right { text-align:right; }
+/* sortable header is a real button, so it is reachable and takes a focus ring;
+   the arrow is drawn from aria-sort instead of written into the label */
+.th-btn {
+  display:inline-flex; align-items:center; gap:.3rem; width:calc(100% + 1.4rem); min-height:2.5rem;
+  margin:-.4rem -.7rem; padding:.4rem .7rem; border:0; background:transparent; color:inherit;
+  font:inherit; letter-spacing:inherit; text-transform:inherit; border-radius:var(--r-xs); cursor:pointer;
+  transition-property:background-color, color; transition-duration:160ms; transition-timing-function:var(--ease);
+}
+.th-btn::after { content:"\2195"; opacity:.35; font-size:.9em; }
+.th-btn:hover { color:var(--accent-ink); background:var(--accent-soft); }
+table.wall thead th[aria-sort="ascending"], table.wall thead th[aria-sort="descending"] { background:var(--th-active); color:var(--accent-ink); }
+th[aria-sort="ascending"] .th-btn::after { content:"\2191"; opacity:1; }
+th[aria-sort="descending"] .th-btn::after { content:"\2193"; opacity:1; }
+.tick { color:var(--ok); }
+.no { color:var(--pending-ink); }
+
+/* banner + empty states */
+.banner {
+  display:flex; align-items:center; gap:.5rem; margin:0 0 1.05rem; padding:.65rem .9rem; font-size:.85rem;
+  border-radius:var(--r-md); border-left:3px solid var(--warn); background:var(--warn-soft); color:var(--warn);
+}
+.empty { padding:2.5rem 1.25rem; text-align:center; color:var(--ink-dim); border-radius:var(--r-lg); background:var(--bg-sunk); box-shadow:var(--tier-sunk); }
+#view-cards .empty { grid-column:1/-1; }
+.empty p { margin:0; font-size:.92rem; }
+.empty code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em; background:var(--accent-soft); color:var(--accent-ink); padding:.1rem .35rem; border-radius:var(--r-xs); }
+table.wall td.empty { background:var(--bg-sunk); border-bottom:none; box-shadow:none; white-space:normal; }
+
+/* responsive */
+@media (max-width:760px) { .spacer { display:none; } }
 @media (max-width:640px) {
   .stats { grid-template-columns:repeat(2,1fr); }
   .stat:nth-child(2n) { border-right:none; }
   .stat:nth-child(n+3) { border-top:1px solid var(--border); }
+  .t-row { grid-template-columns:max-content minmax(0, 1fr); }
+  .t-bar { display:none; }
+  .t-closed { grid-column:2; text-align:left; font-size:.72rem; }
 }
-
-/* toolbar */
-.toolbar {
-  display:flex; flex-wrap:wrap; align-items:center; gap:.6rem;
-  margin-bottom:1.1rem; padding:.7rem .9rem;
-  background:var(--card); border:1px solid var(--border); border-radius:.6rem; box-shadow:var(--shadow);
+@media (max-width:560px) {
+  header { padding:.6rem 1rem; }
+  main { padding:1rem 1rem 2.5rem; }
+  .toolbar input[type="search"] { flex:1 1 100%; }
+  .wall-wrap { max-height:calc(100dvh - 8rem); }
 }
-.seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:.4rem; overflow:hidden; }
-.seg button {
-  border:none; background:var(--card); color:var(--ink-dim); cursor:pointer;
-  font-size:.8rem; padding:.35rem .7rem; border-right:1px solid var(--border-strong);
-}
-.seg button:last-child { border-right:none; }
-.seg button[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent-ink); font-weight:600; }
-.toolbar input[type="search"], .toolbar select {
-  font-size:.82rem; padding:.35rem .6rem; border:1px solid var(--border-strong);
-  border-radius:.4rem; background:var(--card); color:var(--ink);
-}
-.toolbar input[type="search"] { flex:1; min-width:9rem; }
-#dir-toggle {
-  border:1px solid var(--border-strong); border-radius:.4rem; background:var(--card);
-  color:var(--ink); font-size:.82rem; padding:.35rem .6rem; cursor:pointer;
-}
-.spacer { flex:1 1 auto; }
-
-/* cards view */
-.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.9rem; }
-.card { background:var(--card); border:1px solid var(--border); border-radius:.6rem; padding:1rem; }
-.card-head { display:flex; justify-content:space-between; align-items:start; gap:.5rem; margin-bottom:.4rem; }
-.card-head h3 { margin:0; font-size:1rem; font-weight:600; }
-.card-client { margin:0 0 .3rem; color:var(--ink-dim); font-size:.85rem; }
-.card-dates, .card-value { margin:0 0 .3rem; font-size:.8rem; color:var(--ink-dim); }
-.pill {
-  font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600;
-  padding:.15rem .5rem; border-radius:1rem; white-space:nowrap;
-}
-.pill-active { background:var(--accent-soft); color:var(--accent-ink); }
-.pill-won { background:var(--ok-soft); color:var(--ok); }
-.pill-lost { background:var(--border); color:var(--ink-dim); }
-.artifacts { display:flex; gap:.4rem; margin:.6rem 0; flex-wrap:wrap; }
-.chip {
-  font-size:.72rem; padding:.2rem .5rem; border-radius:.35rem; text-decoration:none;
-  border:1px solid var(--border-strong);
-}
-.chip-ready { background:var(--accent-soft); color:var(--accent-ink); border-color:transparent; }
-.chip-pending { color:var(--ink-dim); }
-.card-actions { display:flex; gap:.5rem; margin-top:.7rem; }
-.card-actions button, .card-actions a {
-  font-size:.78rem; padding:.35rem .7rem; border-radius:.4rem; text-decoration:none;
-  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
-}
-.card-actions a { background:var(--accent-soft); color:var(--accent-ink); border-color:transparent; font-weight:600; }
-.card-actions [data-action="won"] { border-color:var(--ok); color:var(--ok); }
-.card-actions [data-action="lost"] { border-color:var(--border-strong); color:var(--ink-dim); }
-
-/* timeline view */
-.month-marker { margin:1.1rem 0 .5rem; font-size:.75rem; font-weight:600; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
-.month-marker:first-child { margin-top:0; }
-.t-row { display:flex; align-items:center; gap:.7rem; padding:.5rem 0; border-bottom:1px solid var(--border); }
-.t-date { font-size:.78rem; color:var(--ink-dim); width:5.5rem; flex:none; }
-.t-bar { display:flex; align-items:center; width:6rem; flex:none; }
-.t-dot { width:.5rem; height:.5rem; border-radius:50%; background:var(--ink-dim); flex:none; }
-.t-line { height:2px; flex:1; background:var(--border-strong); }
-.t-line.dashed { background:repeating-linear-gradient(90deg,var(--border-strong) 0 4px,transparent 4px 8px); }
-.t-row.won .t-dot, .t-row.won .t-line { background:var(--ok); }
-.t-row.lost .t-dot, .t-row.lost .t-line { background:var(--ink-dim); opacity:.6; }
-.t-info { flex:1; min-width:0; font-size:.85rem; }
-.t-info .pill { margin-left:.4rem; }
-
-/* wall view */
-.wall-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--border); border-radius:.6rem; box-shadow:var(--shadow); }
-table.wall { border-collapse:collapse; width:100%; font-size:.8rem; }
-table.wall th, table.wall td { padding:.5rem .7rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
-table.wall th { color:var(--ink-dim); font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
-table.wall th[data-sort] { cursor:pointer; }
-table.wall th[data-sort]:hover { color:var(--accent-ink); }
-table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { color:var(--accent-ink); }
-.tick { color:var(--ok); }
-.no { color:var(--ink-dim); }
-
-.banner { margin:0 0 1.1rem; padding:.6rem .9rem; border-radius:.5rem; font-size:.85rem; border:1px solid var(--warn); background:var(--warn-soft); color:var(--warn); }
-.empty { text-align:center; padding:3rem 1rem; color:var(--ink-dim); }
-#view-cards .empty { grid-column:1/-1; }
-.empty p { margin:0; font-size:.95rem; }
-.empty code { font-family:ui-monospace,monospace; background:var(--accent-soft); color:var(--accent-ink); padding:.1rem .35rem; border-radius:.3rem; }
-[hidden] { display:none !important; }
 </style>
 </head>
 <body>
-<header><h1>Leads</h1></header>
+<header>
+  <h1>Leads</h1>
+  <p id="result-count" role="status"></p>
+</header>
 <main>
-  <section class="stats" id="stats" aria-label="Pipeline stats"></section>
+  <section class="stats enter" id="stats" style="--i:0" aria-label="Pipeline stats"></section>
 
-  <div class="toolbar">
+  <div class="toolbar enter" style="--i:1">
     <div class="seg" id="view-switch" role="group" aria-label="View">
       <button type="button" data-view="cards">Cards</button>
       <button type="button" data-view="timeline">Timeline</button>
@@ -175,27 +322,29 @@ table.wall th[aria-sort="ascending"], table.wall th[aria-sort="descending"] { co
       <option value="value">Sort: value</option>
       <option value="client">Sort: client</option>
     </select>
-    <button type="button" id="dir-toggle" aria-label="Sort direction"></button>
+    <button type="button" class="btn" id="dir-toggle" aria-label="Sort direction"></button>
   </div>
 
   <p id="banner" class="banner" role="alert" hidden></p>
 
-  <div id="empty" class="empty" hidden>
-    <p>No leads yet. Run <code>/new-lead</code> to create one.</p>
-  </div>
-
-  <section id="view-cards" class="cards"></section>
-
-  <section id="view-timeline" hidden></section>
-
-  <section id="view-wall" hidden>
-    <div class="wall-wrap">
-      <table class="wall">
-        <thead><tr></tr></thead>
-        <tbody id="wall-body"></tbody>
-      </table>
+  <div class="views enter" style="--i:2">
+    <div id="empty" class="empty" hidden>
+      <p>No leads yet. Run <code>/new-lead</code> to create one.</p>
     </div>
-  </section>
+
+    <section id="view-cards" class="cards"></section>
+
+    <section id="view-timeline" hidden></section>
+
+    <section id="view-wall" hidden>
+      <div class="wall-wrap scroll-region">
+        <table class="wall">
+          <thead><tr></tr></thead>
+          <tbody id="wall-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </main>
 
 <script type="module">
@@ -278,9 +427,10 @@ function fmtRange(v) {
 
 // One <p class="value"> line per currency group, each with a dim lead count -
 // stacked, not a bulleted list, so one currency still reads as a single clean line.
+// value-sm because a currency range is far longer than the other three tiles' values.
 function pipelineValueLines(pv) {
   if (!pv) return '<p class="value mono">—</p>';
-  return pv.map((g) => `<p class="value mono">${fmtRange(g)}&nbsp;<span class="count">(${g.count})</span></p>`).join('');
+  return pv.map((g) => `<p class="value value-sm mono">${fmtRange(g)}&nbsp;<span class="count">(${g.count})</span></p>`).join('');
 }
 
 function renderStats() {
@@ -300,38 +450,47 @@ function renderStats() {
     </div>`).join('');
 }
 
+// textContent, not innerHTML: this only ever holds numbers we computed.
+function renderCount(shown, total) {
+  const noun = total === 1 ? 'lead' : 'leads';
+  document.getElementById('result-count').textContent =
+    total === 0 ? '' : shown === total ? `${total} ${noun}` : `${shown} of ${total} ${noun}`;
+}
+
 function artifactChip(ready, href, label) {
   return ready
     ? `<a class="chip chip-ready" href="${href}">${label}</a>`
     : `<span class="chip chip-pending">${label} pending</span>`;
 }
 
-function statusPill(status) {
-  return `<span class="pill pill-${esc(status)}">${esc(status)}</span>`;
+function statusBadge(status) {
+  return `<span class="badge badge-${esc(status)}">${esc(status)}</span>`;
 }
 
 function cardTemplate(l) {
   const id = esc(l.id);
-  const dates = l.closed ? `${esc(l.created)} to ${esc(l.closed)}` : `${esc(l.created)}, active`;
+  const dates = l.closed ? `${esc(l.created)} → ${esc(l.closed)}` : `${esc(l.created)} → open`;
   const actions = l.closed ? '' : `
-    <button type="button" data-action="won" data-id="${id}">Won</button>
-    <button type="button" data-action="lost" data-id="${id}">Lost</button>`;
+    <button type="button" class="btn btn-won" data-action="won" data-id="${id}">Won</button>
+    <button type="button" class="btn btn-lost" data-action="lost" data-id="${id}">Lost</button>`;
   return `
-    <article class="card">
+    <article class="card ${esc(l.status)}">
       <div class="card-head">
         <h3>${esc(l.title)}</h3>
-        ${statusPill(l.status)}
+        ${statusBadge(l.status)}
       </div>
       <p class="card-client">${esc(l.client)}</p>
-      <p class="card-dates mono">${dates}</p>
-      ${l.value ? `<p class="card-value mono">${fmtRange(l.value)}</p>` : ''}
+      <p class="card-meta">
+        <span class="mono">${dates}</span>
+        ${l.value ? `<span class="card-value mono">${fmtRange(l.value)}</span>` : ''}
+      </p>
       <div class="artifacts">
         ${artifactChip(l.artifacts.docs, `/${id}/dist/index.html`, 'Docs')}
         ${artifactChip(l.artifacts.estimate, `/${id}/dist/estimate.html`, 'Estimate')}
         ${artifactChip(l.artifacts.proposal, `/${id}/dist/proposal.html`, 'Proposal')}
       </div>
       <div class="card-actions">
-        <a href="/detail/${id}">Open</a>
+        <a class="btn btn-open" href="/detail/${id}">Open</a>
         ${actions}
       </div>
     </article>`;
@@ -358,8 +517,8 @@ function timelineRow(l) {
     <div class="t-row ${esc(l.status)}">
       <span class="t-date mono">${esc(l.created)}</span>
       <span class="t-bar">${bar}</span>
-      <span class="t-info"><strong>${esc(l.client)}</strong> - ${esc(l.title)}${statusPill(l.status)}</span>
-      <span class="t-date mono">${esc(l.closed || '')}</span>
+      <span class="t-info"><strong>${esc(l.client)}</strong> ${esc(l.title)}${statusBadge(l.status)}</span>
+      <span class="t-date t-closed mono">${esc(l.closed || '')}</span>
     </div>`;
 }
 
@@ -384,42 +543,47 @@ function tick(flag) {
   return flag ? '<span class="tick">✓</span>' : '<span class="no">-</span>';
 }
 
-// One source of truth for the wall table: drives both the header row and each
-// body row, so the two can't drift out of sync.
+// One source of truth for the wall table: label, alignment class and cell
+// content all drive both the header row and each body row, so the two can't
+// drift out of sync. `cls` values are literals from this table, never lead data.
 const COLUMNS = [
-  { label: 'ID', cell: (l) => `<td class="mono">${esc(l.id)}</td>` },
-  { label: 'Client', sort: 'client', cell: (l) => `<td>${esc(l.client)}</td>` },
-  { label: 'Title', cell: (l) => `<td>${esc(l.title)}</td>` },
-  { label: 'Status', cell: (l) => `<td>${esc(l.status)}</td>` },
-  { label: 'Created', sort: 'created', cell: (l) => `<td class="mono">${esc(l.created)}</td>` },
-  { label: 'Closed', sort: 'closed', cell: (l) => `<td class="mono">${esc(l.closed || '-')}</td>` },
-  { label: 'Value', sort: 'value', cell: (l) => `<td class="mono">${l.value ? fmtRange(l.value) : '-'}</td>` },
-  { label: 'Scenario', cell: (l) => `<td>${esc(l.scenario || '-')}</td>` },
-  { label: 'Docs', cell: (l) => `<td>${tick(l.artifacts.docs)}</td>` },
-  { label: 'Estimate', cell: (l) => `<td>${tick(l.artifacts.estimate)}</td>` },
-  { label: 'Proposal', cell: (l) => `<td>${tick(l.artifacts.proposal)}</td>` },
-  { label: 'Brief', cell: (l) => `<td>${tick(l.hasBrief)}</td>` },
-  { label: 'Notes', cell: (l) => `<td>${tick(l.hasNotes)}</td>` },
+  { label: 'ID', cls: 'mono', cell: (l) => esc(l.id) },
+  { label: 'Client', sort: 'client', cell: (l) => esc(l.client) },
+  { label: 'Title', cell: (l) => esc(l.title) },
+  { label: 'Status', cell: (l) => statusBadge(l.status) },
+  { label: 'Created', sort: 'created', cls: 'mono', cell: (l) => esc(l.created) },
+  { label: 'Closed', sort: 'closed', cls: 'mono', cell: (l) => esc(l.closed || '-') },
+  { label: 'Value', sort: 'value', cls: 'mono right', cell: (l) => (l.value ? fmtRange(l.value) : '-') },
+  { label: 'Scenario', cell: (l) => esc(l.scenario || '-') },
+  { label: 'Docs', cls: 'mid', cell: (l) => tick(l.artifacts.docs) },
+  { label: 'Estimate', cls: 'mid', cell: (l) => tick(l.artifacts.estimate) },
+  { label: 'Proposal', cls: 'mid', cell: (l) => tick(l.artifacts.proposal) },
+  { label: 'Brief', cls: 'mid', cell: (l) => tick(l.hasBrief) },
+  { label: 'Notes', cls: 'mid', cell: (l) => tick(l.hasNotes) },
 ];
 
+function attr(cls) {
+  return cls ? ` class="${cls}"` : '';
+}
+
 function renderWallHead() {
-  document.querySelector('#view-wall thead tr').innerHTML = COLUMNS.map((c) =>
-    c.sort ? `<th data-sort="${c.sort}" data-label="${c.label}">${c.label}</th>` : `<th>${c.label}</th>`
-  ).join('');
+  document.querySelector('#view-wall thead tr').innerHTML = COLUMNS.map((c) => (c.sort
+    ? `<th${attr(c.cls)} data-sort="${c.sort}" aria-sort="none"><button type="button" class="th-btn">${c.label}</button></th>`
+    : `<th${attr(c.cls)}>${c.label}</th>`)).join('');
 }
 
 function wallRow(l) {
-  return `<tr>${COLUMNS.map((c) => c.cell(l)).join('')}</tr>`;
+  return `<tr>${COLUMNS.map((c) => `<td${attr(c.cls)}>${c.cell(l)}</td>`).join('')}</tr>`;
 }
 
 function renderWall(list) {
   document.getElementById('wall-body').innerHTML = list.length
     ? list.map(wallRow).join('')
     : `<tr><td colspan="${COLUMNS.length}" class="empty">${NO_MATCH}</td></tr>`;
+  // aria-sort carries both the a11y state and the arrow glyph (drawn in CSS).
   document.querySelectorAll('#view-wall th[data-sort]').forEach((th) => {
     const active = th.dataset.sort === state.sortKey;
     th.setAttribute('aria-sort', active ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-    th.textContent = th.dataset.label + (active ? (state.sortDir === 'asc' ? ' ↑' : ' ↓') : '');
   });
 }
 
@@ -436,6 +600,7 @@ function render() {
   renderStats();
   const filtered = filterLeads(leads, { status: state.status, text: state.text });
   const sorted = sortLeads(filtered, state.sortKey, state.sortDir);
+  renderCount(filtered.length, leads.length);
 
   document.getElementById('empty').hidden = leads.length !== 0;
   ['cards', 'timeline', 'wall'].forEach((v) => {

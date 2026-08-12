@@ -74,3 +74,19 @@ test('computeStats pipelineValue: equal totals tie-break ascending by currency c
     { currency: 'USD', low: 40, high: 100, count: 1 },
   ]);
 });
+test('search does not throw on a null client, and still matches id and title', () => {
+  const leads = [
+    { id: 'acme-crm', client: null, title: 'CRM rebuild', status: 'active' },
+    { id: 'beta-shop', client: 'Beta', title: 'Shop', status: 'active' },
+  ];
+  assert.deepEqual(filterLeads(leads, { status: 'all', text: 'crm' }).map(l => l.id), ['acme-crm']);
+  assert.deepEqual(filterLeads(leads, { status: 'all', text: 'beta' }).map(l => l.id), ['beta-shop']);
+  assert.equal(filterLeads(leads, { status: 'all', text: 'zzz' }).length, 0);
+});
+test('sorting by client puts nulls last when ascending', () => {
+  const leads = [
+    { id: 'a', client: null, title: 'T', status: 'active' },
+    { id: 'b', client: 'Acme', title: 'T', status: 'active' },
+  ];
+  assert.deepEqual(sortLeads(leads, 'client', 'asc').map(l => l.id), ['b', 'a']);
+});

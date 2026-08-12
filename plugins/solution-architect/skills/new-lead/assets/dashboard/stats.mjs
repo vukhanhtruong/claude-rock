@@ -1,5 +1,5 @@
 // stats.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 // Pure data logic for the dashboard: stats, filtering, sorting.
 // No DOM, no fetch, no Node-only imports — loaded by the browser as an ES module.
 
@@ -16,7 +16,7 @@ export function filterLeads(leads, { status, text }) {
   const needle = (text ?? '').toLowerCase();
   return leads.filter((l) => {
     const statusOk = status === 'all' || l.status === status;
-    const textOk = !needle || [l.id, l.client, l.title].some((v) => v.toLowerCase().includes(needle));
+    const textOk = !needle || [l.id, l.client ?? '', l.title].some((v) => v.toLowerCase().includes(needle));
     return statusOk && textOk;
   });
 }
@@ -82,7 +82,9 @@ const SORT_KEYS = {
   created: (l) => l.created,
   closed: (l) => l.closed ?? '',
   value: (l) => l.value?.high ?? -1,
-  client: (l) => l.client,
+  // '￿' sorts above every printable character, so an unnamed client lands last
+  // ascending — and first descending, exactly like every other key's reversal.
+  client: (l) => l.client ?? '￿',
 };
 
 function compareBy(getValue, sign) {

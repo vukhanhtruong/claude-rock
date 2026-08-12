@@ -31,12 +31,16 @@ test('closed must be null while active, date once won', () => {
   assert.match(validateRegistry(reg([lead({ status: 'won' })]))[0], /closed/);
   assert.deepEqual(validateRegistry(reg([lead({ status: 'won', closed: '2026-08-08' })])), []);
 });
-test('client and title are required — the dashboard search reads both unguarded', () => {
-  const findings = validateRegistry(reg([lead({ client: undefined, title: undefined })]));
-  assert.equal(findings.filter(f => /client/.test(f)).length, 1);
+test('client may be null — adoption can skip the question', () => {
+  assert.deepEqual(validateRegistry(reg([lead({ client: null })])), []);
+});
+test('client rejects empty and missing; title is still hard-required', () => {
+  assert.match(validateRegistry(reg([lead({ client: '' })]))[0], /client/);
+  assert.match(validateRegistry(reg([lead({ client: undefined })]))[0], /client/);
+  const findings = validateRegistry(reg([lead({ title: undefined })]));
   assert.equal(findings.filter(f => /title/.test(f)).length, 1);
   assert.match(validateRegistry(reg([lead({ title: null })]))[0], /title/);
-  assert.match(validateRegistry(reg([lead({ client: '' })]))[0], /client/);
+  assert.match(validateRegistry(reg([lead({ title: '' })]))[0], /title/);
 });
 test('value shape checked', () => {
   assert.match(validateRegistry(reg([lead({ value: { low: 5 } })]))[0], /value/);

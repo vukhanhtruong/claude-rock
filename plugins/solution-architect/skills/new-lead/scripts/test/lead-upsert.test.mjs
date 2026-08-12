@@ -34,11 +34,11 @@ test('invalid merge rejected, registry untouched', async () => {
   const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
   assert.equal(reg.leads.length, 0);
 });
-test('a patch omitting client/title is rejected at the write boundary', async () => {
+test('a patch omitting title is rejected at the write boundary; client defaults to null', async () => {
   const root = await makeRoot();
   await assert.rejects(
     () => run('node', [CLI, '--root', root, '--id', 'foo-bar', '--patch', '{"created":"2026-08-07"}']),
-    (err) => err.code === 1 && /client/.test(err.stdout + err.stderr) && /title/.test(err.stdout + err.stderr));
+    (err) => err.code === 1 && /title/.test(err.stdout + err.stderr));
   const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
   assert.equal(reg.leads.length, 0);
 });

@@ -29,7 +29,9 @@ function validateLead(lead, at, seen) {
   } else {
     seen.add(lead.id);
   }
-  if (!nonEmpty(lead.client)) f.push(`${at}: client must be a non-empty string`);
+  if (lead.client !== null && !nonEmpty(lead.client)) {
+    f.push(`${at}: client must be null or a non-empty string`);
+  }
   if (!nonEmpty(lead.title)) f.push(`${at}: title must be a non-empty string`);
   if (!STATUSES.has(lead.status)) f.push(`${at}: status must be active|won|lost`);
   if (!DATE_RE.test(lead.created ?? '')) f.push(`${at}: created must be YYYY-MM-DD`);

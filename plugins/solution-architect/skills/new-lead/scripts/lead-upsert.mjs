@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { readRegistry, writeRegistry } from './lib/registry.mjs';
 
-const DEFAULTS = { status: 'active', closed: null, value: null, scenario: null };
+const DEFAULTS = { client: null, status: 'active', closed: null, value: null, scenario: null };
 
 const { values } = parseArgs({
   options: { root: { type: 'string' }, id: { type: 'string' }, patch: { type: 'string' } },

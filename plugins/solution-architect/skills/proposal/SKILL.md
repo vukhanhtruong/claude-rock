@@ -77,6 +77,12 @@ unchanged.
 - Background & Objectives' client-problem line comes from `scope.summary`
   — the one field this skill reads outside the `client`/`proposal` groups
   named above.
+- The `client` frontmatter key is the client's **company name** (`references/
+  writing.md` §1: `client: Acme Corp`). Its only sanctioned source is
+  `lead.client` in the answers file — the `client` group has no name field, so
+  never scavenge or invent one from elsewhere. This is an identity value copied
+  verbatim, not interview content: the `scope.summary` line above remains the
+  one *content* field read outside the `client`/`proposal` groups.
 - Step 6 (Fresh-eyes review) is run by the orchestrator's workflow — when
   invoked as the writer agent inside it, write and validate, then stop
   after step 5; the review, fix, and re-validate stages happen as separate

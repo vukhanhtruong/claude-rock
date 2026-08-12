@@ -36,9 +36,9 @@ for generation. This file is generation truth.
 
 | Group | Fields | Read by |
 | --- | --- | --- |
-| `lead` | `id` (kebab-case, same format as a `leads.json` entry and the lead's directory name), `client`, `title`, `created` | identity only — no orchestrated-mode section reads this group for generation |
+| `lead` | `id` (kebab-case, same format as a `leads.json` entry and the lead's directory name), `client`, `title`, `created` | identity, mirroring the `leads.json` entry — with one exception: `lead.client` is the client's **company name** and is the single sanctioned source for it, which proposal reads for its `client` frontmatter key. `id`, `title` and `created` are read by nothing for generation |
 | `evidence` | `sources[]` — each `{ type: rfp\|codebase\|notes\|none, path, summary }` | arch-docs (background for the interview it skips), estimate (evidence findings) |
-| `client` | `industry`, `contact`, `techLevel` (`non-technical\|mixed\|technical`), `relationship` (`new\|returning`) | proposal (client context and tech level) |
+| `client` | `industry`, `contact`, `techLevel` (`non-technical\|mixed\|technical`), `relationship` (`new\|returning`) | proposal (client context and tech level). **No company-name field** — the name lives at `lead.client`; consumers that need it read there and nowhere else |
 | `scope` | `summary`, `mustHave[]`, `niceToHave[]`, `outOfScope[]`, `assumed[]` | arch-docs (scope), estimate (`mustHave`/`niceToHave` are stated, `assumed` items are proposed — labeled `proposed`, never silently resolved) |
 | `tech` | `stack[]`, `integrations[]`, `hosting`, `compliance[]` | arch-docs (stack/integrations/hosting/compliance) |
 | `delivery` | `deadline`, `budgetRange`, `depth` (`QUICK\|STANDARD\|DEEP`), `technique`, `teamNotes` | arch-docs (constraints), estimate (`depth` and `technique` — technique is taken as already confirmed, not re-asked) |

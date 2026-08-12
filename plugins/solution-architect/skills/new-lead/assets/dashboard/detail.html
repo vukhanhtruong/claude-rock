@@ -695,10 +695,12 @@ function factRow(dl, label, value) {
   div.append(dt, dd);
   dl.append(div);
 }
-function renderFacts(facts) {
+// The company name is registry truth (`lead.client`) — the answers-file `client` group
+// is industry/contact/techLevel/relationship and carries no name.
+function renderFacts(facts, clientName) {
   const dl = document.getElementById('facts-dl');
   dl.replaceChildren();
-  factRow(dl, 'Client', facts.client?.name);
+  factRow(dl, 'Client', clientName);
   factRow(dl, 'Industry', facts.client?.industry);
   factRow(dl, 'Deadline', facts.delivery?.deadline);
   const chips = document.getElementById('tech-chips');
@@ -740,9 +742,9 @@ function renderTimeline(id, entries, emptyText) {
     el.append(li);
   });
 }
-function renderPanels(panels) {
+function renderPanels(panels, lead) {
   renderBrief(panels.brief);
-  renderFacts(panels.facts);
+  renderFacts(panels.facts, lead.client);
   renderList('risks-list', panels.risks, 'No risks recorded.');
   renderList('questions-list', panels.openQuestions, 'No open questions recorded.');
   renderTimeline('decisions-list', panels.activity, 'No activity recorded yet.');
@@ -838,7 +840,7 @@ async function load() {
     renderHeader(lead);
     renderBanner(computeBanner(lead, map.panels, map.nodes));
     mountCanvas(map, lead);
-    renderPanels(map.panels);
+    renderPanels(map.panels, lead);
   } catch (err) {
     showError(`Could not display lead (${err.message}).`);
   }

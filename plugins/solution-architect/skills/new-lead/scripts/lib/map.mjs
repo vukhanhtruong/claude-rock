@@ -169,6 +169,9 @@ async function activityFor(root, id) {
   }
 }
 
+// facts.client is the answers-file `client` group — industry, contact, techLevel,
+// relationship. It holds no company name: that is registry truth (`lead.client`),
+// which the detail page already has in scope and reads from there.
 async function panelsFor(root, id, src) {
   return {
     brief: src.brief ?? null,

@@ -434,7 +434,7 @@ node --test plugins/solution-architect/skills/new-lead/scripts/test/registry.tes
             plugins/solution-architect/skills/new-lead/scripts/test/enrich.test.mjs
 ```
 
-Expected: all PASS. `enrich.test.mjs` needs no edit — it reads the fixture root, and the fixture moved to match. `map.test.mjs` and `serve.test.mjs` will now fail; Tasks 5 and 6 fix them.
+Expected: all PASS. `enrich.test.mjs` needs no edit — it reads the fixture root, and the fixture moved to match. `map.test.mjs`, `serve.test.mjs` and `e2e-workspace.test.mjs` will now fail (they pin the old fixture path); Tasks 5 and 6 fix them. Do not run the full suite expecting green until Task 6.
 
 - [ ] **Step 8: Commit**
 
@@ -814,11 +814,36 @@ node --test plugins/solution-architect/skills/new-lead/scripts/test/map.test.mjs
 
 Expected: FAIL — the interview node still exists, and `m.panels.facts.title` is `undefined`.
 
-- [ ] **Step 3: Delete the answers fixture**
+- [ ] **Step 3: Delete the answers fixture and its two references in the serve tests**
 
 ```bash
 git rm plugins/solution-architect/skills/new-lead/scripts/test/fixtures/root/leads/acme-crm/new-lead-answers.json
 ```
+
+`serve.test.mjs` names that file twice. With the fixture gone both tests would still pass — a symlink to a missing target 404s regardless — but they'd be asserting nothing, and Task 8's final grep for `new-lead-answers` must come back empty. Point both at `rfp.md`, a real non-allowlisted file:
+
+In the test named `'static allowlist: leads.json, notes.md, answers.json, brief.md -> 404; stats.mjs, vendor -> 200'` (rename it to `'static allowlist: leads.json, notes.md, rfp.md, brief.md -> 404; stats.mjs, vendor -> 200'`), replace:
+
+```js
+  assert.equal((await fetch(`${base}/leads/acme-crm/new-lead-answers.json`)).status, 404);
+```
+
+with:
+
+```js
+  assert.equal((await fetch(`${base}/leads/acme-crm/rfp.md`)).status, 404);
+```
+
+In the test named `'symlinks inside dist/ escaping to brief.md and answers.json are also rejected'` (rename to `'symlinks inside dist/ escaping to brief.md and rfp.md are also rejected'`), replace the `targets` array:
+
+```js
+  const targets = [
+    ['brief.md', /aging spreadsheet-based/],
+    ['rfp.md', /Request for Proposal/],
+  ];
+```
+
+(`/Request for Proposal/` matches the `rfp.md` fixture written in Task 3 step 2.)
 
 - [ ] **Step 4: Rewrite the source-reading half of `map.mjs`**
 

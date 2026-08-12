@@ -34,6 +34,14 @@ test('invalid merge rejected, registry untouched', async () => {
   const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
   assert.equal(reg.leads.length, 0);
 });
+test('a patch omitting client/title is rejected at the write boundary', async () => {
+  const root = await makeRoot();
+  await assert.rejects(
+    () => run('node', [CLI, '--root', root, '--id', 'foo-bar', '--patch', '{"created":"2026-08-07"}']),
+    (err) => err.code === 1 && /client/.test(err.stdout + err.stderr) && /title/.test(err.stdout + err.stderr));
+  const reg = JSON.parse(await readFile(join(root, 'leads.json'), 'utf8'));
+  assert.equal(reg.leads.length, 0);
+});
 test('unrelated patch does not revert a won lead to active', async () => {
   const root = await makeRoot();
   await run('node', [CLI, '--root', root, '--id', 'acme-crm',

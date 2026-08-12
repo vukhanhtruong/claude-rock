@@ -29,6 +29,8 @@ function validateLead(lead, at, seen) {
   } else {
     seen.add(lead.id);
   }
+  if (!nonEmpty(lead.client)) f.push(`${at}: client must be a non-empty string`);
+  if (!nonEmpty(lead.title)) f.push(`${at}: title must be a non-empty string`);
   if (!STATUSES.has(lead.status)) f.push(`${at}: status must be active|won|lost`);
   if (!DATE_RE.test(lead.created ?? '')) f.push(`${at}: created must be YYYY-MM-DD`);
   f.push(...validateClosed(lead, at));
@@ -39,6 +41,10 @@ function validateLead(lead, at, seen) {
 function validateClosed(lead, at) {
   const ok = lead.status === 'active' ? lead.closed === null : DATE_RE.test(lead.closed ?? '');
   return ok ? [] : [`${at}: closed must be null while active, a date once won/lost`];
+}
+
+function nonEmpty(v) {
+  return typeof v === 'string' && v.length > 0;
 }
 
 function isValue(v) {

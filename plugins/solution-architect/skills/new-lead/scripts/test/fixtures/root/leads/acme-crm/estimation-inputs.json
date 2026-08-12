@@ -1,0 +1,6 @@
+{
+  "scope": [
+    { "name": "Reporting", "provenance": "proposed" },
+    { "name": "Auth", "provenance": "stated" }
+  ]
+}

@@ -42,7 +42,7 @@ interactive what-if page served on localhost.
    `node scripts/render.mjs --json estimation.json --md estimation.md --out <dir>`
    (add `--client-only` for a client-safe file) — render re-runs the validation
    checks itself and refuses on findings, so an unvalidated page cannot ship.
-   Then serve with the arch-docs skill's `serve.mjs`; report the URL.
+   Then serve with the analyze-requirements skill's `serve.mjs`; report the URL.
 
 ## Companion mode
 
@@ -51,7 +51,7 @@ risk register, seed the `components` roster from §6 rows (use the LikeC4
 model's container and component ids where one exists — dotted ids like
 `atlas.goldStore`) and tag every feature with the component it implements,
 flip the `electedDocs` estimation entry to `elected: true`,
-place estimation.md beside ARCHITECTURE.md so the arch-docs viewer picks it
+place estimation.md beside ARCHITECTURE.md so the analyze-requirements viewer picks it
 up as a companion page; link the interactive page from it. When a rendered
 viewer exists, render estimate.html **into the viewer's own directory**
 (`--out <viewer dir>` plus `--viewer index.html` for the back-link, internal

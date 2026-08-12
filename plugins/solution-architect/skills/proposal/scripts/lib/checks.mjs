@@ -2,7 +2,7 @@
 // the same function and refuses to write proposal.html on any finding.
 // Figures are recomputed from estimation.json here — proposal-figures.json
 // is an authoring aid, never an input, so hand-edited figures cannot pass.
-import { parseFrontmatter } from '../../../arch-docs/scripts/lib/frontmatter.mjs';
+import { parseFrontmatter } from '../../../analyze-requirements/scripts/lib/frontmatter.mjs';
 import { checkDoc } from './checks-doc.mjs';
 import { checkClient } from './checks-client.mjs';
 

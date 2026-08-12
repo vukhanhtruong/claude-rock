@@ -1,0 +1,10 @@
+{
+  "scenarios": [
+    { "id": "balanced", "label": "Balanced" },
+    { "id": "fast", "label": "Fast" }
+  ],
+  "risks": [
+    { "name": "Legacy data migration" },
+    { "name": "SSO unknowns" }
+  ]
+}

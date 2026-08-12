@@ -94,8 +94,8 @@ Run from `plugins/solution-architect/skills/proposal/`:
 node scripts/derive.mjs   --estimation <dir>/estimation.json --scenario <id> --out <dir>/proposal-figures.json
 node scripts/validate.mjs --md <dir>/proposal.md --estimation <dir>/estimation.json
 node scripts/render.mjs   --md <dir>/proposal.md --estimation <dir>/estimation.json --mermaid-bundle <path> --out <out-dir>
-node ../arch-docs/scripts/serve.mjs <out-dir>
+node ../analyze-requirements/scripts/serve.mjs <out-dir>
 ```
 
-`<out-dir>` is the rendered arch-docs viewer directory when one exists
+`<out-dir>` is the rendered analyze-requirements viewer directory when one exists
 (proposal.html ships beside index.html and estimate.html), else `<dir>`.

@@ -30,10 +30,10 @@ test('installs solution-architect for both agents via flags', (t) => {
   const cwd = tmpProject(t);
   const res = run(['-p', 'solution-architect', '-a', 'claude', '-a', 'codex'], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs/SKILL.md')));
-  assert.ok(lstatSync(path.join(cwd, '.claude/skills/arch-docs')).isSymbolicLink());
-  assert.ok(lstatSync(path.join(cwd, '.codex/skills/arch-docs')).isSymbolicLink());
-  assert.match(res.stdout, /arch-docs/);
+  assert.ok(existsSync(path.join(cwd, '.agents/skills/analyze-requirements/SKILL.md')));
+  assert.ok(lstatSync(path.join(cwd, '.claude/skills/analyze-requirements')).isSymbolicLink());
+  assert.ok(lstatSync(path.join(cwd, '.codex/skills/analyze-requirements')).isSymbolicLink());
+  assert.match(res.stdout, /analyze-requirements/);
 });
 
 test('uninstall for one agent keeps canonical, for all removes it', (t) => {
@@ -41,12 +41,12 @@ test('uninstall for one agent keeps canonical, for all removes it', (t) => {
   run(['-p', 'solution-architect', '-a', 'claude', '-a', 'codex'], cwd);
   let res = run(['uninstall', '-p', 'solution-architect', '-a', 'codex'], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(!existsSync(path.join(cwd, '.codex/skills/arch-docs')));
-  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs')));
+  assert.ok(!existsSync(path.join(cwd, '.codex/skills/analyze-requirements')));
+  assert.ok(existsSync(path.join(cwd, '.agents/skills/analyze-requirements')));
   res = run(['uninstall', '-p', 'solution-architect'], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(!existsSync(path.join(cwd, '.claude/skills/arch-docs')));
-  assert.ok(!existsSync(path.join(cwd, '.agents/skills/arch-docs')));
+  assert.ok(!existsSync(path.join(cwd, '.claude/skills/analyze-requirements')));
+  assert.ok(!existsSync(path.join(cwd, '.agents/skills/analyze-requirements')));
 });
 
 test('unknown plugin errors with valid names listed', (t) => {
@@ -66,8 +66,8 @@ test('missing flags in non-TTY errors instead of hanging', (t) => {
 test('collision without force exits 1 and reports skip', (t) => {
   const cwd = tmpProject(t);
   run(['-p', 'solution-architect', '-a', 'claude'], cwd);
-  rmSync(path.join(cwd, '.claude/skills/arch-docs'));
-  const mk = spawnSync('mkdir', ['-p', path.join(cwd, '.claude/skills/arch-docs')]);
+  rmSync(path.join(cwd, '.claude/skills/analyze-requirements'));
+  const mk = spawnSync('mkdir', ['-p', path.join(cwd, '.claude/skills/analyze-requirements')]);
   assert.equal(mk.status, 0);
   const res = run(['-p', 'solution-architect', '-a', 'claude'], cwd);
   assert.equal(res.status, 1);

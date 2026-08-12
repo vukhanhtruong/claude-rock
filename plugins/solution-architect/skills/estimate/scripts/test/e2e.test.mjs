@@ -4,8 +4,8 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createServer } from '../../../arch-docs/scripts/serve.mjs';
-import { findFreePort } from '../../../arch-docs/scripts/lib/port.mjs';
+import { createServer } from '../../../analyze-requirements/scripts/serve.mjs';
+import { findFreePort } from '../../../analyze-requirements/scripts/lib/port.mjs';
 
 const scripts = new URL('..', import.meta.url).pathname;
 const fixture = join(scripts, 'test/fixtures/booking-inputs.json');

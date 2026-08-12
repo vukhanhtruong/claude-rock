@@ -34,7 +34,7 @@ test('template carries exactly the five slots and no external URLs', () => {
   assert.doesNotMatch(tpl(), /https?:\/\/(?!www\.w3\.org)/);
 });
 
-// Companion mode: the arch-docs viewer links this page, and this page links
+// Companion mode: the analyze-requirements viewer links this page, and this page links
 // back. The href is caller-supplied because only the caller knows where the
 // viewer was rendered; internal-only because a client file must not point at
 // an internal document set.

@@ -7,7 +7,7 @@ question at a time.
 
 Both files must exist or the skill stops:
 
-- No ARCHITECTURE.md → stop: "run the arch-docs skill first."
+- No ARCHITECTURE.md → stop: "run the analyze-requirements skill first."
 - No estimation.json → stop: "run the estimate skill first."
 
 Read ARCHITECTURE.md, estimation.json, and estimation.md. Load the firm

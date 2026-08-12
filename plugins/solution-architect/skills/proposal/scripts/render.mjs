@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { embed } from '../../arch-docs/scripts/lib/embed.mjs';
-import { buildFontFaces } from '../../arch-docs/scripts/lib/fonts.mjs';
-import { renderMarkdown, escapeHtml } from '../../arch-docs/scripts/lib/md-render.mjs';
-import { parseFrontmatter } from '../../arch-docs/scripts/lib/frontmatter.mjs';
+import { embed } from '../../analyze-requirements/scripts/lib/embed.mjs';
+import { buildFontFaces } from '../../analyze-requirements/scripts/lib/fonts.mjs';
+import { renderMarkdown, escapeHtml } from '../../analyze-requirements/scripts/lib/md-render.mjs';
+import { parseFrontmatter } from '../../analyze-requirements/scripts/lib/frontmatter.mjs';
 import { checkProposal } from './lib/checks.mjs';
 
 function parseArgs(argv) {
@@ -14,7 +14,7 @@ function parseArgs(argv) {
   return args;
 }
 
-const archFontsDir = new URL('../../arch-docs/assets/fonts/', import.meta.url).pathname;
+const archFontsDir = new URL('../../analyze-requirements/assets/fonts/', import.meta.url).pathname;
 const templatePath = new URL('../assets/proposal-template.html', import.meta.url).pathname;
 
 const args = parseArgs(process.argv.slice(2));
@@ -30,12 +30,12 @@ if (findings.length) {
 }
 
 if (typeof args['mermaid-bundle'] !== 'string') {
-  console.error('--mermaid-bundle is required (see arch-docs references/viewer.md §1)');
+  console.error('--mermaid-bundle is required (see analyze-requirements references/viewer.md §1)');
   process.exit(1);
 }
 const bundle = readFileSync(args['mermaid-bundle'], 'utf8');
 if (bundle.includes('</script')) {
-  console.error('mermaid bundle carries a literal </script — rebuild it (arch-docs references/viewer.md §1)');
+  console.error('mermaid bundle carries a literal </script — rebuild it (analyze-requirements references/viewer.md §1)');
   process.exit(1);
 }
 

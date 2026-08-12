@@ -163,11 +163,11 @@ Roadmap (mirrors `checkRoadmap` in `scripts/lib/checks.mjs`):
 Two modes:
 
 - **Companion mode** — the project already has (or is getting)
-  `ARCHITECTURE.md` from the `arch-docs` skill. `estimation-inputs.json`,
+  `ARCHITECTURE.md` from the `analyze-requirements` skill. `estimation-inputs.json`,
   `estimation.json`, and `estimation.md` live beside `ARCHITECTURE.md`.
   Flip the `estimation` entry in `ARCHITECTURE.md`'s frontmatter
   `electedDocs` to `elected: true` (dropping any `reason` that justified
-  leaving it un-elected) — see `arch-docs/references/writing.md` for the
+  leaving it un-elected) — see `analyze-requirements/references/writing.md` for the
   `electedDocs` convention.
 - **Standalone mode** — no `ARCHITECTURE.md`, or the user wants estimation
   only. Files live under `docs/estimate/` at the project root instead.
@@ -187,10 +187,10 @@ Write `<dir>/estimation.md` by hand, following the §2 skeleton, then:
 ```
 node scripts/validate.mjs --md <dir>/estimation.md --json <dir>/estimation.json
 node scripts/render.mjs --json <dir>/estimation.json --md <dir>/estimation.md --out <dir>/
-node ../arch-docs/scripts/serve.mjs <dir>/
+node ../analyze-requirements/scripts/serve.mjs <dir>/
 ```
 
-When a rendered arch-docs viewer exists, point `--out` at the viewer's own
+When a rendered analyze-requirements viewer exists, point `--out` at the viewer's own
 directory and add `--viewer index.html`: index.html and estimate.html then
 ship as one self-contained folder, and the viewer's estimation tab links the
 copy inside it (it falls back to an estimate.html beside estimation.md).

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "leads": [
+    {
+      "id": "acme-crm",
+      "client": "Acme Corp",
+      "title": "CRM Rebuild",
+      "status": "active",
+      "created": "2026-07-01",
+      "closed": null,
+      "value": null,
+      "scenario": null
+    },
+    {
+      "id": "beta-shop",
+      "client": "Beta Shop",
+      "title": "Storefront Platform",
+      "status": "won",
+      "created": "2026-06-01",
+      "closed": "2026-07-15",
+      "value": { "low": 40000, "high": 60000, "currency": "USD" },
+      "scenario": "2eng-max5x"
+    }
+  ]
+}

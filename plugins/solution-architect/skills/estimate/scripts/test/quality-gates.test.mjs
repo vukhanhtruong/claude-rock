@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   TEMPLATE_LIMITS, moduleFiles, templateScripts, violations,
-} from '../../../arch-docs/scripts/lib/quality-gate.mjs';
+} from '../../../analyze-requirements/scripts/lib/quality-gate.mjs';
 
 const base = new URL('../..', import.meta.url).pathname;
 

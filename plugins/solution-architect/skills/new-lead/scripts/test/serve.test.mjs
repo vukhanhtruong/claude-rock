@@ -65,10 +65,10 @@ test('static serving with traversal guard', async () => {
   assert.equal((await fetch(`${base}/leads/acme-crm/..%2F..%2Fetc%2Fpasswd`)).status, 403);
   assert.equal((await fetch(`${base}/leads/acme-crm/..%2Fleads.json.lock`)).status, 403);
 });
-test('static allowlist: leads.json, notes.md, answers.json, brief.md -> 404; stats.mjs, vendor -> 200', async () => {
+test('static allowlist: leads.json, notes.md, rfp.md, brief.md -> 404; stats.mjs, vendor -> 200', async () => {
   assert.equal((await fetch(`${base}/leads.json`)).status, 404);
   assert.equal((await fetch(`${base}/leads/acme-crm/notes.md`)).status, 404);
-  assert.equal((await fetch(`${base}/leads/acme-crm/new-lead-answers.json`)).status, 404);
+  assert.equal((await fetch(`${base}/leads/acme-crm/rfp.md`)).status, 404);
   assert.equal((await fetch(`${base}/leads/acme-crm/brief.md`)).status, 404);
   assert.equal((await fetch(`${base}/scripts/stats.mjs`)).status, 200);
   assert.equal((await fetch(`${base}/scripts/vendor/reactflow-bundle.js`)).status, 200);
@@ -120,10 +120,10 @@ test('symlink inside dist/ escaping to notes.md is rejected, not the notes', asy
   assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
   assert.doesNotMatch(await res.text(), /omnichannel/);
 });
-test('symlinks inside dist/ escaping to brief.md and answers.json are also rejected', async () => {
+test('symlinks inside dist/ escaping to brief.md and rfp.md are also rejected', async () => {
   const targets = [
     ['brief.md', /aging spreadsheet-based/],
-    ['new-lead-answers.json', /PostgreSQL/],
+    ['rfp.md', /Request for Proposal/],
   ];
   for (const [name, marker] of targets) {
     await symlink(join(root, 'leads', 'acme-crm', name), join(root, 'leads', 'acme-crm', 'dist', `escape-${name}`));

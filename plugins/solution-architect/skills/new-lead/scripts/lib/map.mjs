@@ -1,19 +1,27 @@
 // scripts/lib/map.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
+import { leadDir, readRegistry } from './registry.mjs';
 
 const run = promisify(execFile);
-const X = { evidence: 0, interview: 240, arch: 480, estimate: 720, proposal: 960 };
+const X = { evidence: 0, arch: 480, estimate: 720, proposal: 960 };
 const STEP_Y = 90;
 
+// Everything the three skills write. What is left in the lead directory is what
+// the human put there, which is exactly the evidence.
+const GENERATED = new Set([
+  'ARCHITECTURE.md', 'estimation.md', 'estimation.json', 'estimation-inputs.json',
+  'proposal.md', 'proposal-figures.json', 'notes.md', 'brief.md', 'dist',
+]);
+
 export async function buildLeadMap(root, id) {
-  const dir = join(root, id);
+  const dir = leadDir(root, id);
   const src = await readSources(dir);
-  const nodes = [...evidenceNodes(src), interviewNode(src), ...docNodes(id, dir, src)];
+  const nodes = [...await evidenceNodes(dir), ...docNodes(id, dir, src)];
   layout(nodes);
   return { nodes, edges: edgesFor(nodes), panels: await panelsFor(root, id, src) };
 }
@@ -27,42 +35,34 @@ async function readText(path) {
 }
 
 async function readSources(dir) {
-  const [answers, arch, estimation, inputs, brief] = await Promise.all([
-    readJson(join(dir, 'new-lead-answers.json')),
+  const [arch, estimation, inputs, brief] = await Promise.all([
     readText(join(dir, 'ARCHITECTURE.md')),
     readJson(join(dir, 'estimation.json')),
     readJson(join(dir, 'estimation-inputs.json')),
     readText(join(dir, 'brief.md')),
   ]);
-  return { answers, arch, estimation, inputs, brief };
+  return { arch, estimation, inputs, brief };
 }
 
-function evidenceNodes(src) {
-  return (src.answers?.evidence?.sources ?? []).map((s, i) => ({
-    id: `evidence-${i}`,
+function isEvidence(entry) {
+  return !entry.name.startsWith('.')
+    && !GENERATED.has(entry.name)
+    && !entry.name.endsWith('.c4');
+}
+
+async function evidenceNodes(dir) {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  return entries.filter(isEvidence).map((entry) => ({
+    id: `evidence-${entry.name}`,
     type: 'evidence',
     position: { x: 0, y: 0 },
-    data: { label: s.type ?? `evidence-${i}`, status: 'ready', href: null, detail: s.summary ?? null },
+    data: { label: entry.name, status: 'ready', href: null, detail: null },
   }));
-}
-
-function interviewNode(src) {
-  return {
-    id: 'interview',
-    type: 'interview',
-    position: { x: 0, y: 0 },
-    data: {
-      label: 'Interview',
-      status: src.answers ? 'ready' : 'pending',
-      href: null,
-      detail: src.answers?.scope?.summary ?? null,
-    },
-  };
 }
 
 function docNode(id, dir, spec) {
   const href = spec.exists && existsSync(join(dir, 'dist', spec.page))
-    ? `/${id}/dist/${spec.page}` : null;
+    ? `/leads/${id}/dist/${spec.page}` : null;
   return {
     id: spec.key,
     type: 'doc',
@@ -121,8 +121,7 @@ function edgesFor(nodes) {
   const link = (a, b) => (has(a) && has(b) ? [edge(a, b)] : []);
   const byPrefix = (prefix) => nodes.filter((n) => n.id.startsWith(prefix));
   return [
-    ...byPrefix('evidence-').flatMap((n) => link(n.id, 'interview')),
-    ...link('interview', 'arch'),
+    ...byPrefix('evidence-').flatMap((n) => link(n.id, 'arch')),
     ...link('arch', 'estimate'),
     ...link('estimate', 'proposal'),
     ...byPrefix('component-').flatMap((n) => link('arch', n.id)),
@@ -132,7 +131,6 @@ function edgesFor(nodes) {
 
 function colX(n) {
   if (n.id.startsWith('evidence-')) return X.evidence;
-  if (n.id === 'interview') return X.interview;
   if (n.id === 'arch') return X.arch;
   if (n.id.startsWith('component-')) return X.arch + 40;
   if (n.id === 'estimate') return X.estimate;
@@ -162,24 +160,27 @@ function openQuestionsFor(inputs) {
 
 async function activityFor(root, id) {
   try {
-    const { stdout } = await run('git', ['-C', root, 'log', '--format=%as %s', '--', id]);
+    const { stdout } = await run('git', ['-C', root, 'log', '--format=%as %s', '--', join('leads', id)]);
     return stdout.split('\n').filter(Boolean);
   } catch {
     return [];
   }
 }
 
-// facts.client is the answers-file `client` group — industry, contact, techLevel,
-// relationship. It holds no company name: that is registry truth (`lead.client`),
-// which the detail page already has in scope and reads from there.
+// facts is the registry entry itself — business metadata the dashboard displays.
+// It is the only source for these fields now that the answers file is gone.
+async function factsFor(root, id) {
+  const registry = await readRegistry(root).catch(() => ({ leads: [] }));
+  const lead = registry.leads.find((l) => l.id === id);
+  if (!lead) return null;
+  const { client, title, status, created, value, scenario } = lead;
+  return { client, title, status, created, value, scenario };
+}
+
 async function panelsFor(root, id, src) {
   return {
     brief: src.brief ?? null,
-    facts: {
-      client: src.answers?.client ?? {},
-      tech: src.answers?.tech ?? {},
-      delivery: src.answers?.delivery ?? {},
-    },
+    facts: await factsFor(root, id),
     risks: risksFor(src.estimation),
     openQuestions: openQuestionsFor(src.inputs),
     activity: await activityFor(root, id),

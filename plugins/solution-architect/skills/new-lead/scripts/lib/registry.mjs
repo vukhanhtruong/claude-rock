@@ -3,7 +3,7 @@ import { readFile, rename, open, unlink } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 // scripts/lib/registry.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 export const STATUSES = new Set(['active', 'won', 'lost']);
 export const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -55,6 +55,15 @@ function isValue(v) {
 }
 
 const REGISTRY_FILE = 'leads.json';
+
+const LEADS_DIR = 'leads';
+
+// The single place the on-disk layout is encoded: every lead lives under
+// <root>/leads/<id>, and <root>/scripts holds the dashboard. Callers that join
+// root and id themselves will silently read the wrong path.
+export function leadDir(root, id) {
+  return join(root, LEADS_DIR, id);
+}
 
 export function findLeadsRoot(startDir) {
   let dir = resolve(startDir);

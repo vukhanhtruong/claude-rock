@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, symlink, lstat } from 'node:fs/pro
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { findLeadsRoot, readRegistry, writeRegistry } from '../lib/registry.mjs';
+import { findLeadsRoot, readRegistry, writeRegistry, leadDir } from '../lib/registry.mjs';
 
 const EMPTY = { version: 1, leads: [] };
 const makeRoot = async () => {
@@ -51,4 +51,7 @@ test('writeRegistry refuses to write through a symlinked temp file', async () =>
   assert.equal(await readFile(outside, 'utf8'), 'ORIGINAL SECRET\n', 'target must be untouched');
   assert.ok(!(await lstat(join(root, 'leads.json'))).isSymbolicLink(), 'registry must not become a symlink');
   assert.ok(!existsSync(join(root, 'leads.json.lock')), 'lock must be released');
+});
+test('leadDir places a lead under the root leads/ directory', () => {
+  assert.equal(leadDir('/srv/pipeline', 'acme-crm'), '/srv/pipeline/leads/acme-crm');
 });

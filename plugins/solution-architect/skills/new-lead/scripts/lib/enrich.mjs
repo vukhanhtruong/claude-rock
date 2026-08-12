@@ -1,10 +1,11 @@
 // scripts/lib/enrich.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { leadDir } from './registry.mjs';
 
 export async function enrichLead(root, lead) {
-  const dir = join(root, lead.id);
+  const dir = leadDir(root, lead.id);
   const dist = join(dir, 'dist');
   return {
     ...lead,

@@ -21,12 +21,12 @@ next free port).
 - **Standalone** — no existing docs. estimate runs its own interview, sizes
   from evidence you provide, and writes `estimation-inputs.json` +
   `estimation.md` from scratch.
-- **Companion** — an `ARCHITECTURE.md` already exists (from the `arch-docs`
+- **Companion** — an `ARCHITECTURE.md` already exists (from the `analyze-requirements`
   skill). estimate seeds the WBS from its §6 Core Components and the risk
   register from its §15 Risks, seeds a `components` roster from §6 so every
   feature is tagged with the component it implements (untouched components
   are caught by validation), then places `estimation.md` beside it so the
-  arch-docs viewer picks it up as a companion page. `estimate.html` renders
+  analyze-requirements viewer picks it up as a companion page. `estimate.html` renders
   into the viewer's own directory when one exists (falling back to beside
   `estimation.md`), so viewer and estimate ship as one folder; the viewer
   links it from the estimation tab, and `render.mjs --viewer <path>` adds
@@ -55,7 +55,7 @@ them.
 The root `package.json`'s `engines: >=18.3` is a different, lower number for a
 different job: it's the floor for the *installer* (`npx agents-rock`), which
 only copies skill files and creates symlinks. This skill's own runtime needs
-Node ≥ 20, declared in `SKILL.md`, the same as `arch-docs`.
+Node ≥ 20, declared in `SKILL.md`, the same as `analyze-requirements`.
 
 ## Why the honesty rules
 

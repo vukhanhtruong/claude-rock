@@ -2,7 +2,7 @@
 
 Read whenever writing or reviewing a `.c4` model file, or generating a view
 for the viewer. This file does not teach LikeC4's DSL — it only records the
-conventions arch-docs layers on top of it.
+conventions analyze-requirements layers on top of it.
 
 ## 1. First rule: DSL syntax lives elsewhere
 
@@ -11,7 +11,7 @@ views, deployment nodes — fetch and follow LikeC4's own skill:
 `github.com/likec4/likec4` → `skills/likec4-dsl/SKILL.md`. That skill is the
 single source for DSL questions (grammar, view predicates, styling,
 `include`/`exclude` rules, everything). This file adds only what LikeC4's
-skill does not know: arch-docs' own naming and structure conventions.
+skill does not know: analyze-requirements' own naming and structure conventions.
 
 ## 2. Our conventions
 

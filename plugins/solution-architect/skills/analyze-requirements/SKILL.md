@@ -1,9 +1,9 @@
 ---
-name: arch-docs
+name: analyze-requirements
 description: Create or update professional architecture documentation through a structured interview, live research, and code scanning. Use when the user asks for architecture docs, system documentation, an architecture review doc, C4 diagrams, ADRs, a threat model, or to document an existing codebase.
 ---
 
-# arch-docs
+# analyze-requirements
 
 Produce provenance-tagged architecture documentation with interactive diagrams,
 served on localhost for review.

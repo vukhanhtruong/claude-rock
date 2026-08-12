@@ -7,7 +7,7 @@ description: Orchestrate a new pre-sales lead end-to-end — one combined interv
 
 Take a pre-sales lead from evidence-in-hand to three approved, rendered
 documents — `ARCHITECTURE.md`, `estimation.md`, `proposal.md` — by running
-one combined interview and then launching the `arch-docs`, `estimate`, and
+one combined interview and then launching the `analyze-requirements`, `estimate`, and
 `proposal` skills as headless Workflows, with a human gate before each
 document's rendered page ships. Also maintains the leads dashboard: a
 persistent `leads.json` registry and a self-contained local server.
@@ -53,10 +53,10 @@ persistent `leads.json` registry and a self-contained local server.
    not `created`, and the registry rejects an entry without one. Commit.
 6. **Workflow ARCH**: launch the ARCH script from `references/workflows.md`
    with `topics` prepared from `answers.tech` + `evidence` (3-4 of: stack,
-   integrations, hosting, compliance, per arch-docs `references/research.md`).
+   integrations, hosting, compliance, per analyze-requirements `references/research.md`).
 7. **Gate 1**: show `ARCHITECTURE.md` plus the workflow's `applied`/`rejected`
    report (see Gate mechanics). On approval: render the arch viewer per
-   arch-docs `references/viewer.md` into `<leadDir>/dist/`, run the
+   analyze-requirements `references/viewer.md` into `<leadDir>/dist/`, run the
    brief-writer prompt (`references/review-lenses.md`), commit
    `"<id>: architecture approved"`.
 8. **Workflow ESTIMATE**: launch the ESTIMATE script — companion mode
@@ -130,6 +130,6 @@ either way.
 
 ## Dependency
 
-Node ≥ 20 and `npx likec4` (needed for arch rendering, per arch-docs
+Node ≥ 20 and `npx likec4` (needed for arch rendering, per analyze-requirements
 `references/viewer.md`) — check both upfront and stop before any work if
 either is missing.

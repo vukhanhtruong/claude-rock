@@ -74,10 +74,10 @@ const REFLOW_DOC = [
   ).join('\n');
 
 function buildViewer() {
-  const out = mkdtempSync(join(tmpdir(), 'arch-docs-browser-'));
+  const out = mkdtempSync(join(tmpdir(), 'analyze-requirements-browser-'));
   const stub = (name, body) => { const p = join(out, name); writeFileSync(p, body); return p; };
   execFileSync('node', [
-    'plugins/solution-architect/skills/arch-docs/scripts/render.mjs',
+    'plugins/solution-architect/skills/analyze-requirements/scripts/render.mjs',
     '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
     '--docs', `${fixtures}docs/adr/0001-sample.md`, stub('reflow.md', REFLOW_DOC),
     '--out', out,
@@ -86,7 +86,7 @@ function buildViewer() {
     // 4.7 MB bundle would make the suite depend on a build step.
     '--mermaid-bundle', stub('m.js', 'var mermaid={registerLayoutLoaders(){},initialize(){},'
       + 'async render(){return {svg:"<svg/>"}}},elkLayouts={};'),
-    '--theme', 'plugins/solution-architect/skills/arch-docs/assets/mermaid-theme.json',
+    '--theme', 'plugins/solution-architect/skills/analyze-requirements/assets/mermaid-theme.json',
   ], { stdio: 'pipe' });
   return join(out, 'index.html');
 }

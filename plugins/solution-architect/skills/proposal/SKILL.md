@@ -1,6 +1,6 @@
 ---
 name: proposal
-description: Assemble a pre-sales client proposal from arch-docs and estimate outputs — interviewed client context, one offered scenario as a price range, and a print-ready client page. Use when the user asks for a proposal, a client pitch document, a quote document, or "something I can send the client".
+description: Assemble a pre-sales client proposal from analyze-requirements and estimate outputs — interviewed client context, one offered scenario as a price range, and a print-ready client page. Use when the user asks for a proposal, a client pitch document, a quote document, or "something I can send the client".
 ---
 
 # proposal
@@ -16,7 +16,7 @@ PDF.
    `scripts/derive.mjs`. A number the derivation didn't produce does not
    go in the document.
 2. Both prerequisites are hard: no ARCHITECTURE.md or no estimation.json →
-   stop and name the skill to run (`arch-docs` / `estimate`).
+   stop and name the skill to run (`analyze-requirements` / `estimate`).
 3. One scenario reaches the client — the one picked in the interview,
    presented as a range. The others never leak.
 4. `node scripts/validate.mjs` must exit 0 before the page renders;
@@ -41,11 +41,11 @@ PDF.
 7. **Human review**: show the user proposal.md and wait for approval.
 8. **Render**: `node scripts/render.mjs --md <dir>/proposal.md
    --estimation <dir>/estimation.json --mermaid-bundle <path> --out <dir>`
-   — reuse the mermaid bundle built for the arch-docs viewer
-   (arch-docs `references/viewer.md` §1). When a rendered viewer exists,
+   — reuse the mermaid bundle built for the analyze-requirements viewer
+   (analyze-requirements `references/viewer.md` §1). When a rendered viewer exists,
    `--out` the viewer's own directory so proposal.html ships beside
    index.html and estimate.html; proposal.html itself carries no link back.
-9. **Serve**: `node ../arch-docs/scripts/serve.mjs <dir>`; report the URL.
+9. **Serve**: `node ../analyze-requirements/scripts/serve.mjs <dir>`; report the URL.
 
 ## Placement
 

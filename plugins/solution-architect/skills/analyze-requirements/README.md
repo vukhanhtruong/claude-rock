@@ -1,4 +1,4 @@
-# arch-docs
+# analyze-requirements
 
 Produce professional architecture documentation for any project, then serve it on
 localhost as an interactive site for review.
@@ -35,22 +35,22 @@ code), `stated` (from you), `researched` (verified against a source), or `propos
 
 ## Two modes
 
-- **Brownfield** — the target already has source code. arch-docs scans it first and
+- **Brownfield** — the target already has source code. analyze-requirements scans it first and
   documents what's there.
-- **Greenfield** — no code yet. arch-docs designs the architecture with you.
+- **Greenfield** — no code yet. analyze-requirements designs the architecture with you.
 
 Mode is auto-detected from whether the target has code; you can override it.
 
 ## Dependency
 
-Node ≥ 20 with npm, so `npx likec4` can render diagrams. arch-docs tells you this
+Node ≥ 20 with npm, so `npx likec4` can render diagrams. analyze-requirements tells you this
 upfront and stops before writing anything if it's missing.
 
 ## Install
 
 ```
 /plugin marketplace add vukhanhtruong/claude-rock
-/plugin install arch-docs@claude-rock
+/plugin install analyze-requirements@claude-rock
 ```
 
 ## Run it
@@ -63,7 +63,7 @@ Ask for any of:
 
 ## The viewer
 
-After validation passes, arch-docs renders one self-contained HTML file — no CDN,
+After validation passes, analyze-requirements renders one self-contained HTML file — no CDN,
 works offline — with the LikeC4 diagrams, ARCHITECTURE.md, and every companion doc,
 and serves it on `localhost:4173` (or the next free port). You get zoom, pan, expand,
 and fullscreen on every diagram, dark/light toggle, and deep links per section.
@@ -71,5 +71,5 @@ and fullscreen on every diagram, dark/light toggle, and deep links per section.
 ## Why the honesty rules
 
 An architecture doc that guesses and hides the guess is worse than no doc — it looks
-authoritative right up until someone relies on it. arch-docs marks every fact with
+authoritative right up until someone relies on it. analyze-requirements marks every fact with
 its source and renders what it doesn't know as a stated absence, never a placeholder.

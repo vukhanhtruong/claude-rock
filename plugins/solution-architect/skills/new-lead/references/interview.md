@@ -1,7 +1,7 @@
 # Interview — combined staged interview for `new-lead-answers.json`
 
 Read while running the orchestrated interview (SKILL.md step 3). This is the
-**single** interview the orchestrator runs once; when arch-docs, estimate,
+**single** interview the orchestrator runs once; when analyze-requirements, estimate,
 and proposal later run in orchestrated mode, each skips its own interview
 step and reads its answers from `new-lead-answers.json` instead (per each
 skill's own "Orchestrated mode" section). Every field this file can hold is
@@ -58,7 +58,7 @@ three literals here, not proposal's wording.
 
 ### Batch 2 — Scope → `scope`
 
-Purpose: agree what's in, what's out, and what's still a guess, so arch-docs
+Purpose: agree what's in, what's out, and what's still a guess, so analyze-requirements
 and estimate both size from the same split.
 
 Prefill source: evidence scan's feature list / scope text (RFP, backlog,
@@ -88,12 +88,12 @@ alongside `client` and `proposal`.
 ### Batch 3 — Tech & evidence → `tech`, `evidence` confirmations
 
 Purpose: capture technical constraints and confirm what the evidence scan
-already found, so arch-docs doesn't have to re-ask.
+already found, so analyze-requirements doesn't have to re-ask.
 
 Prefill source: evidence scan (RFP/codebase/notes) and, if present,
 `ARCHITECTURE.md`. A codebase source is recorded as
-`evidence.sources[].type: "codebase"` — arch-docs still detects brownfield
-vs. greenfield mode itself from its own directory scan (arch-docs SKILL.md's
+`evidence.sources[].type: "codebase"` — analyze-requirements still detects brownfield
+vs. greenfield mode itself from its own directory scan (analyze-requirements SKILL.md's
 orchestrated-mode section: "mode and project type stay scan-derived, as in
 standalone"), independent of what this record says.
 
@@ -170,9 +170,9 @@ one.
 One row per batch, mapping which sections of each skill's own standalone
 interview this batch replaces under orchestration.
 
-| combined batch | arch-docs interview § | estimate interview § | proposal interview § |
+| combined batch | analyze-requirements interview § | estimate interview § | proposal interview § |
 | --- | --- | --- | --- |
-| Batch 1 — Client & context | — (arch-docs' bank asks nothing about client identity) | — (estimate's bank asks nothing about client identity) | §1 items 1, 2 (client name/decider; tech level) |
+| Batch 1 — Client & context | — (analyze-requirements' bank asks nothing about client identity) | — (estimate's bank asks nothing about client identity) | §1 items 1, 2 (client name/decider; tech level) |
 | Batch 2 — Scope | §1 Goals & Scope (goal, problem — not "users", see below) | §3 Clear-vs-assumed gate; §4 item 1 (scope confirm) | §1 item 3 (business problem, folded into `scope.summary` — see Batch 2 note); §2 both bullets (out-of-scope gaps; anything already rejected/demanded — reachable via `scope.outOfScope[]`/`scope.mustHave[]`) |
 | Batch 3 — Tech & evidence | §2 Constraints (mandated tech, compliance portion); §10 Deployment & Infrastructure (hosting) | §1 Evidence detection table (evidence confirmation) | §0 (state known tech stack for correction) |
 | Batch 4 — Delivery & estimation | §2 Constraints (budget, timeline portion); frontmatter `team` (ownership, folded into `teamNotes`) | §2 Depth question; §4 item 6 (deadline/budget); SKILL.md step 4 (technique — not part of interview.md itself, folded in here since it must be confirmed once, up front) | — |
@@ -180,26 +180,26 @@ interview this batch replaces under orchestration.
 
 ### Rows with no combined coverage, and why
 
-- **arch-docs §1 Goals & Scope's "intended users" half** — Batch 2 Q1 asks
+- **analyze-requirements §1 Goals & Scope's "intended users" half** — Batch 2 Q1 asks
   what the project is and what problem it solves, but never who its
   intended users are. No schema field holds users distinctly from the rest
   of `scope.summary`, so nothing structural is lost, but the question
   itself doesn't ask it. Not covered here.
-- **arch-docs §13 Quality Requirements & SLOs** (quality attribute + target,
+- **analyze-requirements §13 Quality Requirements & SLOs** (quality attribute + target,
   availability target, RPO/RTO) — no schema field exists for quality
   attributes or SLOs. Dropped from the combined interview; an orchestrated
-  arch-docs run will render this section as an honest absence
-  (`Not provided`, per arch-docs hard rule 3). This is a gap in what the
+  analyze-requirements run will render this section as an honest absence
+  (`Not provided`, per analyze-requirements hard rule 3). This is a gap in what the
   schema captures, not something this document invents a field to fix.
-- **arch-docs CONTEXT.md/DOMAIN-OVERVIEW.md rows** (domain terms, actors,
+- **analyze-requirements CONTEXT.md/DOMAIN-OVERVIEW.md rows** (domain terms, actors,
   processes, rules) — these are asked *while the `domain-modeling` skill is
-  invoked* (arch-docs interview.md hard rule 5), not through the batched
+  invoked* (analyze-requirements interview.md hard rule 5), not through the batched
   `AskUserQuestion` flow this document defines, and there is no schema
   field for them either way. Not covered here; whether an orchestrated run
-  still invokes `domain-modeling` at all is an arch-docs orchestration
+  still invokes `domain-modeling` at all is an analyze-requirements orchestration
   question, out of scope for this interview reference.
-- **arch-docs frontmatter `projectType`** — orchestrated mode keeps mode and
-  project type scan-derived (arch-docs SKILL.md "Orchestrated mode"), so
+- **analyze-requirements frontmatter `projectType`** — orchestrated mode keeps mode and
+  project type scan-derived (analyze-requirements SKILL.md "Orchestrated mode"), so
   it's never asked, combined or standalone.
 - **estimate §4 items 2, 3, 4, 5, 7, 8** (milestone grouping, factor scores,
   team rates/seniority, Claude-plan availability, calibration table,
@@ -217,8 +217,8 @@ interview this batch replaces under orchestration.
   documents the lead directory holds are read and summarized into
   `evidence.sources[]` (`{ type: rfp|codebase|notes|none, path, summary }`).
 - A codebase source (code exists, no docs) is carried as
-  `evidence.sources[].type: "codebase"`. This does not drive arch-docs' mode
-  detection — arch-docs keeps mode and project type scan-derived from its
+  `evidence.sources[].type: "codebase"`. This does not drive analyze-requirements' mode
+  detection — analyze-requirements keeps mode and project type scan-derived from its
   own directory scan in orchestrated mode, same as standalone.
 - Every prefilled value is confirmed in its batch, never silently used —
   shown with its source (e.g. "found in `rfp.md`") so the user can correct

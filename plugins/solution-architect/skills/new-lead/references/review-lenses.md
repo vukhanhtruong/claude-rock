@@ -23,7 +23,7 @@ tags alike — for a provenance value of `observed`, `stated`, `researched`,
 or `proposed`; every `observed`/`researched` claim must show a real source;
 flag as a **high** finding any `proposed` fact whose prose reads as settled
 rather than as a proposal (no hedge, stated like a done deal). Ignore style
-and wording that isn't a provenance problem. arch-docs's `validate.mjs`
+and wording that isn't a provenance problem. analyze-requirements's `validate.mjs`
 (`validate-provenance.mjs`) already enforces that every table's `src`
 column holds one of the four allowed values — this lens is for what that
 enum check cannot see: whether a `researched` claim's cited source actually
@@ -42,7 +42,7 @@ sources. `validate-model-tables.mjs` already name-diffs the Core Components,
 External Integrations, and Data Stores tables against the model — but only
 those three tables, and only by exact name match; it cannot read a prose
 sentence and notice it restates a table's fact with a drifted value, which
-is exactly what arch-docs's "one home per fact" rule (diagrams own
+is exactly what analyze-requirements's "one home per fact" rule (diagrams own
 topology, tables own properties, prose owns neither) exists to prevent.
 Return findings only: `{claim, where, severity}`.
 
@@ -55,7 +55,7 @@ reflected or explicitly deferred; anything the answers file left unanswered
 renders as an honest absence, not a filled-in guess. Ignore anything the
 answers file itself doesn't mention — there's nothing to check it against.
 This is the only lens that reads the answers file against the finished
-document; arch-docs's `validate.mjs` never opens an answers file at all, so
+document; analyze-requirements's `validate.mjs` never opens an answers file at all, so
 it has no way to know the interview asked for something the document
 silently dropped. Return findings only: `{claim, where, severity}`.
 

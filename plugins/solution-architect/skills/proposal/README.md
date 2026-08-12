@@ -1,6 +1,6 @@
 # proposal
 
-Pre-sales client proposal assembled from the arch-docs and estimate skills'
+Pre-sales client proposal assembled from the analyze-requirements and estimate skills'
 outputs: `proposal.md` as the editable source of truth and `proposal.html`
 as a self-contained, print-ready page you can send to a client or print to
 PDF.
@@ -9,7 +9,7 @@ PDF.
 
 Both are hard prerequisites — the skill stops without them:
 
-- `ARCHITECTURE.md` (arch-docs skill)
+- `ARCHITECTURE.md` (analyze-requirements skill)
 - `estimation.json` (estimate skill)
 
 ## What it asks

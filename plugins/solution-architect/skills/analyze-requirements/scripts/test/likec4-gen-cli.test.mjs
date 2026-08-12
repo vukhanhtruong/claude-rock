@@ -5,13 +5,13 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync, chmodSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CLI = 'plugins/solution-architect/skills/arch-docs/scripts/likec4-gen.mjs';
+const CLI = 'plugins/solution-architect/skills/analyze-requirements/scripts/likec4-gen.mjs';
 
 // A stub `npx` on PATH, so the gate is tested without reaching the network and
 // without depending on which likec4 the machine happens to resolve. It logs
 // every invocation, which is how "gen never ran" is asserted rather than assumed.
 function stubNpx(validateExit) {
-  const bin = mkdtempSync(join(tmpdir(), 'arch-docs-bin-'));
+  const bin = mkdtempSync(join(tmpdir(), 'analyze-requirements-bin-'));
   const log = join(bin, 'calls.log');
   const npx = join(bin, 'npx');
   writeFileSync(npx, [
@@ -25,7 +25,7 @@ function stubNpx(validateExit) {
 }
 
 function modelDir(withConfig) {
-  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-model-'));
+  const dir = mkdtempSync(join(tmpdir(), 'analyze-requirements-model-'));
   if (withConfig) writeFileSync(join(dir, 'likec4.config.json'), '{}');
   return dir;
 }

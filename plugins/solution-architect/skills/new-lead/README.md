@@ -2,7 +2,7 @@
 
 Orchestrates a pre-sales lead end-to-end: one combined interview, then
 `ARCHITECTURE.md`, `estimation.md`, and `proposal.md` produced by the
-`arch-docs`, `estimate`, and `proposal` skills run headless as parallel-agent
+`analyze-requirements`, `estimate`, and `proposal` skills run headless as parallel-agent
 workflows, with a human gate before each document ships — plus a local
 leads dashboard for tracking every lead in the pipeline.
 
@@ -39,7 +39,7 @@ Registry writes go through `scripts/lead-upsert.mjs` exclusively.
 
 ## Standalone skills, unchanged
 
-`arch-docs`, `estimate`, and `proposal` each carry an "Orchestrated mode"
+`analyze-requirements`, `estimate`, and `proposal` each carry an "Orchestrated mode"
 section that only activates when handed a path to a `new-lead-answers.json`
 file. Invoked directly, without that file, each behaves exactly as it did
 before this skill existed — same interview, same rendering, same output.

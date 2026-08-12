@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { embed } from '../../arch-docs/scripts/lib/embed.mjs';
-import { buildFontFaces } from '../../arch-docs/scripts/lib/fonts.mjs';
-import { escapeHtml } from '../../arch-docs/scripts/lib/md-inline.mjs';
+import { embed } from '../../analyze-requirements/scripts/lib/embed.mjs';
+import { buildFontFaces } from '../../analyze-requirements/scripts/lib/fonts.mjs';
+import { escapeHtml } from '../../analyze-requirements/scripts/lib/md-inline.mjs';
 import { checkDeliverables } from './lib/checks.mjs';
 import { inlineModule, stripInternal } from './lib/inline.mjs';
 import { redactForClient } from './lib/redact.mjs';
@@ -20,7 +20,7 @@ function parseArgs(argv) {
   return args;
 }
 
-const archFontsDir = new URL('../../arch-docs/assets/fonts/', import.meta.url).pathname;
+const archFontsDir = new URL('../../analyze-requirements/assets/fonts/', import.meta.url).pathname;
 const mathPath = new URL('./lib/estimate-math.mjs', import.meta.url).pathname;
 const templatePath = new URL('../assets/estimate-template.html', import.meta.url).pathname;
 
@@ -37,7 +37,7 @@ if (findings.length) {
 }
 
 const dataForEmbed = args['client-only'] ? redactForClient(estimation) : estimation;
-// Companion mode: --viewer carries the caller-known path back to the arch-docs
+// Companion mode: --viewer carries the caller-known path back to the analyze-requirements
 // viewer. It sits in the header's internal range, so the client render (which
 // must not point at an internal document set) strips it with everything else.
 const viewerSlot = typeof args.viewer === 'string'

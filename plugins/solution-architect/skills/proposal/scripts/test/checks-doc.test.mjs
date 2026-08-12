@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sectionText, tables } from '../lib/sections.mjs';
 import { checkDoc } from '../lib/checks-doc.mjs';
-import { parseFrontmatter } from '../../../arch-docs/scripts/lib/frontmatter.mjs';
+import { parseFrontmatter } from '../../../analyze-requirements/scripts/lib/frontmatter.mjs';
 
 const estimation = { computed: { scenarios: { s1: { months: 2, totalCost: 10000 } } }, inputs: { scenarios: [{ id: 's1', team: [] }] } };
 const TODAY = new Date('2026-08-06');

@@ -41,7 +41,7 @@ const FIXED = { type: 'object', required: ['applied', 'rejected', 'validateExit'
 ## Workflow 1 — ARCH
 
 Four phases: Research fans out to parallel research agents seeded from the
-lead's `tech` and `evidence` answers, Write runs arch-docs headless with
+lead's `tech` and `evidence` answers, Write runs analyze-requirements headless with
 those findings folded in, Review runs three lens reviewers in parallel, Fix
 verifies and applies. The barrier between Research and Write is real — the
 writer's prompt embeds `JSON.stringify(research)`, so `parallel()` must
@@ -51,25 +51,25 @@ settle every research agent (a dead one becomes `undefined`, dropped by the
 ```js
 export const meta = {
   name: 'new-lead-arch',
-  description: 'Architecture docs for a lead via headless arch-docs',
+  description: 'Architecture docs for a lead via headless analyze-requirements',
   phases: [{ title: 'Research' }, { title: 'Write' }, { title: 'Review' }, { title: 'Fix' }],
 }
 // args: { leadDir, answersPath, skillsDir, topics: [{key, prompt}] }
 // topics are prepared by the orchestrator from answers.tech + evidence,
-// per arch-docs references/research.md — typically 3-4 of: stack, integrations,
+// per analyze-requirements references/research.md — typically 3-4 of: stack, integrations,
 // hosting, compliance.
 phase('Research')
 const research = (await parallel(args.topics.map(t => () =>
   agent(`${t.prompt}\nLead answers: ${args.answersPath}. Follow ` +
-    `${args.skillsDir}/arch-docs/references/research.md. Return your findings ` +
+    `${args.skillsDir}/analyze-requirements/references/research.md. Return your findings ` +
     `as compact JSON text: [{fact, source, confidence}].`,
     { label: `research:${t.key}`, phase: 'Research' }))))
   .filter(Boolean);
 
 phase('Write')
 const report = await agent(
-  `Run the arch-docs skill in Orchestrated mode (read ` +
-  `${args.skillsDir}/arch-docs/SKILL.md — the Orchestrated mode section governs). ` +
+  `Run the analyze-requirements skill in Orchestrated mode (read ` +
+  `${args.skillsDir}/analyze-requirements/SKILL.md — the Orchestrated mode section governs). ` +
   `Answers file: ${args.answersPath}. Write the model and ARCHITECTURE.md into ` +
   `${args.leadDir}. Research findings to incorporate (tag researched facts with ` +
   `their source): ${JSON.stringify(research)}. Run the skill's validate.mjs ` +
@@ -91,7 +91,7 @@ const fixed = reviews.length === 0
       `${args.skillsDir}/new-lead/references/review-lenses.md to ` +
       `${args.leadDir}/ARCHITECTURE.md. Findings: ${JSON.stringify(reviews)}. ` +
       `Sources of truth: the answers file ${args.answersPath}, the model, and ` +
-      `provenance tags. Re-run arch-docs validate.mjs until exit 0 after fixing.`,
+      `provenance tags. Re-run analyze-requirements validate.mjs until exit 0 after fixing.`,
       { schema: FIXED, phase: 'Fix' });
 return { report, findings: reviews, fixed };
 ```

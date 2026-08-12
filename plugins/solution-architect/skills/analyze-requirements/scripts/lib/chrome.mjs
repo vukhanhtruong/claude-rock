@@ -52,7 +52,7 @@ async function pageSocket(port) {
 export async function launch(fileUrl) {
   const chrome = findChrome();
   if (!chrome) throw new Error('no chrome on PATH');
-  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-chrome-'));
+  const dir = mkdtempSync(join(tmpdir(), 'analyze-requirements-chrome-'));
   const proc = spawn(chrome, [...FLAGS, `--user-data-dir=${dir}`, fileUrl], { stdio: 'ignore' });
   const port = await waitFor(() => portFile(dir), 'a devtools port');
   const wsUrl = await waitFor(() => pageSocket(port), 'a page target');

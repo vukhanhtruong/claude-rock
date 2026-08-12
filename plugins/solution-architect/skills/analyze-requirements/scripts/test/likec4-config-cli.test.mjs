@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CLI = 'plugins/solution-architect/skills/arch-docs/scripts/likec4-config.mjs';
+const CLI = 'plugins/solution-architect/skills/analyze-requirements/scripts/likec4-config.mjs';
 const theme = JSON.parse(readFileSync(
   new URL('../../assets/mermaid-theme.json', import.meta.url), 'utf8'));
 
@@ -13,7 +13,7 @@ const theme = JSON.parse(readFileSync(
 // this has to land beside the model — which the skill generates, which is why
 // the plugin can own it at all.
 test('the CLI writes likec4.config.json beside the model', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-c4-'));
+  const dir = mkdtempSync(join(tmpdir(), 'analyze-requirements-c4-'));
   const out = execFileSync('node', [CLI, '--out', dir], { encoding: 'utf8' }).trim();
   assert.equal(out, join(dir, 'likec4.config.json'));
   const cfg = JSON.parse(readFileSync(out, 'utf8'));

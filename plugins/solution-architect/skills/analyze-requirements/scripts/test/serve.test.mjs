@@ -12,7 +12,7 @@ test('findFreePort returns a usable port', async () => {
 });
 
 test('serves index.html, 404s missing, 403s traversal', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-'));
+  const dir = mkdtempSync(join(tmpdir(), 'analyze-requirements-'));
   writeFileSync(join(dir, 'index.html'), '<h1>ok</h1>');
   const srv = await createServer({ dir, port: await findFreePort(4200) });
   const base = `http://127.0.0.1:${srv.port}`;
@@ -24,7 +24,7 @@ test('serves index.html, 404s missing, 403s traversal', async () => {
 });
 
 test('rejects sibling-prefix escape', async () => {
-  const parent = mkdtempSync(join(tmpdir(), 'arch-docs-'));
+  const parent = mkdtempSync(join(tmpdir(), 'analyze-requirements-'));
   const dir = join(parent, 'viewer');
   const evil = join(parent, 'viewer-evil');
   for (const d of [dir, evil]) { mkdirSync(d); }
@@ -36,7 +36,7 @@ test('rejects sibling-prefix escape', async () => {
 });
 
 test('malformed percent-encoding 400s without crashing the server', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'arch-docs-'));
+  const dir = mkdtempSync(join(tmpdir(), 'analyze-requirements-'));
   writeFileSync(join(dir, 'index.html'), '<h1>ok</h1>');
   const srv = await createServer({ dir, port: await findFreePort(4400) });
   const base = `http://127.0.0.1:${srv.port}`;

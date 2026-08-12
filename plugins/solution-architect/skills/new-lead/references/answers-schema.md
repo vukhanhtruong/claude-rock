@@ -4,7 +4,7 @@ One file per lead, living beside `ARCHITECTURE.md`, `estimation.json`, and
 `proposal.md` in that lead's directory. It is the single interview record
 for a lead — evidence gathered, scope agreed, tech and delivery constraints,
 proposal terms, and the running trail of decisions the orchestrator and
-agents made along the way. `arch-docs`, `estimate`, and `proposal` each read
+agents made along the way. `analyze-requirements`, `estimate`, and `proposal` each read
 from it in orchestrated mode instead of running their own interview step.
 
 This is a different thing from `leads.json`: the registry holds business
@@ -37,11 +37,11 @@ for generation. This file is generation truth.
 | Group | Fields | Read by |
 | --- | --- | --- |
 | `lead` | `id` (kebab-case, same format as a `leads.json` entry and the lead's directory name), `client`, `title`, `created` | identity, mirroring the `leads.json` entry — with one exception: `lead.client` is the client's **company name** and is the single sanctioned source for it, which proposal reads for its `client` frontmatter key. `id`, `title` and `created` are read by nothing for generation |
-| `evidence` | `sources[]` — each `{ type: rfp\|codebase\|notes\|none, path, summary }` | arch-docs (background for the interview it skips), estimate (evidence findings) |
+| `evidence` | `sources[]` — each `{ type: rfp\|codebase\|notes\|none, path, summary }` | analyze-requirements (background for the interview it skips), estimate (evidence findings) |
 | `client` | `industry`, `contact`, `techLevel` (`non-technical\|mixed\|technical`), `relationship` (`new\|returning`) | proposal (client context and tech level). **No company-name field** — the name lives at `lead.client`; consumers that need it read there and nowhere else |
-| `scope` | `summary`, `mustHave[]`, `niceToHave[]`, `outOfScope[]`, `assumed[]` | arch-docs (scope), estimate (`mustHave`/`niceToHave` are stated, `assumed` items are proposed — labeled `proposed`, never silently resolved) |
-| `tech` | `stack[]`, `integrations[]`, `hosting`, `compliance[]` | arch-docs (stack/integrations/hosting/compliance) |
-| `delivery` | `deadline`, `budgetRange`, `depth` (`QUICK\|STANDARD\|DEEP`), `technique`, `teamNotes` | arch-docs (constraints), estimate (`depth` and `technique` — technique is taken as already confirmed, not re-asked) |
+| `scope` | `summary`, `mustHave[]`, `niceToHave[]`, `outOfScope[]`, `assumed[]` | analyze-requirements (scope), estimate (`mustHave`/`niceToHave` are stated, `assumed` items are proposed — labeled `proposed`, never silently resolved) |
+| `tech` | `stack[]`, `integrations[]`, `hosting`, `compliance[]` | analyze-requirements (stack/integrations/hosting/compliance) |
+| `delivery` | `deadline`, `budgetRange`, `depth` (`QUICK\|STANDARD\|DEEP`), `technique`, `teamNotes` | analyze-requirements (constraints), estimate (`depth` and `technique` — technique is taken as already confirmed, not re-asked) |
 | `proposal` | `validityDays`, `firmProfile`, `storageScope`, `priority` (`price\|speed\|reliability`), `scenario` | proposal (validity, firm profile, storage scope, the client's stated priority — shapes the Executive Summary's emphasis — and the scenario picked at the estimate gate — no `scenario` means proposal stops and reports rather than picking one; no `priority` means the Executive Summary is written without a stated emphasis, the same as when the standalone interview's question goes unanswered — proposal never picks a default emphasis) |
 | `decisions` | array, appended only | every skill's orchestrated-mode report includes `decisions[]`; the orchestrator appends at every gate |
 

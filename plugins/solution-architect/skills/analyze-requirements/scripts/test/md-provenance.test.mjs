@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inline, stripInline } from '../lib/md-inline.mjs';
 
-// Every fact in an arch-docs set carries where it came from, and the four words
+// Every fact in an analyze-requirements set carries where it came from, and the four words
 // are a closed vocabulary (validate-provenance.mjs). Written as `observed`, they
 // rendered as <code> in accent teal — the same chip as `org_id` and
 // `docker-compose.yml`, so the accent meant two unrelated things and the most

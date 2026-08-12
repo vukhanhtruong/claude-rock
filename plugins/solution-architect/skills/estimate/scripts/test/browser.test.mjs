@@ -5,8 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { findChrome } from '../../../arch-docs/scripts/lib/chrome.mjs';
-import { openPage } from '../../../arch-docs/scripts/lib/cdp.mjs';
+import { findChrome } from '../../../analyze-requirements/scripts/lib/chrome.mjs';
+import { openPage } from '../../../analyze-requirements/scripts/lib/cdp.mjs';
 import { pert, taskHours, scenarioRollup, riskBufferHours, projectBuffer } from '../lib/estimate-math.mjs';
 
 const skip = { skip: !findChrome() && 'no chrome on PATH' };

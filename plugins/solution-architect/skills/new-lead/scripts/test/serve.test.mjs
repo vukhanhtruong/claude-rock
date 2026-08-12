@@ -10,11 +10,11 @@ let server, base, root;
 before(async () => {
   root = await mkdtemp(join(tmpdir(), 'srv-'));      // copy fixture so POSTs don't dirty it
   await cp(new URL('./fixtures/root', import.meta.url).pathname, root, { recursive: true });
-  // stats.mjs and vendor/* aren't part of the shared fixture (they ship from assets/dashboard
-  // in a later milestone) — write minimal stand-ins so the allowlist has something to serve.
-  await writeFile(join(root, 'stats.mjs'), 'export const x = 1;\n');
-  await mkdir(join(root, 'vendor'), { recursive: true });
-  await writeFile(join(root, 'vendor', 'reactflow-bundle.js'), '// stub\n');
+  // stats.mjs and vendor/* aren't part of the shared fixture — write minimal stand-ins
+  // under scripts/ so the allowlist has something to serve.
+  await mkdir(join(root, 'scripts', 'vendor'), { recursive: true });
+  await writeFile(join(root, 'scripts', 'stats.mjs'), 'export const x = 1;\n');
+  await writeFile(join(root, 'scripts', 'vendor', 'reactflow-bundle.js'), '// stub\n');
   server = await startServer(root, 0);
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -51,10 +51,10 @@ test('POST bad status -> 400; unknown id -> 404', async () => {
 test('POST notes writes notes.md and responds {ok: true}', async () => {
   const res = await fetch(`${base}/api/leads/acme-crm/notes`, { method: 'POST', body: '{"content":"call went well"}' });
   assert.deepEqual(await res.json(), { ok: true });
-  assert.match(await readFile(join(root, 'acme-crm', 'notes.md'), 'utf8'), /call went well/);
+  assert.match(await readFile(join(root, 'leads', 'acme-crm', 'notes.md'), 'utf8'), /call went well/);
 });
 test('static serving with traversal guard', async () => {
-  assert.equal((await fetch(`${base}/acme-crm/dist/index.html`)).status, 200);
+  assert.equal((await fetch(`${base}/leads/acme-crm/dist/index.html`)).status, 200);
   // Plain "../../etc/passwd" and "%2e%2e" between literal slashes get collapsed by the
   // WHATWG URL parser *before* the request ever leaves fetch() -- the server never sees a
   // ".." segment for those, so they can't exercise the guard (verified empirically: req.url
@@ -62,23 +62,29 @@ test('static serving with traversal guard', async () => {
   // paths that the allowlist rule alone already 404s). An encoded *slash* (%2F) is not
   // collapsed by the URL parser -- it survives to the server, where decodeURIComponent turns
   // it into a real ".." segment, which is the guard this test needs to exercise.
-  assert.equal((await fetch(`${base}/acme-crm/..%2F..%2Fetc%2Fpasswd`)).status, 403);
-  assert.equal((await fetch(`${base}/acme-crm/..%2Fleads.json.lock`)).status, 403);
+  assert.equal((await fetch(`${base}/leads/acme-crm/..%2F..%2Fetc%2Fpasswd`)).status, 403);
+  assert.equal((await fetch(`${base}/leads/acme-crm/..%2Fleads.json.lock`)).status, 403);
 });
 test('static allowlist: leads.json, notes.md, answers.json, brief.md -> 404; stats.mjs, vendor -> 200', async () => {
   assert.equal((await fetch(`${base}/leads.json`)).status, 404);
-  assert.equal((await fetch(`${base}/acme-crm/notes.md`)).status, 404);
-  assert.equal((await fetch(`${base}/acme-crm/new-lead-answers.json`)).status, 404);
-  assert.equal((await fetch(`${base}/acme-crm/brief.md`)).status, 404);
-  assert.equal((await fetch(`${base}/stats.mjs`)).status, 200);
-  assert.equal((await fetch(`${base}/vendor/reactflow-bundle.js`)).status, 200);
+  assert.equal((await fetch(`${base}/leads/acme-crm/notes.md`)).status, 404);
+  assert.equal((await fetch(`${base}/leads/acme-crm/new-lead-answers.json`)).status, 404);
+  assert.equal((await fetch(`${base}/leads/acme-crm/brief.md`)).status, 404);
+  assert.equal((await fetch(`${base}/scripts/stats.mjs`)).status, 200);
+  assert.equal((await fetch(`${base}/scripts/vendor/reactflow-bundle.js`)).status, 200);
 });
 test('static content-type and body are correct for allowlisted files', async () => {
-  const stats = await fetch(`${base}/stats.mjs`);
+  const stats = await fetch(`${base}/scripts/stats.mjs`);
   assert.equal(stats.headers.get('content-type'), 'text/javascript');
   assert.equal(await stats.text(), 'export const x = 1;\n');
-  const doc = await fetch(`${base}/acme-crm/dist/index.html`);
+  const doc = await fetch(`${base}/leads/acme-crm/dist/index.html`);
   assert.equal(doc.headers.get('content-type'), 'text/html');
+});
+test('the scripts tree is not browsable beyond the two allowlisted entries', async () => {
+  assert.equal((await fetch(`${base}/scripts/serve.mjs`)).status, 404);
+  assert.equal((await fetch(`${base}/scripts/lib/registry.mjs`)).status, 404);
+  assert.equal((await fetch(`${base}/scripts/index.html`)).status, 404);
+  assert.equal((await fetch(`${base}/leads.json`)).status, 404);
 });
 test('id validation guards every :id route before touching the lead dir or map builder', async () => {
   assert.equal((await fetch(`${base}/api/leads/-bad/map`)).status, 404);
@@ -86,9 +92,9 @@ test('id validation guards every :id route before touching the lead dir or map b
   assert.equal((await fetch(`${base}/api/leads/-bad/notes`, { method: 'POST', body: '{"content":"x"}' })).status, 404);
 });
 test('directory GET on an allowlisted prefix 4xxs cleanly and the server stays up', async () => {
-  const distDir = await fetch(`${base}/acme-crm/dist/`);
+  const distDir = await fetch(`${base}/leads/acme-crm/dist/`);
   assert.ok(distDir.status >= 400 && distDir.status < 500);
-  const vendorDir = await fetch(`${base}/vendor/`);
+  const vendorDir = await fetch(`${base}/scripts/vendor/`);
   assert.ok(vendorDir.status >= 400 && vendorDir.status < 500);
   // server must still be listening -- this is the crash the reviewer reproduced
   const stillUp = await fetch(`${base}/api/leads`);
@@ -97,20 +103,20 @@ test('directory GET on an allowlisted prefix 4xxs cleanly and the server stays u
 test('symlink inside dist/ pointing outside root is rejected, not followed', async () => {
   const outside = join(root, '..', 'outside-secret.txt');
   await writeFile(outside, 'top secret');
-  await symlink(outside, join(root, 'acme-crm', 'dist', 'link.html'));
-  const res = await fetch(`${base}/acme-crm/dist/link.html`);
+  await symlink(outside, join(root, 'leads', 'acme-crm', 'dist', 'link.html'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/link.html`);
   assert.equal(res.status, 403);
   await rm(outside, { force: true });
 });
 test('symlink inside dist/ escaping to leads.json is rejected, not the registry', async () => {
-  await symlink(join(root, 'leads.json'), join(root, 'acme-crm', 'dist', 'rel-escape.json'));
-  const res = await fetch(`${base}/acme-crm/dist/rel-escape.json`);
+  await symlink(join(root, 'leads.json'), join(root, 'leads', 'acme-crm', 'dist', 'rel-escape.json'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/rel-escape.json`);
   assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
   assert.doesNotMatch(await res.text(), /Beta Shop/);
 });
 test('symlink inside dist/ escaping to notes.md is rejected, not the notes', async () => {
-  await symlink(join(root, 'acme-crm', 'notes.md'), join(root, 'acme-crm', 'dist', 'notes-leak.md'));
-  const res = await fetch(`${base}/acme-crm/dist/notes-leak.md`);
+  await symlink(join(root, 'leads', 'acme-crm', 'notes.md'), join(root, 'leads', 'acme-crm', 'dist', 'notes-leak.md'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/notes-leak.md`);
   assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
   assert.doesNotMatch(await res.text(), /omnichannel/);
 });
@@ -120,28 +126,28 @@ test('symlinks inside dist/ escaping to brief.md and answers.json are also rejec
     ['new-lead-answers.json', /PostgreSQL/],
   ];
   for (const [name, marker] of targets) {
-    await symlink(join(root, 'acme-crm', name), join(root, 'acme-crm', 'dist', `escape-${name}`));
-    const res = await fetch(`${base}/acme-crm/dist/escape-${name}`);
+    await symlink(join(root, 'leads', 'acme-crm', name), join(root, 'leads', 'acme-crm', 'dist', `escape-${name}`));
+    const res = await fetch(`${base}/leads/acme-crm/dist/escape-${name}`);
     assert.ok(res.status >= 400 && res.status < 500, `${name}: expected 4xx, got ${res.status}`);
     assert.doesNotMatch(await res.text(), marker);
   }
 });
 test('symlinked directory inside dist/ cannot reach leads.json through it', async () => {
-  await symlink(root, join(root, 'acme-crm', 'dist', 'sub'));
-  const res = await fetch(`${base}/acme-crm/dist/sub/leads.json`);
+  await symlink(root, join(root, 'leads', 'acme-crm', 'dist', 'sub'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/sub/leads.json`);
   assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
   assert.doesNotMatch(await res.text(), /Beta Shop/);
 });
 test('a two-hop symlink chain inside dist/ cannot reach leads.json either', async () => {
   await symlink(join(root, 'leads.json'), join(root, 'hop.json'));
-  await symlink(join(root, 'hop.json'), join(root, 'acme-crm', 'dist', 'chain.json'));
-  const res = await fetch(`${base}/acme-crm/dist/chain.json`);
+  await symlink(join(root, 'hop.json'), join(root, 'leads', 'acme-crm', 'dist', 'chain.json'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/chain.json`);
   assert.ok(res.status >= 400 && res.status < 500, `expected 4xx, got ${res.status}`);
   assert.doesNotMatch(await res.text(), /Beta Shop/);
 });
 test('symlink inside dist/ pointing at another allowlisted dist file still serves 200', async () => {
-  await symlink(join(root, 'acme-crm', 'dist', 'index.html'), join(root, 'acme-crm', 'dist', 'alias.html'));
-  const res = await fetch(`${base}/acme-crm/dist/alias.html`);
+  await symlink(join(root, 'leads', 'acme-crm', 'dist', 'index.html'), join(root, 'leads', 'acme-crm', 'dist', 'alias.html'));
+  const res = await fetch(`${base}/leads/acme-crm/dist/alias.html`);
   assert.equal(res.status, 200);
 });
 test('GET / 404s cleanly when index.html has not been built yet', async () => {
@@ -150,7 +156,7 @@ test('GET / 404s cleanly when index.html has not been built yet', async () => {
 test('serveFile does not leak the registry when index.html or detail.html is symlinked to it', async () => {
   const cases = [['index.html', `${base}/`], ['detail.html', `${base}/detail/acme-crm`]];
   for (const [name, url] of cases) {
-    const target = join(root, name);
+    const target = join(root, 'scripts', name);
     await symlink(join(root, 'leads.json'), target);
     const res = await fetch(url);
     assert.notEqual(res.status, 200, `${name}: unexpectedly served`);
@@ -159,13 +165,13 @@ test('serveFile does not leak the registry when index.html or detail.html is sym
   }
 });
 test('POST to a static-only path is rejected, not served', async () => {
-  const res = await fetch(`${base}/stats.mjs`, { method: 'POST', body: '' });
+  const res = await fetch(`${base}/scripts/stats.mjs`, { method: 'POST', body: '' });
   assert.notEqual(res.status, 200);
 });
 test('POST notes does not follow a symlinked notes.md out of the root', async () => {
   const outside = join(root, '..', 'notes-write-target.txt');
   await writeFile(outside, 'ORIGINAL SECRET');
-  const link = join(root, 'acme-crm', 'notes.md');
+  const link = join(root, 'leads', 'acme-crm', 'notes.md');
   await rm(link, { force: true });
   await symlink(outside, link);
   const res = await fetch(`${base}/api/leads/acme-crm/notes`, {
@@ -180,20 +186,20 @@ test('POST notes does not follow a lead directory symlinked out of the root', as
   const outsideDir = join(root, '..', 'outside-lead-dir');
   await mkdir(outsideDir, { recursive: true });
   await writeFile(join(outsideDir, 'notes.md'), 'ORIGINAL SECRET');
-  await symlink(outsideDir, join(root, 'ghost-lead'));
+  await symlink(outsideDir, join(root, 'leads', 'ghost-lead'));
   const res = await fetch(`${base}/api/leads/ghost-lead/notes`, {
     method: 'POST', body: '{"content":"OVERWRITTEN VIA DASHBOARD"}',
   });
   assert.notEqual(res.status, 200, 'symlinked lead dir was accepted for writing');
   assert.equal(await readFile(join(outsideDir, 'notes.md'), 'utf8'), 'ORIGINAL SECRET',
     'file outside the root was modified');
-  await rm(join(root, 'ghost-lead'), { force: true });
+  await rm(join(root, 'leads', 'ghost-lead'), { force: true });
   await rm(outsideDir, { recursive: true, force: true });
 });
 test('relative --root still resolves to real, absolute paths for static serving', async () => {
   const rel = relative(process.cwd(), root);
   const s2 = await startServer(rel, 0);
   const b2 = `http://127.0.0.1:${s2.address().port}`;
-  assert.equal((await fetch(`${b2}/acme-crm/dist/index.html`)).status, 200);
+  assert.equal((await fetch(`${b2}/leads/acme-crm/dist/index.html`)).status, 200);
   await new Promise((resolve) => s2.close(resolve));
 });

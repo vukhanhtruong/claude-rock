@@ -1,11 +1,11 @@
 // scripts/serve.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 import { createServer } from 'node:http';
 import { readFile, writeFile, realpath, stat, lstat } from 'node:fs/promises';
 import { join, resolve, sep, extname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { findLeadsRoot, readRegistry, writeRegistry, STATUSES, ID_RE } from './lib/registry.mjs';
+import { findLeadsRoot, readRegistry, writeRegistry, leadDir, STATUSES, ID_RE } from './lib/registry.mjs';
 import { enrichLead } from './lib/enrich.mjs';
 import { buildLeadMap } from './lib/map.mjs';
 
@@ -14,12 +14,13 @@ const MIME = {
   '.json': 'application/json', '.svg': 'image/svg+xml', '.md': 'text/plain',
 };
 const ID = ID_RE.source.slice(1, -1);
-const DIST_RE = new RegExp(`^/(${ID})/dist/`);
+const DIST_RE = new RegExp(`^/leads/(${ID})/dist/`);
+const SCRIPTS_DIR = 'scripts';
 const DEFAULT_PORT = 4600;
 
 const ROUTES = [
-  ['GET', /^\/$/, ({ root }, req, res) => serveFile(root, res, 'index.html')],
-  ['GET', new RegExp(`^/detail/(${ID})$`), ({ root }, req, res) => serveFile(root, res, 'detail.html')],
+  ['GET', /^\/$/, ({ root }, req, res) => serveFile(root, res, join(SCRIPTS_DIR, 'index.html'))],
+  ['GET', new RegExp(`^/detail/(${ID})$`), ({ root }, req, res) => serveFile(root, res, join(SCRIPTS_DIR, 'detail.html'))],
   ['GET', /^\/api\/leads$/, apiLeads],
   ['GET', new RegExp(`^/api/leads/(${ID})/map$`), async ({ root, id }, req, res) => send(res, 200, await buildLeadMap(root, id))],
   ['POST', new RegExp(`^/api/leads/(${ID})/notes$`), apiNotes],
@@ -93,7 +94,7 @@ async function apiNotes({ root, id }, req, res) {
   // lstat refuses a final component that is a symlink (or any non-regular file).
   // notes.md usually does not exist yet, and an absent lstat is that normal case.
   let dir;
-  try { dir = await realpath(join(root, id)); } catch { return send(res, 404, { error: 'not found' }); }
+  try { dir = await realpath(leadDir(root, id)); } catch { return send(res, 404, { error: 'not found' }); }
   if (dir !== root && !dir.startsWith(root + sep)) return send(res, 403);
   const target = join(dir, 'notes.md');
   const st = await lstat(target).catch(() => null);
@@ -121,7 +122,9 @@ function send(res, status, body) {
 }
 
 function isAllowlisted(decoded) {
-  return decoded === '/stats.mjs' || decoded.startsWith('/vendor/') || DIST_RE.test(decoded);
+  return decoded === '/scripts/stats.mjs'
+    || decoded.startsWith('/scripts/vendor/')
+    || DIST_RE.test(decoded);
 }
 
 async function serveStatic(root, pathname, res) {

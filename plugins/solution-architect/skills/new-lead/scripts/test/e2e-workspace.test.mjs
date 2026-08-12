@@ -12,18 +12,18 @@ import { startServer } from '../serve.mjs';
 const run = promisify(execFile);
 const UPSERT = new URL('../lead-upsert.mjs', import.meta.url).pathname;
 const ASSETS = new URL('../../assets/dashboard', import.meta.url).pathname;
-const FIXTURE_LEAD = new URL('./fixtures/root/acme-crm', import.meta.url).pathname;
+const FIXTURE_LEAD = new URL('./fixtures/root/leads/acme-crm', import.meta.url).pathname;
 
 test('init -> register -> serve -> mark won, end to end', async () => {
   // init a fresh root
   const root = join(await mkdtemp(join(tmpdir(), 'e2e-')), 'leads');
   await initRoot(root, ASSETS);
-  assert.ok(existsSync(join(root, 'serve.mjs')), 'server copied');
-  assert.ok(existsSync(join(root, 'index.html')), 'dashboard copied');
+  assert.ok(existsSync(join(root, 'scripts', 'serve.mjs')), 'server copied');
+  assert.ok(existsSync(join(root, 'scripts', 'index.html')), 'dashboard copied');
   assert.equal(findLeadsRoot(join(root)), root);
 
   // simulate the pipeline having produced a lead dir (fixture stands in for gates 1-3)
-  await cp(FIXTURE_LEAD, join(root, 'acme-crm'), { recursive: true });
+  await cp(FIXTURE_LEAD, join(root, 'leads', 'acme-crm'), { recursive: true });
   await run('node', [UPSERT, '--root', root, '--id', 'acme-crm',
     '--patch', '{"client":"Acme","title":"CRM rebuild","created":"2026-08-07"}']);
 

@@ -36,8 +36,8 @@ Use `--force` to overwrite collisions.
 `solution-architect` ships four skills: `analyze-requirements` (architecture
 documentation), `estimate` (interview-driven, AI-aware project estimation
 with an interactive what-if page), `proposal` (pre-sales client proposal
-rendered as a print-ready page), and `new-lead` (orchestrates all three into
-one pipeline with a human gate per document, plus a leads dashboard).
+rendered as a print-ready page), and `new-lead` (launches all three in order,
+stopping between each, plus a leads dashboard).
 `-p solution-architect` installs all four.
 
 ## Repo conventions

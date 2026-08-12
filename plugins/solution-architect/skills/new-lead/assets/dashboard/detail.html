@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- new-lead-dashboard v2 -->
+<!-- new-lead-dashboard v3 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -352,7 +352,7 @@ p, li, dd { text-wrap:pretty; }
     <details class="legend enter panel" style="--i:1">
       <summary>Where each value comes from</summary>
       <div class="legend-body">
-        <div><code class="src">answers.json</code> &mdash; intake JSON</div>
+        <div><code class="src">leads.json</code> &mdash; intake JSON</div>
         <div><code class="src">estimation.json</code> &mdash; scenarios and risks JSON</div>
         <div><code class="src">brief.md</code> &mdash; qualitative brief</div>
         <div><code class="src">git log</code> &mdash; versioned docs and history (notes.md, ARCHITECTURE.md, commits)</div>
@@ -370,10 +370,9 @@ p, li, dd { text-wrap:pretty; }
     <section class="panel enter" id="s-facts" style="--i:3" aria-labelledby="h-facts">
       <div class="panel-head">
         <h2 id="h-facts">Key facts</h2>
-        <span class="src">answers.json</span>
+        <span class="src">leads.json</span>
       </div>
       <dl class="facts" id="facts-dl"></dl>
-      <div class="cluster" id="tech-chips"></div>
     </section>
 
     <section class="panel enter" id="s-lineage" style="--i:4" aria-labelledby="h-lineage">
@@ -447,7 +446,7 @@ p, li, dd { text-wrap:pretty; }
 <script src="/scripts/vendor/reactflow-bundle.js"></script>
 <script type="module">
 const LEAD_ID = location.pathname.split('/').pop();
-const GATES = { arch: 1, estimate: 2, scenario: 2, proposal: 3 };
+const STEPS = { arch: 1, estimate: 2, scenario: 2, proposal: 3 };
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function esc(s) {
@@ -598,15 +597,15 @@ function renderHeader(lead) {
 /* ================================================================== *
  * Next-action banner: pure function over lead + panels + nodes.
  * ================================================================== */
-function gateFor(node) {
-  return GATES[node.id] ?? GATES[node.type] ?? null;
+function stepFor(node) {
+  return STEPS[node.id] ?? STEPS[node.type] ?? null;
 }
 function computeBanner(lead, panels, nodes) {
   if (lead.closed) return `${lead.status} on ${lead.closed}`;
   const pending = nodes.find((n) => n.data.status === 'pending');
   if (!pending) return null;
-  const gate = gateFor(pending);
-  return `waiting: ${pending.data.label} (gate ${gate ?? '?'})`;
+  const step = stepFor(pending);
+  return `waiting: ${pending.data.label} (step ${step ?? '?'})`;
 }
 function renderBanner(text) {
   const el = document.getElementById('next-banner');
@@ -624,8 +623,8 @@ function renderBanner(text) {
 function styleNode(el, node, pickedId) {
   if (node.data.status === 'pending') {
     el.classList.add('lead-node-pending');
-    const gate = gateFor(node);
-    el.title = gate ? `unlocks at gate ${gate}` : 'pending';
+    const step = stepFor(node);
+    el.title = step ? `unlocks at step ${step}` : 'pending';
   }
   if (node.id === pickedId) el.classList.add('lead-node-picked');
 }
@@ -701,7 +700,6 @@ function renderFacts(facts) {
   factRow(dl, 'Title', facts.title);
   factRow(dl, 'Created', facts.created);
   factRow(dl, 'Scenario', facts.scenario ?? '—');
-  document.getElementById('tech-chips').replaceChildren();
 }
 function appendEmptyNote(el, text) {
   const li = document.createElement('li');

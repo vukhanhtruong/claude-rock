@@ -1,5 +1,5 @@
 // scripts/lib/map.mjs
-// new-lead-dashboard v2
+// new-lead-dashboard v3
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -16,6 +16,7 @@ const STEP_Y = 90;
 const GENERATED = new Set([
   'ARCHITECTURE.md', 'estimation.md', 'estimation.json', 'estimation-inputs.json',
   'proposal.md', 'proposal-figures.json', 'notes.md', 'brief.md', 'dist',
+  'CONTEXT.md', 'CONTEXT-MAP.md', 'DOMAIN-OVERVIEW.md', 'threat-model.md', 'docs',
 ]);
 
 export async function buildLeadMap(root, id) {

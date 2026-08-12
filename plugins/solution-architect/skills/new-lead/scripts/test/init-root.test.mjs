@@ -4,9 +4,13 @@ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { initRoot } from '../init-root.mjs';
+import { initRoot, stampOf, ASSET_FILES, SCRIPT_FILES } from '../init-root.mjs';
 
-const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'vendor/reactflow-bundle.js'];
+// The real shipped assets/scripts, not a synthetic stand-in: the stamp mechanism can
+// only be checked against the files it actually has to refresh.
+const REAL_ASSETS = new URL('../../assets/dashboard', import.meta.url).pathname;
+const REAL_SCRIPTS = new URL('..', import.meta.url).pathname;
+const ALL_FILES = [...ASSET_FILES, ...SCRIPT_FILES];
 
 const makeAssets = async (stamp) => {
   const dir = await mkdtemp(join(tmpdir(), 'assets-'));
@@ -33,6 +37,21 @@ test('refresh copies only newer-stamped files, keeps registry', async () => {
   assert.deepEqual(first.copied, []);
   const second = await initRoot(root, await makeAssets(3));  // newer
   assert.ok(second.copied.includes('index.html'));
+});
+test('every file init-root copies carries a stamp init-root can actually read', async () => {
+  const sources = [...ASSET_FILES.map((r) => join(REAL_ASSETS, r)),
+    ...SCRIPT_FILES.map((r) => join(REAL_SCRIPTS, r))];
+  assert.equal(sources.length, 9, 'a leads root is a nine-file set — update this test if that changes');
+  for (const src of sources) {
+    assert.ok(await stampOf(src) >= 1, `${src}: stamp is invisible to stampOf, so it never refreshes`);
+  }
+});
+test('a fresh root copies the whole nine-file set, and a same-stamp refresh copies none', async () => {
+  const root = join(await mkdtemp(join(tmpdir(), 'r-')), 'leads');
+  const first = await initRoot(root, REAL_ASSETS);
+  assert.deepEqual([...first.copied].sort(), [...ALL_FILES].sort());
+  for (const rel of ALL_FILES) assert.ok(await stampOf(join(root, rel)) >= 1, `${rel}: unstamped in root`);
+  assert.deepEqual((await initRoot(root, REAL_ASSETS)).copied, []);
 });
 test('missing asset files are skipped, not fatal', async () => {
   const root = join(await mkdtemp(join(tmpdir(), 'r-')), 'leads');

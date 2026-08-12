@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url));
-const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'stats.mjs', 'vendor/reactflow-bundle.js'];
-const SCRIPT_FILES = ['serve.mjs', 'lib/registry.mjs', 'lib/enrich.mjs', 'lib/map.mjs'];
+export const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'stats.mjs', 'vendor/reactflow-bundle.js'];
+export const SCRIPT_FILES = ['serve.mjs', 'lib/registry.mjs', 'lib/enrich.mjs', 'lib/map.mjs'];
 
 export async function initRoot(root, assetsDir) {
   await mkdir(join(root, 'vendor'), { recursive: true });
@@ -35,9 +35,16 @@ async function copyIfNewer(src, root, rel) {
   return [rel];
 }
 
-async function stampOf(file) {
+// A header window rather than the whole file, so a stamp quoted in prose or in a
+// string literal further down cannot be mistaken for the file's own. Sized to clear a
+// path comment plus an import block, because a stamp legitimately sits below one:
+// lib/registry.mjs stamps at line 6 and read as 0 under the previous 3-line window, so
+// it silently never refreshed. init-root.test.mjs pins this for all nine copied files.
+const STAMP_LINES = 10;
+
+export async function stampOf(file) {
   if (!existsSync(file)) return -1;
-  const head = (await readFile(file, 'utf8')).split('\n', 3).join('\n');
+  const head = (await readFile(file, 'utf8')).split('\n', STAMP_LINES).join('\n');
   return Number(head.match(/new-lead-dashboard v(\d+)/)?.[1] ?? 0);
 }
 

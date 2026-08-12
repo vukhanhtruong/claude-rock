@@ -79,10 +79,17 @@ persistent `leads.json` registry and a self-contained local server.
     own Orchestrated mode section). Copying the answers-file spelling
     straight into the frontmatter is a validation failure the writer's
     exit-0 loop will simply retry away from — the real risk is a writer
-    that guesses wrong on the non-obvious leg (`mixed → technical` is a
-    legal value, so it passes `checks-doc.mjs`) and silently disables
-    proposal's jargon scan, which `checks-client.mjs` only runs when
-    `client_tech_level` is `non-tech`.
+    that guesses a *legal but wrong* target, which passes `checks-doc.mjs`
+    and so fails silently. The two legs fail differently:
+    - `mixed → technical` licenses full stack detail and container
+      diagrams (proposal `references/writing.md` §4), so the document is
+      written over the client's head.
+    - `non-technical → low-tech` (or `→ technical`) loses the jargon scan,
+      which `checks-client.mjs:56` runs **only** when `client_tech_level`
+      is `non-tech`.
+
+    The scan is off for `low-tech` and `technical` alike, so mis-mapping
+    `mixed` cannot disable it — `non-technical` is the only leg that can.
 11. **Gate 3**: show `proposal.md` plus its report. On approval: render
     `proposal.html` (proposal `SKILL.md` step 8:
     `node scripts/render.mjs --md proposal.md --estimation estimation.json

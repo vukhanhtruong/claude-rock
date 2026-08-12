@@ -162,6 +162,34 @@ test('POST to a static-only path is rejected, not served', async () => {
   const res = await fetch(`${base}/stats.mjs`, { method: 'POST', body: '' });
   assert.notEqual(res.status, 200);
 });
+test('POST notes does not follow a symlinked notes.md out of the root', async () => {
+  const outside = join(root, '..', 'notes-write-target.txt');
+  await writeFile(outside, 'ORIGINAL SECRET');
+  const link = join(root, 'acme-crm', 'notes.md');
+  await rm(link, { force: true });
+  await symlink(outside, link);
+  const res = await fetch(`${base}/api/leads/acme-crm/notes`, {
+    method: 'POST', body: '{"content":"OVERWRITTEN VIA DASHBOARD"}',
+  });
+  assert.notEqual(res.status, 200, 'symlinked notes.md was accepted for writing');
+  assert.equal(await readFile(outside, 'utf8'), 'ORIGINAL SECRET', 'file outside the root was modified');
+  await rm(link, { force: true });
+  await rm(outside, { force: true });
+});
+test('POST notes does not follow a lead directory symlinked out of the root', async () => {
+  const outsideDir = join(root, '..', 'outside-lead-dir');
+  await mkdir(outsideDir, { recursive: true });
+  await writeFile(join(outsideDir, 'notes.md'), 'ORIGINAL SECRET');
+  await symlink(outsideDir, join(root, 'ghost-lead'));
+  const res = await fetch(`${base}/api/leads/ghost-lead/notes`, {
+    method: 'POST', body: '{"content":"OVERWRITTEN VIA DASHBOARD"}',
+  });
+  assert.notEqual(res.status, 200, 'symlinked lead dir was accepted for writing');
+  assert.equal(await readFile(join(outsideDir, 'notes.md'), 'utf8'), 'ORIGINAL SECRET',
+    'file outside the root was modified');
+  await rm(join(root, 'ghost-lead'), { force: true });
+  await rm(outsideDir, { recursive: true, force: true });
+});
 test('relative --root still resolves to real, absolute paths for static serving', async () => {
   const rel = relative(process.cwd(), root);
   const s2 = await startServer(rel, 0);

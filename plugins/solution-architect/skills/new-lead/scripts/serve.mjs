@@ -1,8 +1,7 @@
 // scripts/serve.mjs
 // new-lead-dashboard v1
 import { createServer } from 'node:http';
-import { readFile, writeFile, realpath, stat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readFile, writeFile, realpath, stat, lstat } from 'node:fs/promises';
 import { join, resolve, sep, extname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -89,10 +88,19 @@ async function apiUpdate({ root, id }, req, res) {
 }
 
 async function apiNotes({ root, id }, req, res) {
-  if (!existsSync(join(root, id))) return send(res, 404, { error: 'not found' });
+  // The only write path into a lead dir, held to the same bar as the read paths:
+  // realpath resolves every component and every symlink hop of the directory, and
+  // lstat refuses a final component that is a symlink (or any non-regular file).
+  // notes.md usually does not exist yet, and an absent lstat is that normal case.
+  let dir;
+  try { dir = await realpath(join(root, id)); } catch { return send(res, 404, { error: 'not found' }); }
+  if (dir !== root && !dir.startsWith(root + sep)) return send(res, 403);
+  const target = join(dir, 'notes.md');
+  const st = await lstat(target).catch(() => null);
+  if (st && !st.isFile()) return send(res, 403);
   const body = await readJsonBody(req);
   if (typeof body?.content !== 'string') return send(res, 400, { error: 'invalid content' });
-  await writeFile(join(root, id, 'notes.md'), body.content);
+  await writeFile(target, body.content);
   send(res, 200, { ok: true });
 }
 

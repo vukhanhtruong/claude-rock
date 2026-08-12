@@ -39,6 +39,14 @@ test('init -> register -> serve -> mark won, end to end', async () => {
       method: 'POST', body: '{"status":"won"}',
       headers: { 'content-type': 'application/json' } })).json();
     assert.equal(won.status, 'won');
+    // both dashboard pages must actually open — every other route test here is
+    // negative-only, so a serveFile that 404s everything would otherwise ship clean
+    for (const [path, marker] of [['/', /id="stats"/], [`/detail/acme-crm`, /id="facts-dl"/]]) {
+      const page = await fetch(`${base}${path}`);
+      assert.equal(page.status, 200, `${path}: expected 200`);
+      assert.equal(page.headers.get('content-type'), 'text/html', `${path}: wrong content-type`);
+      assert.match(await page.text(), marker, `${path}: body is not the dashboard page`);
+    }
     // refresh is a no-op at same stamp
     assert.deepEqual((await initRoot(root, ASSETS)).copied, []);
   } finally { server.close(); }

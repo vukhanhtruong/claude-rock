@@ -1,135 +1,113 @@
 ---
 name: new-lead
-description: Orchestrate a new pre-sales lead end-to-end — one combined interview, then architecture docs, estimate, and proposal produced by parallel-agent workflows with a human gate per document — plus a leads dashboard. Use when the user says "new lead", wants all three solution-architect documents for a client, or asks to manage/see their leads pipeline.
+description: Set up a pre-sales lead workspace and walk the human through the three solution-architect skills in order — analyze-requirements, estimate, proposal — plus a local leads dashboard. Use when the user says "new lead", points at a folder under leads/, or asks to see their leads pipeline.
 ---
 
 # new-lead
 
-Take a pre-sales lead from evidence-in-hand to three approved, rendered
-documents — `ARCHITECTURE.md`, `estimation.md`, `proposal.md` — by running
-one combined interview and then launching the `analyze-requirements`, `estimate`, and
-`proposal` skills as headless Workflows, with a human gate before each
-document's rendered page ships. Also maintains the leads dashboard: a
-persistent `leads.json` registry and a self-contained local server.
+Prepare a lead's workspace, then run `/analyze-requirements`, `/estimate` and
+`/proposal` in that order, stopping between each so the human sees what was
+produced. Also maintains the leads dashboard: a `leads.json` registry and a
+self-contained local server.
 
 ## Hard rules
 
-1. One gate per document — no document advances to the next phase without
-   explicit user approval.
-2. Workflows never talk to the user — anything interactive (the interview,
-   gate verdicts, the scenario pick) happens in this flow, before or between
-   workflows, never inside one.
-3. Generation truth is `new-lead-answers.json` (schema:
-   `references/answers-schema.md`). `leads.json` is registry-only —
-   business metadata for the dashboard — and is touched exclusively via
-   `scripts/lead-upsert.mjs`, never by a direct write.
-4. A failed workflow is reported, then resumed with `resumeFromRunId` —
-   never silently rerun from scratch.
-5. Rendering happens per phase, at that phase's gate, and is orchestrator-owned
-   — no workflow renders or serves anything itself.
+1. This skill never interviews. Every question about scope, stack, delivery or
+   the client belongs to the skill that needs it.
+2. This skill never renders and never writes a document. Each sub-skill owns its
+   own validation and its own output.
+3. The lead id is the folder name under `leads/`, verbatim. The filesystem is
+   the source of truth; `leads.json` holds business metadata only, and is
+   written exclusively through `scripts/lead-upsert.mjs`.
+4. Stop after each sub-skill returns. The human decides whether the chain
+   continues.
+
+## Workspace
+
+```
+<root>/
+├── leads.json          the registry
+├── start.sh            starts the dashboard
+├── leads/<lead-id>/    one directory per lead
+└── scripts/            serve.mjs, the dashboard pages, lib/, vendor/
+```
 
 ## Flow
 
-1. **Root discovery**: walk up from the working directory for `leads.json`
-   (the same discovery `scripts/lib/registry.mjs`'s `findLeadsRoot` uses).
-   Not found → confirm with the user, then run
-   `node scripts/init-root.mjs --root <dir>` at cwd (creates `leads.json`,
-   copies `serve.mjs`, the registry libs, and `assets/dashboard/*` into the
-   root), and offer `git init`.
-2. **Evidence scan**: list the files the user gave or that are present in
-   the target directory; classify each as `rfp`/`notes`/`codebase`/`none`;
-   summarize into `evidence.sources[]`.
-3. **Combined interview**: run the five batches in `references/interview.md`,
-   writing into `new-lead-answers.json` per `references/answers-schema.md`.
-4. **Derive the lead id**: kebab-case client + project title, matching the
-   registry's `ID_RE` (`^[a-z0-9]+(-[a-z0-9]+)*$`). If a directory of that
-   name already holds a *different* lead, suffix `-2`, `-3`, … — never
-   overwrite. If it's the *same* lead, this is a resume (see Resume).
-5. **Write + register**: write `new-lead-answers.json`; run
-   `node scripts/lead-upsert.mjs --root <root> --id <id> --patch '<json>'`
-   to create the registry entry — the patch must include `client`, `title`,
-   and `created` (`YYYY-MM-DD`); `lead-upsert.mjs`'s own defaults cover
-   `status: active`, `closed: null`, `value: null`, `scenario: null`, but
-   not `created`, and the registry rejects an entry without one. Commit.
-6. **Workflow ARCH**: launch the ARCH script from `references/workflows.md`
-   with `topics` prepared from `answers.tech` + `evidence` (3-4 of: stack,
-   integrations, hosting, compliance, per analyze-requirements `references/research.md`).
-7. **Gate 1**: show `ARCHITECTURE.md` plus the workflow's `applied`/`rejected`
-   report (see Gate mechanics). On approval: render the arch viewer per
-   analyze-requirements `references/viewer.md` into `<leadDir>/dist/`, run the
-   brief-writer prompt (`references/review-lenses.md`), commit
-   `"<id>: architecture approved"`.
-8. **Workflow ESTIMATE**: launch the ESTIMATE script — companion mode
-   applies, since `ARCHITECTURE.md` already exists in `leadDir`.
-9. **Gate 2**: show `estimation.md` plus its report. The user picks the
-   scenario here — write it to `answers.proposal.scenario` and to the
-   registry's `value`/`scenario` via `lead-upsert.mjs`. On approval: render
-   `estimate.html` (estimate `SKILL.md` step 9, Companion mode's
-   render-into-viewer form: `node scripts/render.mjs --json estimation.json
-   --md estimation.md --out <leadDir>/dist --viewer index.html` — the
-   `--viewer` flag is required here, since `dist/` already holds the arch
-   viewer from Gate 1; omitting it drops the back-link) into `dist/`,
-   brief-writer prompt, commit.
-10. **Workflow PROPOSAL**: launch the PROPOSAL script —
-    `answers.proposal.scenario` is already set, so this workflow never asks.
-    `client.techLevel` and proposal's `client_tech_level` frontmatter use two
-    different vocabularies for the same idea — the Assemble phase's writer
-    must translate, not copy: `non-technical → non-tech`,
-    `mixed → low-tech`, `technical → technical` (also stated in proposal's
-    own Orchestrated mode section). Copying the answers-file spelling
-    straight into the frontmatter is a validation failure the writer's
-    exit-0 loop will simply retry away from — the real risk is a writer
-    that guesses a *legal but wrong* target, which passes `checks-doc.mjs`
-    and so fails silently. The two legs fail differently:
-    - `mixed → technical` licenses full stack detail and container
-      diagrams (proposal `references/writing.md` §4), so the document is
-      written over the client's head.
-    - `non-technical → low-tech` (or `→ technical`) loses the jargon scan,
-      which `checks-client.mjs:56` runs **only** when `client_tech_level`
-      is `non-tech`.
+1. **Dependency check**: Node ≥ 20 and `npx likec4` (needed downstream by
+   `analyze-requirements`). Either missing → stop before doing any work.
+2. **Find the root**: walk up from the working directory for `leads.json`
+   (`findLeadsRoot` in `scripts/lib/registry.mjs`). Not found → confirm with the
+   user, then `node scripts/init-root.mjs --root <dir>` at cwd, and offer
+   `git init`.
+3. **Resolve the target**:
+   - `/new-lead @leads/<folder>/` → that folder.
+   - `/new-lead` with no argument → diff `readdir(<root>/leads)` against
+     `leads.json` and print the state table below; the human picks one.
+4. **Adopt** (only when the folder has no registry entry) — see Adoption.
+5. **Chain**: for each of `/analyze-requirements`, `/estimate`, `/proposal` —
+   `cd` to the lead directory, invoke the skill, and when it returns, report
+   what it wrote and wait. Skip any step whose artifact already exists unless
+   the human asks for a re-run.
+6. **Sync the registry** after `/proposal` — see Registry sync.
+7. **Wrap**: start the dashboard (`sh <root>/start.sh`) if it is not already
+   running, and report the URL.
 
-    The scan is off for `low-tech` and `technical` alike, so mis-mapping
-    `mixed` cannot disable it — `non-technical` is the only leg that can.
-11. **Gate 3**: show `proposal.md` plus its report. On approval: render
-    `proposal.html` (proposal `SKILL.md` step 8:
-    `node scripts/render.mjs --md proposal.md --estimation estimation.json
-    --mermaid-bundle <path> --out <leadDir>/dist`) into `dist/`,
-    brief-writer prompt, commit.
-12. **Wrap**: report the dashboard URL; start it (`node serve.mjs` from the
-    root, or its `start.sh`) if it isn't already running.
+## Lead states
 
-## Gate mechanics
+| State | Condition | Offer |
+| --- | --- | --- |
+| new | folder present, no registry entry | adopt, then run the chain |
+| WIP | entry present, one of `ARCHITECTURE.md` / `estimation.json` / `proposal.md` missing | resume at the first gap |
+| done | entry present, all three present | nothing; re-run a named step on request |
+| orphan | entry present, folder gone | report only — never delete |
 
-Every gate presents: the document's path, `applied: N, rejected: M (reasons)`
-from the workflow's Fix phase, and the `decisions` logged so far. Three
-verdicts:
+## Adoption
 
-| Verdict | Effect |
+1. The folder name must match `^[a-z0-9]+(-[a-z0-9]+)*$`. It does not → refuse,
+   print the exact `mv` command, and write nothing.
+2. Ask two questions, both skippable:
+   - client company name — skipped writes `null`
+   - project name — skipped writes Title Case of the folder name
+3. Both answered, and the folder is not already named
+   `<kebab(client)>-<kebab(project)>` → offer that rename once. Accepted →
+   `git mv` (plain `mv` outside a repo). Declined, or a folder of that name
+   already exists → keep the current name and do not ask again.
+4. Write the entry — *after* any rename, so the id can never name a folder that
+   no longer exists:
+
+   ```
+   node scripts/lead-upsert.mjs --root <root> --id <folder-name> \
+     --patch '{"client":<string|null>,"title":"<project>","created":"YYYY-MM-DD"}'
+   ```
+
+   `created` has no default and the registry rejects an entry without one.
+5. Commit.
+
+Ids need no collision handling: the id is the folder name, and a directory
+cannot hold two entries with the same name.
+
+## Registry sync
+
+Runs after `/proposal`, never after `/estimate` — `/estimate` emits several
+scenarios and picks none; the pick is `/proposal`'s interview.
+
+| Field | Source |
 | --- | --- |
-| Approve | proceed to that gate's render + commit, then the next workflow |
-| Request changes | fold the change into the answers file, or leave a fix note; resume the workflow (`resumeFromRunId`) rather than rerunning it whole |
-| Abort | lead stays `active`; files already written stay in the lead dir; the user may mark it `lost` later, from the dashboard |
+| `scenario` | `proposal-figures.json` `.scenario` |
+| `value` | `.cost.low` / `.cost.high`, currency from `proposal.md` frontmatter |
+| `client` | `proposal.md` frontmatter, only when the entry's `client` is `null` |
 
-## Resume
-
-`/new-lead <existing-id>`: the lead dir already exists → diff the current
-answers against what the user wants changed, then rerun only the phases
-whose inputs changed — a change to `tech`/`scope`/`delivery` reruns arch and
-everything after it; a change touching only estimate's inputs reruns
-estimate and proposal; a change touching only proposal's own fields
-(priority, validity, firm profile) reruns proposal alone. A phase whose
-artifacts are already present and whose inputs are unchanged is skipped.
+Apply with one `lead-upsert.mjs` call, then commit.
 
 ## Failure
 
-A workflow that doesn't complete is reported instead of gated: a per-phase
-status table (`done` / `failed` with the exact `validate.mjs` finding /
-`never-ran`). Options: retry (resume via `resumeFromRunId`), fix the inputs
-then retry, or abort. Files the workflow already wrote stay in the lead dir
-either way.
+A sub-skill that stops short is reported as it stopped — its own error, its own
+partial output, left in place. Options: fix the input and re-run that skill,
+skip it, or stop the chain. Never re-run a later skill over a missing earlier
+artifact; `/proposal` in particular hard-requires both `ARCHITECTURE.md` and
+`estimation.json`.
 
 ## Dependency
 
-Node ≥ 20 and `npx likec4` (needed for arch rendering, per analyze-requirements
-`references/viewer.md`) — check both upfront and stop before any work if
-either is missing.
+Node ≥ 20 and `npx likec4`. Check both at step 1 and stop if either is missing.

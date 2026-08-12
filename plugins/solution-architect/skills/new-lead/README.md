@@ -1,48 +1,42 @@
 # new-lead
 
-Orchestrates a pre-sales lead end-to-end: one combined interview, then
-`ARCHITECTURE.md`, `estimation.md`, and `proposal.md` produced by the
-`analyze-requirements`, `estimate`, and `proposal` skills run headless as parallel-agent
-workflows, with a human gate before each document ships — plus a local
-leads dashboard for tracking every lead in the pipeline.
-
-## The three gates
+Sets up a pre-sales lead workspace and walks you through the three
+solution-architect skills in order, stopping between each so you see what was
+produced before the next one starts.
 
 ```
-interview → Workflow ARCH     → Gate 1 (approve ARCHITECTURE.md)
-          → Workflow ESTIMATE → Gate 2 (approve estimation.md, pick scenario)
-          → Workflow PROPOSAL → Gate 3 (approve proposal.md)
-          → dashboard URL
+/new-lead @leads/acme-corp-payments-rework/
+   → /analyze-requirements   ARCHITECTURE.md
+   → /estimate               estimation.json
+   → /proposal               proposal.md
+   → dashboard URL
 ```
 
-Each workflow is unattended — research fan-out, a headless writer, a
-parallel review panel, and a verify-then-fix pass, all inside that one
-workflow. No workflow talks to you; every approval, correction, and the
-scenario pick happen at a gate in the main flow.
+Each skill runs exactly as it does standalone: its own interview, its own
+validation, its own rendered page. `/new-lead` never interviews and never
+writes a document.
 
 ## Workspace layout
 
 ```
 <leads-root>/
-├── leads.json            registry (business metadata: status, value, dates)
-├── serve.mjs, start.sh   dashboard server + launcher (copied from this skill)
-├── index.html            dashboard (cards / timeline / wall views)
-└── <lead-id>/            one directory per lead
-    ├── new-lead-answers.json   generation truth — the interview record
-    ├── brief.md                executive summary + decision log
-    ├── ARCHITECTURE.md, estimation.md, proposal.md, …
-    └── dist/                   rendered pages, filled in gate by gate
+├── leads.json            registry (status, value, dates)
+├── start.sh              starts the dashboard
+├── leads/
+│   └── <lead-id>/        one directory per lead
+│       ├── <your documents — the RFP, notes, anything you were sent>
+│       ├── ARCHITECTURE.md, estimation.json, proposal.md
+│       └── dist/         the rendered pages
+└── scripts/              serve.mjs, dashboard pages, lib/, vendor/
 ```
 
-`leads.json` is never read for generation — only `new-lead-answers.json` is.
-Registry writes go through `scripts/lead-upsert.mjs` exclusively.
+## Starting a lead
 
-## Standalone skills, unchanged
+Make a directory under `leads/` and run `/new-lead`. A folder with no registry
+entry is a new lead; `/new-lead` with no argument lists what is new, in
+progress, and finished.
 
-`analyze-requirements`, `estimate`, and `proposal` each carry an "Orchestrated mode"
-section that only activates when handed a path to a `new-lead-answers.json`
-file. Invoked directly, without that file, each behaves exactly as it did
-before this skill existed — same interview, same rendering, same output.
+Name the folder in kebab-case — it becomes the lead id verbatim.
 
 ## Dashboard quickstart
 
@@ -51,5 +45,4 @@ cd <leads-root>
 ./start.sh
 ```
 
-Starts `serve.mjs` on `127.0.0.1:4600` (override with `--port <n>`) with no
-agent running — the root is self-contained.
+Serves on `127.0.0.1:4600` (override with `--port <n>`) with no agent running.

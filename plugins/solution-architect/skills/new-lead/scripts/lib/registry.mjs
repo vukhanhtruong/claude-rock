@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs';
-import { readFile, writeFile, rename, open, unlink } from 'node:fs/promises';
+import { constants, existsSync } from 'node:fs';
+import { readFile, rename, open, unlink } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
 // scripts/lib/registry.mjs
@@ -73,12 +73,26 @@ export async function writeRegistry(root, registry) {
   if (findings.length) throw new Error(`invalid registry: ${findings.join('; ')}`);
   const lock = await acquireLock(root);
   try {
-    await writeFile(join(root, `${REGISTRY_FILE}.tmp`), JSON.stringify(registry, null, 2) + '\n');
+    await writeTemp(join(root, `${REGISTRY_FILE}.tmp`), JSON.stringify(registry, null, 2) + '\n');
     await rename(join(root, `${REGISTRY_FILE}.tmp`), join(root, REGISTRY_FILE));
   } finally {
     await lock.close();
     await unlink(join(root, `${REGISTRY_FILE}.lock`));
   }
+}
+
+// O_NOFOLLOW, because an ordinary write follows a symlinked temp file: the registry
+// would land on its target, and the rename would then move the symlink itself into
+// place, leaving leads.json a permanent redirect out of the root. The lock needs no
+// such guard - O_CREAT|O_EXCL refuses a symlink by definition.
+const TEMP_FLAGS = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW;
+
+async function writeTemp(path, body) {
+  const handle = await open(path, TEMP_FLAGS).catch((err) => {
+    if (err.code === 'ELOOP') throw new Error(`${REGISTRY_FILE}.tmp is a symlink; refusing to write through it`);
+    throw err;
+  });
+  try { await handle.writeFile(body); } finally { await handle.close(); }
 }
 
 async function acquireLock(root) {

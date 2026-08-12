@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, symlink, lstat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,4 +37,18 @@ test('writeRegistry refuses when locked', async () => {
   const root = await makeRoot();
   await writeFile(join(root, 'leads.json.lock'), '');
   await assert.rejects(() => writeRegistry(root, EMPTY), /locked/);
+});
+// A symlinked temp file is followed by an ordinary write, so the registry lands on
+// the target AND the rename then moves the symlink itself into place - leaving
+// leads.json a permanent redirect out of the root. Same class as the notes route.
+test('writeRegistry refuses to write through a symlinked temp file', async () => {
+  const root = await makeRoot();
+  const outside = join(await mkdtemp(join(tmpdir(), 'outside-')), 'victim.txt');
+  await writeFile(outside, 'ORIGINAL SECRET\n');
+  await symlink(outside, join(root, 'leads.json.tmp'));
+
+  await assert.rejects(() => writeRegistry(root, EMPTY), /symlink/i);
+  assert.equal(await readFile(outside, 'utf8'), 'ORIGINAL SECRET\n', 'target must be untouched');
+  assert.ok(!(await lstat(join(root, 'leads.json'))).isSymbolicLink(), 'registry must not become a symlink');
+  assert.ok(!existsSync(join(root, 'leads.json.lock')), 'lock must be released');
 });

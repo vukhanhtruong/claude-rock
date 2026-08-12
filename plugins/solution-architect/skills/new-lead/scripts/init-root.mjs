@@ -1,5 +1,5 @@
 // scripts/init-root.mjs
-// new-lead-dashboard v1
+// new-lead-dashboard v2
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile, copyFile, chmod } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -7,16 +7,28 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url));
-export const ASSET_FILES = ['index.html', 'detail.html', 'start.sh', 'stats.mjs', 'vendor/reactflow-bundle.js'];
-export const SCRIPT_FILES = ['serve.mjs', 'lib/registry.mjs', 'lib/enrich.mjs', 'lib/map.mjs'];
+export const ASSET_FILES = [
+  { from: 'index.html', to: 'scripts/index.html' },
+  { from: 'detail.html', to: 'scripts/detail.html' },
+  { from: 'stats.mjs', to: 'scripts/stats.mjs' },
+  { from: 'vendor/reactflow-bundle.js', to: 'scripts/vendor/reactflow-bundle.js' },
+  { from: 'start.sh', to: 'start.sh' },
+];
+export const SCRIPT_FILES = [
+  { from: 'serve.mjs', to: 'scripts/serve.mjs' },
+  { from: 'lib/registry.mjs', to: 'scripts/lib/registry.mjs' },
+  { from: 'lib/enrich.mjs', to: 'scripts/lib/enrich.mjs' },
+  { from: 'lib/map.mjs', to: 'scripts/lib/map.mjs' },
+];
+
+const DIRS = ['leads', 'scripts/lib', 'scripts/vendor'];
 
 export async function initRoot(root, assetsDir) {
-  await mkdir(join(root, 'vendor'), { recursive: true });
-  await mkdir(join(root, 'lib'), { recursive: true });
+  for (const dir of DIRS) await mkdir(join(root, dir), { recursive: true });
   const created = await ensureRegistry(root);
   const copied = [];
-  for (const rel of ASSET_FILES) copied.push(...await copyIfNewer(join(assetsDir, rel), root, rel));
-  for (const rel of SCRIPT_FILES) copied.push(...await copyIfNewer(join(SCRIPTS, rel), root, rel));
+  for (const f of ASSET_FILES) copied.push(...await copyIfNewer(join(assetsDir, f.from), root, f.to));
+  for (const f of SCRIPT_FILES) copied.push(...await copyIfNewer(join(SCRIPTS, f.from), root, f.to));
   return { created, copied };
 }
 

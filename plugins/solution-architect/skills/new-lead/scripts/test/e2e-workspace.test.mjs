@@ -47,6 +47,12 @@ test('init -> register -> serve -> mark won, end to end', async () => {
       assert.equal(page.headers.get('content-type'), 'text/html', `${path}: wrong content-type`);
       assert.match(await page.text(), marker, `${path}: body is not the dashboard page`);
     }
+    // the rendered dashboard must link artifacts at their real URLs, and must not
+    // reference the pre-layout flat paths
+    const home = await (await fetch(`${base}/`)).text();
+    assert.doesNotMatch(home, /["'`]\/\$\{id\}\/dist\//, 'card hrefs still use the flat layout');
+    const detail = await (await fetch(`${base}/detail/acme-crm`)).text();
+    assert.match(detail, /\/scripts\/vendor\//, 'detail page loads vendor from scripts/');
     // refresh is a no-op at same stamp
     assert.deepEqual((await initRoot(root, ASSETS)).copied, []);
   } finally { server.close(); }

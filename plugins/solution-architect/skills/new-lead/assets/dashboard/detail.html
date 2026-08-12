@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- new-lead-dashboard v1 -->
+<!-- new-lead-dashboard v2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -444,11 +444,10 @@ p, li, dd { text-wrap:pretty; }
   </main>
 </div>
 
-<script src="/vendor/reactflow-bundle.js"></script>
+<script src="/scripts/vendor/reactflow-bundle.js"></script>
 <script type="module">
 const LEAD_ID = location.pathname.split('/').pop();
 const GATES = { arch: 1, estimate: 2, scenario: 2, proposal: 3 };
-const PROPOSAL_ID = 'proposal';
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function esc(s) {
@@ -604,9 +603,6 @@ function gateFor(node) {
 }
 function computeBanner(lead, panels, nodes) {
   if (lead.closed) return `${lead.status} on ${lead.closed}`;
-  const proposal = nodes.find((n) => n.id === PROPOSAL_ID);
-  const validityDays = panels.facts?.proposal?.validityDays;
-  if (proposal?.data.status === 'ready' && validityDays != null) return `validity expires in ${validityDays}d`;
   const pending = nodes.find((n) => n.data.status === 'pending');
   if (!pending) return null;
   const gate = gateFor(pending);
@@ -695,22 +691,17 @@ function factRow(dl, label, value) {
   div.append(dt, dd);
   dl.append(div);
 }
-// The company name is registry truth (`lead.client`) — the answers-file `client` group
-// is industry/contact/techLevel/relationship and carries no name.
-function renderFacts(facts, clientName) {
+// facts is the registry entry — the only business metadata the dashboard has now
+// that the answers file is gone. A lead with no client yet shows an em dash.
+function renderFacts(facts) {
   const dl = document.getElementById('facts-dl');
   dl.replaceChildren();
-  factRow(dl, 'Client', clientName);
-  factRow(dl, 'Industry', facts.client?.industry);
-  factRow(dl, 'Deadline', facts.delivery?.deadline);
-  const chips = document.getElementById('tech-chips');
-  chips.replaceChildren();
-  (facts.tech?.stack ?? []).forEach((s) => {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = s;
-    chips.append(chip);
-  });
+  if (!facts) return;
+  factRow(dl, 'Client', facts.client ?? '—');
+  factRow(dl, 'Title', facts.title);
+  factRow(dl, 'Created', facts.created);
+  factRow(dl, 'Scenario', facts.scenario ?? '—');
+  document.getElementById('tech-chips').replaceChildren();
 }
 function appendEmptyNote(el, text) {
   const li = document.createElement('li');
@@ -744,7 +735,7 @@ function renderTimeline(id, entries, emptyText) {
 }
 function renderPanels(panels, lead) {
   renderBrief(panels.brief);
-  renderFacts(panels.facts, lead.client);
+  renderFacts(panels.facts);
   renderList('risks-list', panels.risks, 'No risks recorded.');
   renderList('questions-list', panels.openQuestions, 'No open questions recorded.');
   renderTimeline('decisions-list', panels.activity, 'No activity recorded yet.');

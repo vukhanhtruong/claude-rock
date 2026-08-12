@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- new-lead-dashboard v1 -->
+<!-- new-lead-dashboard v2 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -348,7 +348,7 @@ table.wall td.empty { background:var(--bg-sunk); border-bottom:none; box-shadow:
 </main>
 
 <script type="module">
-import { computeStats, filterLeads, sortLeads } from './stats.mjs';
+import { computeStats, filterLeads, sortLeads } from '/scripts/stats.mjs';
 
 const LS = 'newlead.dashboard.';
 const todayISO = new Date().toISOString().slice(0, 10);
@@ -370,6 +370,9 @@ const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
 }
+
+// A lead may have no client name until /proposal supplies one.
+const clientName = (l) => l.client ?? '—';
 
 function showBanner(msg) {
   const b = document.getElementById('banner');
@@ -479,15 +482,15 @@ function cardTemplate(l) {
         <h3>${esc(l.title)}</h3>
         ${statusBadge(l.status)}
       </div>
-      <p class="card-client">${esc(l.client)}</p>
+      <p class="card-client">${esc(clientName(l))}</p>
       <p class="card-meta">
         <span class="mono">${dates}</span>
         ${l.value ? `<span class="card-value mono">${fmtRange(l.value)}</span>` : ''}
       </p>
       <div class="artifacts">
-        ${artifactChip(l.artifacts.docs, `/${id}/dist/index.html`, 'Docs')}
-        ${artifactChip(l.artifacts.estimate, `/${id}/dist/estimate.html`, 'Estimate')}
-        ${artifactChip(l.artifacts.proposal, `/${id}/dist/proposal.html`, 'Proposal')}
+        ${artifactChip(l.artifacts.docs, `/leads/${id}/dist/index.html`, 'Docs')}
+        ${artifactChip(l.artifacts.estimate, `/leads/${id}/dist/estimate.html`, 'Estimate')}
+        ${artifactChip(l.artifacts.proposal, `/leads/${id}/dist/proposal.html`, 'Proposal')}
       </div>
       <div class="card-actions">
         <a class="btn btn-open" href="/detail/${id}">Open</a>
@@ -517,7 +520,7 @@ function timelineRow(l) {
     <div class="t-row ${esc(l.status)}">
       <span class="t-date mono">${esc(l.created)}</span>
       <span class="t-bar">${bar}</span>
-      <span class="t-info"><strong>${esc(l.client)}</strong> ${esc(l.title)}${statusBadge(l.status)}</span>
+      <span class="t-info"><strong>${esc(clientName(l))}</strong> ${esc(l.title)}${statusBadge(l.status)}</span>
       <span class="t-date t-closed mono">${esc(l.closed || '')}</span>
     </div>`;
 }
@@ -548,7 +551,7 @@ function tick(flag) {
 // drift out of sync. `cls` values are literals from this table, never lead data.
 const COLUMNS = [
   { label: 'ID', cls: 'mono', cell: (l) => esc(l.id) },
-  { label: 'Client', sort: 'client', cell: (l) => esc(l.client) },
+  { label: 'Client', sort: 'client', cell: (l) => esc(clientName(l)) },
   { label: 'Title', cell: (l) => esc(l.title) },
   { label: 'Status', cell: (l) => statusBadge(l.status) },
   { label: 'Created', sort: 'created', cls: 'mono', cell: (l) => esc(l.created) },

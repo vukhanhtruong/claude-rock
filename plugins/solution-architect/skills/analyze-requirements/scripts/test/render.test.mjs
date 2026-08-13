@@ -39,7 +39,20 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /@font-face\{font-family:'IBM Plex Sans'/);
   assert.match(html, /url\(data:font\/woff2;base64,/);
   assert.doesNotMatch(html, /url\(https?:/);
-  assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
+  // Self-contained means nothing *loads* from the network, while research.md §3
+  // requires every researched fact to carry a source URL as visible text. So
+  // rather than forbid http outright (or blocklist loadable positions, which a
+  // later srcset/fetch/@import would slip past), every URL in the page must
+  // originate in the rendered documents — bundles and template code contribute
+  // none, in any syntactic position. The one exception is svg's xmlns.
+  const docs = readFileSync(join(fixtures, 'ARCHITECTURE.md'), 'utf8')
+    + readFileSync(join(fixtures, 'docs/adr/0001-sample.md'), 'utf8');
+  for (const url of html.match(/https?:\/\/[^\s"'`)\]<]+/g) ?? []) {
+    assert.ok(url.startsWith('http://www.w3.org/') || docs.includes(url),
+      `${url} does not come from the documents — the page must stay self-contained`);
+  }
+  assert.match(html, /researched \[https:\/\/docs\.stripe\.com\/api\]/,
+    'a researched fact\'s source URL must survive into the page as visible text');
   // ARCHITECTURE.md heads its own section. Anything under docs/adr/ is a record:
   // §14 Decisions already tables every one of them, so it opens in a drawer over
   // that table and gets no rail row of its own.

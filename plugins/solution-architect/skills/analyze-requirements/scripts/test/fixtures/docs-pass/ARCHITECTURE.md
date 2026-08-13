@@ -26,7 +26,7 @@ are named.
 
 | System | Method | src |
 |---|---|---|
-| Stripe | REST API for payment charges | researched [stripe docs] |
+| Stripe | REST API for payment charges | researched [https://docs.stripe.com/api] |
 
 ## Data Stores
 

@@ -51,6 +51,54 @@ test('render.mjs produces a self-contained index.html', () => {
   assert.match(html, /class="page"[^>]*data-route="0001-sample"/);
 });
 
+// A companion at the set root has no meaningful directory name — dirname is ".",
+// and that string reached the rail as a section title. ARCHITECTURE.md was already
+// special-cased out of this, but only by its index, so every *other* root-level
+// document fell through to a row labelled ".". They belong with the spine they
+// accompany.
+test('root-level companions head the Architecture section, not "."', () => {
+  const out = mkdtempSync(join(tmpdir(), 'analyze-requirements-render-'));
+  const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
+  execFileSync('node', [
+    'plugins/solution-architect/skills/analyze-requirements/scripts/render.mjs',
+    '--root', fixtures, '--arch', `${fixtures}ARCHITECTURE.md`,
+    '--docs', `${fixtures}threat-model.md`, `${fixtures}docs/adr/0001-sample.md`,
+    '--out', out,
+    '--likec4-bundle', stub('l.js', LIKEC4_STUB),
+    '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
+    '--theme', 'plugins/solution-architect/skills/analyze-requirements/assets/mermaid-theme.json',
+  ]);
+  const html = readFileSync(join(out, 'index.html'), 'utf8');
+  // Absolute --docs took the set directory's own name; relative --docs took ".".
+  // Neither is a section a reader would recognise.
+  assert.doesNotMatch(html, /nav-sec__title[^>]*>Docs pass</);
+  assert.doesNotMatch(html, /data-section="\."/);
+  // Still reachable, under the spine's own section.
+  assert.match(html, /nav-sec__title[^>]*>Architecture</);
+  assert.match(html, /class="page"[^>]*data-route="threat-model"/);
+});
+
+// The same set, spelled the way a caller in the set directory spells it. The
+// label must not depend on how the path was written — that is what made this
+// invisible to the fixture and visible in a real run.
+test('a root-level companion is spelling-independent', () => {
+  const out = mkdtempSync(join(tmpdir(), 'analyze-requirements-render-'));
+  const stub = (name, content) => { const p = join(out, name); writeFileSync(p, content); return p; };
+  const skill = new URL('../../', import.meta.url).pathname;
+  execFileSync('node', [
+    `${skill}scripts/render.mjs`,
+    '--root', '.', '--arch', 'ARCHITECTURE.md',
+    '--docs', 'threat-model.md', 'docs/adr/0001-sample.md',
+    '--out', out,
+    '--likec4-bundle', stub('l.js', LIKEC4_STUB),
+    '--mermaid-bundle', stub('m.js', '/*mermaid*/'),
+    '--theme', `${skill}assets/mermaid-theme.json`,
+  ], { cwd: fixtures });
+  const html = readFileSync(join(out, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /data-section="\."/);
+  assert.match(html, /nav-sec__title[^>]*>Architecture</);
+});
+
 // The estimation companion is the argument; the estimate skill's page beside
 // it is the same numbers made interactive. The viewer links it when — and only
 // when — the file exists, so an md-only run renders exactly as before.

@@ -40,15 +40,24 @@ function docTitle(archMd) {
 }
 
 // The rail buckets documents by the directory they came from, so a docs/adr run
-// collapses to one row instead of 17. ARCHITECTURE.md sits at the repo root, so
-// its own directory name is meaningless and it heads its own section instead.
+// collapses to one row instead of 17. Anything sitting at the set root has no
+// directory name worth showing — threat-model.md and the interface contract live
+// beside ARCHITECTURE.md — so the whole root heads one Architecture section.
+//
+// Compare resolved directories, never the path's spelling. `basename(dirname())`
+// reads the *argument*: the same set rendered from inside its own directory gave
+// a rail section titled "." while an absolute --docs gave one named after the set
+// folder. Index 0 was special-cased out of it, so every other root-level
+// companion fell through.
 const DECISIONS = /^(adrs?|decisions?|rfcs?)$/;
 
-function sectionOf(path, index) {
+function sectionOf(path, index, root) {
   if (index === 0) return 'Architecture';
-  const dir = basename(dirname(path)).toLowerCase();
-  if (DECISIONS.test(dir)) return 'Decision Records';
-  return dir.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const dir = dirname(resolve(path));
+  if (dir === resolve(root)) return 'Architecture';
+  const name = basename(dir).toLowerCase();
+  if (DECISIONS.test(name)) return 'Decision Records';
+  return name.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
 // A record is read *because* of the row that referenced it, so it opens over that
@@ -65,7 +74,7 @@ const slugs = new Map();
 const docSlugs = new Map();
 const pages = docPaths.map((p, i) => ({
   ...renderMarkdown(readFileSync(p, 'utf8'), slugs, docSlugs),
-  section: sectionOf(p, i),
+  section: sectionOf(p, i, args.root),
   path: resolve(p),
   spine: i === 0,
   drawer: drawerOf(p, i),

@@ -16,6 +16,8 @@ export const ASSET_FILES = [
 ];
 export const SCRIPT_FILES = [
   { from: 'serve.mjs', to: 'scripts/serve.mjs' },
+  { from: 'lead-upsert.mjs', to: 'scripts/lead-upsert.mjs' },
+  { from: 'validate.mjs', to: 'scripts/validate.mjs' },
   { from: 'lib/registry.mjs', to: 'scripts/lib/registry.mjs' },
   { from: 'lib/enrich.mjs', to: 'scripts/lib/enrich.mjs' },
   { from: 'lib/map.mjs', to: 'scripts/lib/map.mjs' },
@@ -52,7 +54,7 @@ async function copyIfNewer(src, root, rel) {
 // string literal further down cannot be mistaken for the file's own. Sized to clear a
 // path comment plus an import block, because a stamp legitimately sits below one:
 // lib/registry.mjs stamps at line 6 and read as 0 under the previous 3-line window, so
-// it silently never refreshed. init-root.test.mjs pins this for all ten copied files.
+// it silently never refreshed. init-root.test.mjs pins this for every copied file.
 const STAMP_LINES = 10;
 
 export async function stampOf(file) {

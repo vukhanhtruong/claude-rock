@@ -1,4 +1,5 @@
 // scripts/lead-upsert.mjs
+// new-lead-dashboard v1
 import { parseArgs } from 'node:util';
 import { readRegistry, writeRegistry } from './lib/registry.mjs';
 

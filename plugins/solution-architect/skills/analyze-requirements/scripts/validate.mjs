@@ -60,7 +60,7 @@ function brownfieldFindings({ inputs, args, root }) {
       fsDirs: walkDirs(root),
       allDirs: walkDirs(root, true),
     }),
-    ...validateClusters({ clusters, componentRows: componentRows(inputs.tables) }),
+    ...validateClusters({ clusters, componentRows: componentRows(inputs.tables), storeNames: inputs.erNames }),
   ];
 }
 

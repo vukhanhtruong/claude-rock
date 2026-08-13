@@ -132,6 +132,16 @@ two homes is a defect, not redundancy:
 Never mix the two for the same view: a LikeC4-modeled view always uses the
 marker, never a hand-drawn mermaid equivalent.
 
+## 3c. Key paths ↔ clusters (brownfield)
+
+The §6 "key paths" column holds **file paths** (comma-separated), never symbol
+names. The brownfield validator matches each path against the `packages` of
+the `get_architecture` clusters — a row matches a cluster when one of its key
+paths equals a cluster package or sits under it (`backend/src` matches package
+`backend`). Every high-cohesion cluster needs a matching row, and every §6 row
+needs a matching cluster — except rows that name a §8 data store (MongoDB has
+no functions, so it can never match a cluster and is exempt).
+
 ## 4. Frontmatter contract
 
 Fields: `name · repo · team · updated · mode · projectType · docVersion ·

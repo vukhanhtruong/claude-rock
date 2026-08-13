@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  pert, projectBuffer, tierFor, aiAdjust, riskBufferHours,
-  effectiveCapacity, scenarioRollup, taskHours, SENIORITY_FACTOR, roadmapBands,
+  pert, projectBuffer, tierFor, aiAdjust, riskBufferHours, effectiveCapacity,
+  scenarioRollup, taskHours, SENIORITY_FACTOR, roadmapBands, dominantSeniority,
 } from '../lib/estimate-math.mjs';
 
 const close = (got, want) => assert.ok(Math.abs(got - want) < 1e-9, `${got} !~ ${want}`);
@@ -60,6 +60,16 @@ test('taskHours: AI plan reduces hours versus the same seniority without AI', ()
     const at = (plan) => taskHours({ e: 100, seniority, plan, category: 'boilerplate', verificationPct: 0.12 });
     assert.ok(at('max5x') < at('none'), `${seniority}: AI ${at('max5x')} !< ${at('none')}`);
   }
+});
+
+// The what-if rail's roster needs the same dominant-seniority rule the
+// committed rollup uses — shipping it in the inlined math bundle is what
+// keeps the page copy and the Node copy one function.
+test('dominantSeniority ships with the math bundle: count wins, ties go senior', () => {
+  assert.equal(dominantSeniority([
+    { seniority: 'junior' }, { seniority: 'junior' }, { seniority: 'senior' },
+  ]), 'junior');
+  assert.equal(dominantSeniority([{ seniority: 'senior' }, { seniority: 'junior' }]), 'senior');
 });
 
 test('risk buffer is probability times impact, summed', () => {

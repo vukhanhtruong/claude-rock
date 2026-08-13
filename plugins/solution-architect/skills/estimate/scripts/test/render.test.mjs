@@ -79,7 +79,7 @@ test('the method section comes first — how before how-much', () => {
 
 test('--client-only strips every internal range', () => {
   const html = renderedPage(['--client-only']);
-  assert.doesNotMatch(html, /data-internal|internal:start|ctl-engineers/);
+  assert.doesNotMatch(html, /data-internal|internal:start|ctl-team/);
   assert.match(stripInternal('a<!-- internal:start -->X<!-- internal:end -->b'), /^ab$/);
 });
 

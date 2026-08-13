@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findChrome } from '../../../analyze-requirements/scripts/lib/chrome.mjs';
 import { openPage } from '../../../analyze-requirements/scripts/lib/cdp.mjs';
-import { pert, taskHours, scenarioRollup, riskBufferHours, projectBuffer } from '../lib/estimate-math.mjs';
+import {
+  pert, taskHours, scenarioRollup, riskBufferHours, projectBuffer, dominantSeniority,
+} from '../lib/estimate-math.mjs';
 
 const skip = { skip: !findChrome() && 'no chrome on PATH' };
 const fixture = new URL('./fixtures/booking-inputs.json', import.meta.url).pathname;
@@ -24,16 +26,21 @@ function buildPage(extra = []) {
 function nodeRecompute(p) {
   const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
   const tasks = inputs.features.flatMap((f) => f.tasks);
-  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority: p.seniority, plan: p.plan,
+  const seniority = dominantSeniority(p.team);
+  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority, plan: p.plan,
     category: t.category, verificationPct: inputs.verificationPct, scale: p.aiScale });
   const dev = tasks.reduce((s, t) => s + hoursOf(t), 0);
   const buffers = (riskBufferHours(inputs.risks) + projectBuffer(tasks.map((t) => pert(t).sigma))) * p.bufferScale;
   const hours = dev + dev * p.overheadPct + buffers;
-  const team = Array.from({ length: p.engineers }, () => ({ seniority: p.seniority, rate: p.rate }));
-  return { hours, ...scenarioRollup({ hours, team, plan: p.plan }) };
+  return { hours, ...scenarioRollup({ hours, team: p.team, plan: p.plan }) };
 }
 
-const PARAMS = { engineers: 2, seniority: 'mid', plan: 'max5x', rate: 45, aiScale: 1, bufferScale: 1, overheadPct: 0.35 };
+// A mixed roster on purpose: effort follows the dominant seniority (mid),
+// labor cost follows each member's own rate.
+const PARAMS = {
+  team: [{ seniority: 'senior', rate: 60 }, { seniority: 'mid', rate: 45 }, { seniority: 'mid', rate: 45 }],
+  plan: 'max5x', aiScale: 1, bufferScale: 1, overheadPct: 0.35,
+};
 
 test('page boots without console errors and browser math equals node math', skip, async () => {
   const page = await openPage(buildPage());
@@ -44,6 +51,99 @@ test('page boots without console errors and browser math equals node math', skip
       assert.ok(Math.abs(got[key] - want[key]) < 1e-6, `${key}: ${got[key]} != ${want[key]}`);
     }
     assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+// The bug this guards against: the old rail replicated team[0].rate across
+// the whole team, so its resting numbers disagreed with the committed card
+// it claims to reproduce (2×$60 instead of $60+$45 on the fixture).
+test('the rail at rest reproduces the committed recommended scenario', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const { got, want } = await page.eval(`(() => {
+      const rec = DATA.inputs.scenarios.find((s) => s.id === DATA.inputs.recommendedScenario);
+      return { got: window.__recompute({ team: rec.team, plan: rec.plan,
+        aiScale: 1, bufferScale: 1, overheadPct: DATA.inputs.overheadPct }),
+      want: DATA.computed.scenarios[rec.id] };
+    })()`);
+    for (const key of ['hours', 'months', 'totalCost']) {
+      // committed numbers are round2'd — compare at that grain
+      assert.ok(Math.abs(got[key] - want[key]) < 0.005, `${key}: ${got[key]} != ${want[key]}`);
+    }
+  } finally { page.close(); }
+});
+
+const readRoster = (page) => page.eval(`[...document.querySelectorAll('#ctl-team .team-row')].map((r) => ({
+  seniority: r.querySelector('select').value, rate: Number(r.querySelector('input').value) }))`);
+
+test('the roster boots as the recommended team, one row per member', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const inputs = JSON.parse(readFileSync(fixture, 'utf8'));
+    const rec = inputs.scenarios.find((s) => s.id === inputs.recommendedScenario);
+    assert.deepEqual(await readRoster(page), rec.team);
+    // seniority options come from SENIORITY_FACTOR, not a hand-written triple
+    assert.deepEqual(await page.eval(
+      `[...document.querySelector('#ctl-team select').options].map((o) => o.value)`),
+    ['junior', 'mid', 'senior']);
+  } finally { page.close(); }
+});
+
+// Rates ride with seniority: the committed scenarios are the page's only
+// rate table (booking fixture: junior 30, mid 45, senior 60), so switching
+// a row's level re-seeds its rate — still hand-editable afterwards.
+test('switching a row seniority re-seeds its rate from the committed scenarios', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const readout = () => page.eval(`document.getElementById('whatif-readout').textContent`);
+    const before = await readout();
+    await page.eval(`(() => {
+      const sel = document.querySelector('#ctl-team .team-row select');
+      sel.value = 'junior'; sel.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    assert.deepEqual((await readRoster(page))[0], { seniority: 'junior', rate: 30 });
+    assert.notEqual(await readout(), before, 'the readout must follow the re-seeded rate');
+  } finally { page.close(); }
+});
+
+test('every rate input carries a dollar-sign prefix', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const cur = await page.eval(
+      `[...document.querySelectorAll('#ctl-team .team-row .cur')].map((c) => c.textContent)`);
+    assert.deepEqual(cur, ['$', '$']);
+  } finally { page.close(); }
+});
+
+test('adding and removing a row recalculates with the coordination tax', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const months = () => page.eval(
+      `parseFloat(document.querySelector('#whatif-readout .num').textContent)`);
+    const before = await months();
+    await page.eval(`document.querySelector('#ctl-team .team-add').click()`);
+    const rows = await readRoster(page);
+    assert.equal(rows.length, 3);
+    assert.deepEqual(rows[2], rows[1], 'a new row clones the last one');
+    assert.ok(await months() < before, `three engineers must finish sooner than two`);
+    await page.eval(`document.querySelector('#ctl-team .team-row:last-of-type .team-del').click()`);
+    assert.equal(await months(), before);
+  } finally { page.close(); }
+});
+
+test('the roster is capped between one and eight engineers', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const count = () => page.eval(`document.querySelectorAll('#ctl-team .team-row').length`);
+    // clicks are synchronous in-page; a disabled button ignores them, so
+    // over-clicking in one eval is exactly the user mashing the button
+    await page.eval(`for (let i = 0; i < 10; i++) document.querySelector('#ctl-team .team-add').click()`);
+    assert.equal(await count(), 8);
+    assert.equal(await page.eval(`document.querySelector('#ctl-team .team-add').disabled`), true);
+    await page.eval(
+      `for (let i = 0; i < 10; i++) document.querySelector('#ctl-team .team-row:last-of-type .team-del').click()`);
+    assert.equal(await count(), 1);
+    assert.equal(await page.eval(`document.querySelector('#ctl-team .team-del').disabled`), true);
   } finally { page.close(); }
 });
 
@@ -58,16 +158,19 @@ test('the scenario cards show only committed scenarios — the rail owns what-if
   } finally { page.close(); }
 });
 
-test('moving a control updates the custom card and shows the banner', skip, async () => {
+test('moving a control shows the banner; reset rebuilds the default roster', skip, async () => {
   const page = await openPage(buildPage());
   try {
     await page.eval(`(() => {
-      const ctl = document.getElementById('ctl-engineers');
-      ctl.value = '4'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
+      const ctl = document.querySelector('#ctl-team .team-row input');
+      ctl.value = '80'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
     assert.equal(await page.eval(`document.getElementById('modified-banner').hidden`), false);
+    await page.eval(`document.querySelector('#ctl-team .team-add').click()`);
     await page.eval(`document.getElementById('reset').click()`);
     assert.equal(await page.eval(`document.getElementById('modified-banner').hidden`), true);
+    assert.equal(await page.eval(`document.querySelectorAll('#ctl-team .team-row').length`), 2);
+    assert.equal(await page.eval(`document.querySelector('#ctl-team .team-row input').value`), '60');
   } finally { page.close(); }
 });
 
@@ -94,8 +197,8 @@ test('the what-if rail shows a live readout that tracks control changes', skip, 
     const before = await read();
     assert.match(before, /months/);
     await page.eval(`(() => {
-      const ctl = document.getElementById('ctl-engineers');
-      ctl.value = '4'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
+      const sel = document.querySelector('#ctl-team .team-row select');
+      sel.value = 'junior'; sel.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
     assert.notEqual(await read(), before);
   } finally { page.close(); }
@@ -116,7 +219,7 @@ test('the --client-only page boots clean without its stripped controls', skip, a
   const page = await openPage(buildPage(['--client-only']));
   try {
     assert.deepEqual(page.errors, []); // stripped nodes must be null-guarded, not assumed
-    assert.equal(await page.eval(`document.getElementById('ctl-engineers')`), null);
+    assert.equal(await page.eval(`document.getElementById('ctl-team')`), null);
     for (const id of ['scenario-cards', 'feature-table', 'register', 'method', 'roadmap', 'containers']) {
       assert.ok(await page.eval(`document.getElementById('${id}').children.length > 0`),
         `${id} empty on client-only page`);
@@ -436,8 +539,8 @@ test('roadmap renders committed bands and ignores the what-if rail', skip, async
     assert.match(labels[1], /M2 - Notifications/);
     const before = await page.eval(`document.getElementById('roadmap').innerHTML`);
     await page.eval(`(() => {
-      const ctl = document.getElementById('ctl-engineers');
-      ctl.value = '5'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
+      const ctl = document.querySelector('#ctl-team .team-row input');
+      ctl.value = '90'; ctl.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
     assert.equal(await page.eval(`document.getElementById('roadmap').innerHTML`), before,
       'roadmap must stay frozen at the committed estimate');

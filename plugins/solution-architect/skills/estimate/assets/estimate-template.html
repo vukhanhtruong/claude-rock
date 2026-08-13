@@ -334,16 +334,25 @@ tr.task-row td:first-child { padding-left:2.1rem; }
 tr.task-row .bd-cell { justify-content:flex-end; }
 .task-assump { font-size:.76rem; color:var(--ink-dim); }
 #register > div + table, #register > table + table { margin-top:1.4rem; }
-/* compact rail: the four boxed inputs pair up two per row; sliders and the
-   readout keep the full width. Keeps the rail near the height of the two
+/* compact rail: the team roster, the plan select, the sliders, and the
+   readout stack full-width. Keeps the rail near the height of the two
    scenario sections beside it. */
 #controls {
   background:var(--card); border:1px solid var(--border); border-radius:.6rem;
   padding:1.1rem 1.2rem; box-shadow:var(--shadow);
-  display:grid; grid-template-columns:1fr 1fr; gap:.7rem .8rem; align-content:start;
+  display:grid; grid-template-columns:1fr; gap:.7rem; align-content:start;
 }
-#controls label:has(input[type="range"]), #whatif-readout { grid-column:1 / -1; }
 #controls label { display:flex; flex-direction:column; font-size:.76rem; gap:.3rem; color:var(--ink-dim); }
+/* the roster: one row per engineer (seniority + rate + remove), plus add.
+   Styled by class — the container id is internal-only page text and must
+   never appear in the head CSS a client render keeps. */
+#controls .team { display:flex; flex-direction:column; gap:.4rem; font-size:.76rem; color:var(--ink-dim); }
+#controls .team-row { display:flex; gap:.4rem; align-items:center; }
+#controls .team-row .cur { margin-right:-.15rem; }
+#controls .team-row select { flex:1; min-width:0; }
+#controls .team-row input { width:4.6rem; }
+#controls .team button { font-size:.76rem; padding:.3rem .5rem; background:var(--bg); color:var(--ink-dim); }
+#controls .team button:disabled { opacity:.4; cursor:default; }
 #controls .lab { display:flex; justify-content:space-between; align-items:baseline; }
 #controls output { font-family:'IBM Plex Mono',monospace; font-size:.74rem; color:var(--ink); }
 #controls input, #controls select {
@@ -405,10 +414,8 @@ tr.task-row .bd-cell { justify-content:flex-end; }
   <div class="sec-head"><h2>What-if</h2><details class="help"><summary aria-label="explain this panel">?</summary>
     <p>The levers re-run the exact same formulas as the committed numbers, in your browser. Nothing here changes the committed estimate — it answers "what would it look like if&hellip;". The readout below updates live.</p></details></div>
   <div id="controls" data-internal>
-    <label>engineers <input id="ctl-engineers" type="number" min="1" max="8" step="1"></label>
-    <label>seniority <select id="ctl-seniority"><option>junior</option><option>mid</option><option>senior</option></select></label>
+    <div id="ctl-team" class="team" role="group" aria-label="team"></div>
     <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
-    <label>hourly rate <input id="ctl-rate" type="number" min="10" max="300" step="5"></label>
     <label><span class="lab">AI multiplier <output></output></span><input id="ctl-ai" type="range" min="0" max="1.5" step="0.05"></label>
     <label><span class="lab">risk buffer <output></output></span><input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
     <label><span class="lab">overhead % <output></output></span><input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
@@ -437,39 +444,27 @@ badge.className = `${DATA.computed.projectConfidence.toLowerCase()} ${confLevel(
 
 // Same math path as the committed numbers: recompute() is both the page's
 // what-if engine and the parity hook the browser tests call directly.
+// p.team is a real roster ([{seniority, rate}, …]) — effort follows the
+// dominant seniority exactly like the committed rollup, cost follows each
+// member's own rate.
 function recompute(p) {
   const tasks = DATA.inputs.features.flatMap((f) => f.tasks);
-  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority: p.seniority, plan: p.plan,
+  const seniority = dominantSeniority(p.team);
+  const hoursOf = (t) => taskHours({ e: pert(t).e, seniority, plan: p.plan,
     category: t.category, verificationPct: DATA.inputs.verificationPct, scale: p.aiScale });
   const dev = tasks.reduce((s, t) => s + hoursOf(t), 0);
   const buffers = (riskBufferHours(DATA.inputs.risks)
     + projectBuffer(tasks.map((t) => pert(t).sigma))) * p.bufferScale;
   const hours = dev + dev * p.overheadPct + buffers;
-  const team = Array.from({ length: p.engineers }, () => ({ seniority: p.seniority, rate: p.rate }));
-  return { hours, ...scenarioRollup({ hours, team, plan: p.plan }) };
+  return { hours, ...scenarioRollup({ hours, team: p.team, plan: p.plan }) };
 }
 window.__recompute = recompute;
-
-const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
-function dominantSeniority(team) {
-  const counts = {};
-  for (const m of team) counts[m.seniority] = (counts[m.seniority] ?? 0) + 1;
-  let best = null;
-  for (const s of Object.keys(counts)) {
-    const better = !best || counts[s] > counts[best]
-      || (counts[s] === counts[best] && SENIORITY_RANK[s] > SENIORITY_RANK[best]);
-    if (better) best = s;
-  }
-  return best;
-}
 
 function defaultsFromRecommended() {
   const rec = DATA.inputs.scenarios.find((s) => s.id === DATA.inputs.recommendedScenario);
   return {
-    engineers: rec.team.length,
-    seniority: dominantSeniority(rec.team),
+    team: rec.team.map((m) => ({ ...m })),
     plan: rec.plan,
-    rate: rec.team[0].rate,
     aiScale: 1,
     bufferScale: 1,
     overheadPct: DATA.inputs.overheadPct,
@@ -479,9 +474,13 @@ function defaultsFromRecommended() {
 // Control ids are assembled at runtime (never one static "ctl-*" literal)
 // so the client-only render, which keeps this whole script but drops the
 // controls markup, never carries an internal control id as page text.
-const CTL_SUFFIX = { engineers: 'engineers', seniority: 'seniority', plan: 'plan', rate: 'rate', aiScale: 'ai', bufferScale: 'buffer', overheadPct: 'overhead' };
+const CTL_SUFFIX = { plan: 'plan', aiScale: 'ai', bufferScale: 'buffer', overheadPct: 'overhead' };
 const CTL_KEYS = Object.keys(CTL_SUFFIX);
 const ctlId = (key) => `ctl-${CTL_SUFFIX[key]}`;
+// The roster container is found by its class — its id is internal-only page
+// text, and the class already ships in the head CSS either way.
+const teamBox = () => document.querySelector('#controls .team');
+const TEAM_MAX = 8;
 
 function setControls(values) {
   CTL_KEYS.forEach((key) => {
@@ -498,11 +497,65 @@ function syncOutputs() {
   });
 }
 
+// The committed scenarios are the page's only rate table: the first rate
+// seen per seniority re-seeds a row's rate when its level changes.
+const RATE_BY_SENIORITY = {};
+for (const s of DATA.inputs.scenarios) {
+  for (const m of s.team) if (m.rate != null) RATE_BY_SENIORITY[m.seniority] ??= m.rate;
+}
+
+function teamRow({ seniority, rate }) {
+  const row = document.createElement('div');
+  row.className = 'team-row';
+  const sel = document.createElement('select');
+  for (const s of Object.keys(SENIORITY_FACTOR)) sel.add(new Option(s, s));
+  sel.value = seniority;
+  const cur = Object.assign(document.createElement('span'), { className: 'cur', textContent: '$' });
+  const rateEl = Object.assign(document.createElement('input'),
+    { type: 'number', min: 10, max: 300, step: 5, value: rate });
+  rateEl.setAttribute('aria-label', 'hourly rate');
+  const del = Object.assign(document.createElement('button'),
+    { type: 'button', className: 'team-del', textContent: '×' });
+  del.setAttribute('aria-label', 'remove engineer');
+  row.append(sel, cur, rateEl, del);
+  return row;
+}
+
+function syncTeamButtons() {
+  const box = teamBox();
+  const rows = box.querySelectorAll('.team-row');
+  box.querySelector('.team-add').disabled = rows.length >= TEAM_MAX;
+  rows.forEach((r) => { r.querySelector('.team-del').disabled = rows.length <= 1; });
+}
+
+// Rebuild-from-array is the only write path (boot, reset), so reset can
+// never leave stale rows behind.
+function renderTeam(team) {
+  const box = teamBox();
+  if (!box) return;
+  box.replaceChildren(
+    Object.assign(document.createElement('span'), { textContent: 'team' }),
+    ...team.map(teamRow),
+    Object.assign(document.createElement('button'),
+      { type: 'button', className: 'team-add', textContent: '+ engineer' }),
+  );
+  syncTeamButtons();
+}
+
+function currentTeam(defaults) {
+  const box = teamBox();
+  if (!box) return defaults.team;
+  return [...box.querySelectorAll('.team-row')].map((r) => ({
+    seniority: r.querySelector('select').value,
+    rate: Number(r.querySelector('input').value),
+  }));
+}
+
 function currentParams(defaults) {
-  const p = {};
+  const p = { team: currentTeam(defaults) };
   CTL_KEYS.forEach((key) => {
     const raw = document.getElementById(ctlId(key))?.value ?? defaults[key];
-    p[key] = key === 'seniority' || key === 'plan' ? raw : Number(raw);
+    p[key] = key === 'plan' ? raw : Number(raw);
   });
   return p;
 }
@@ -1010,21 +1063,42 @@ function renderAll(defaults) {
 }
 
 const defaults = defaultsFromRecommended();
-setControls(defaults);
-syncOutputs();
-renderAll(defaults);
 
-CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener('input', () => {
+function applyDefaults() {
+  setControls(defaults);
+  renderTeam(defaults.team);
+  syncOutputs();
+  renderAll(defaults);
+}
+applyDefaults();
+
+function onWhatIfChange() {
   syncOutputs();
   renderAll(defaults);
   const banner = document.getElementById('modified-banner');
   if (banner) banner.hidden = false;
-}));
+}
+
+CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener('input', onWhatIfChange));
+teamBox()?.addEventListener('input', (e) => {
+  if (e.target.matches('select')) {
+    const rate = RATE_BY_SENIORITY[e.target.value];
+    if (rate != null) e.target.closest('.team-row').querySelector('input').value = rate;
+  }
+  onWhatIfChange();
+});
+teamBox()?.addEventListener('click', (e) => {
+  if (e.target.matches('.team-add')) {
+    e.target.before(teamRow(currentTeam(defaults).at(-1)));
+  } else if (e.target.matches('.team-del')) {
+    e.target.closest('.team-row').remove();
+  } else return;
+  syncTeamButtons();
+  onWhatIfChange();
+});
 
 document.getElementById('reset')?.addEventListener('click', () => {
-  setControls(defaults);
-  syncOutputs();
-  renderAll(defaults);
+  applyDefaults();
   const banner = document.getElementById('modified-banner');
   if (banner) banner.hidden = true;
 });

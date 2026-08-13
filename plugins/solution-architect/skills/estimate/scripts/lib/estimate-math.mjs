@@ -46,6 +46,16 @@ export function taskHours({ e, seniority, plan, category, verificationPct, scale
   return plan === 'none' ? base : aiAdjust({ e: base, category, verificationPct, scale });
 }
 
+// One seniority drives effort for a whole team: the most common level wins,
+// ties go to the more senior. Rank comes from the factor values themselves
+// (more senior = lower factor), never from key order. Lives here (not
+// rollup.mjs) so the inlined bundle hands the page the same function the
+// committed rollup uses.
+export const dominantSeniority = (team) => Object.keys(SENIORITY_FACTOR)
+  .sort((a, b) => SENIORITY_FACTOR[a] - SENIORITY_FACTOR[b])
+  .map((level) => [level, team.filter((m) => m.seniority === level).length])
+  .reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
+
 export function riskBufferHours(risks) {
   return risks.reduce((sum, r) => sum + r.probability * r.impactHours, 0);
 }

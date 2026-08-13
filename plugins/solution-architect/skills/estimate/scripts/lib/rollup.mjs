@@ -2,12 +2,10 @@
 // task, AI-adjusted hours per (task × scenario), buffers, and cost rollups.
 // Every map is assembled with sorted keys so repeat runs are byte-identical.
 import {
-  pert, projectBuffer, taskHours, riskBufferHours, scenarioRollup,
+  pert, projectBuffer, taskHours, riskBufferHours, scenarioRollup, dominantSeniority,
 } from './estimate-math.mjs';
 import { roadmapFor } from './roadmap.mjs';
 import { componentHoursFor } from './components.mjs';
-
-const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2 };
 
 function sortedMap(entries) {
   return Object.fromEntries(entries.sort(([a], [b]) => a.localeCompare(b)));
@@ -15,19 +13,6 @@ function sortedMap(entries) {
 
 export function round2(n) {
   return Math.round(n * 100) / 100;
-}
-
-export function dominantSeniority(team) {
-  const counts = {};
-  for (const m of team) counts[m.seniority] = (counts[m.seniority] ?? 0) + 1;
-  let best = null;
-  for (const seniority of Object.keys(counts)) {
-    const better = !best
-      || counts[seniority] > counts[best]
-      || (counts[seniority] === counts[best] && SENIORITY_RANK[seniority] > SENIORITY_RANK[best]);
-    if (better) best = seniority;
-  }
-  return best;
 }
 
 export function taskHoursFor(scenario, tasks) {

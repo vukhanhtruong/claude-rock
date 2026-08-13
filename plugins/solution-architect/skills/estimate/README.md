@@ -27,7 +27,7 @@ next free port).
   feature is tagged with the component it implements (untouched components
   are caught by validation), then places `estimation.md` beside it so the
   analyze-requirements viewer picks it up as a companion page. `estimate.html` renders
-  into the viewer's own directory when one exists (falling back to beside
+  into the shared `dist/` output folder (falling back to beside
   `estimation.md`), so viewer and estimate ship as one folder; the viewer
   links it from the estimation tab, and `render.mjs --viewer <path>` adds
   the internal-only back-link.

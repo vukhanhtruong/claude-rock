@@ -97,5 +97,6 @@ node scripts/render.mjs   --md <dir>/proposal.md --estimation <dir>/estimation.j
 node ../analyze-requirements/scripts/serve.mjs <out-dir>
 ```
 
-`<out-dir>` is the rendered analyze-requirements viewer directory when one exists
-(proposal.html ships beside index.html and estimate.html), else `<dir>`.
+`<out-dir>` is `<dir>/dist/` — the one rendered-pages folder, shared with the
+analyze-requirements viewer (proposal.html ships beside index.html and
+estimate.html).

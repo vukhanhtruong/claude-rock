@@ -4,7 +4,7 @@ import { escapeHtml } from './md-inline.mjs';
 
 // estimation.md carries the argument; estimate.html is the same numbers made
 // interactive (sortable breakdown, what-if scenarios). Preferred home is the
-// viewer folder itself — index.html and estimate.html then ship as one
+// shared dist/ output folder — index.html and estimate.html then ship as one
 // self-contained directory — with the older beside-estimation.md spot kept as
 // a fallback. The link is injected at render time, and only when the file is
 // actually there: an md-only run must produce exactly the viewer it produces

@@ -52,13 +52,12 @@ model's container and component ids where one exists — dotted ids like
 `atlas.goldStore`) and tag every feature with the component it implements,
 flip the `electedDocs` estimation entry to `elected: true`,
 place estimation.md beside ARCHITECTURE.md so the analyze-requirements viewer picks it
-up as a companion page; link the interactive page from it. When a rendered
-viewer exists, render estimate.html **into the viewer's own directory**
-(`--out <viewer dir>` plus `--viewer index.html` for the back-link, internal
-view only; the client render strips it) — index.html and estimate.html then
-ship as one self-contained folder, and the viewer's estimation tab links the
-copy inside it. Without a viewer, keep estimate.html beside estimation.md —
-the viewer also finds it there when rendered later.
+up as a companion page; link the interactive page from it. Render
+estimate.html **into `<dir>/dist/`** — the same folder the viewer renders
+into. When a rendered viewer exists, add `--viewer index.html` for the
+back-link (internal view only; the client render strips it) — index.html and
+estimate.html then ship as one self-contained folder, and the viewer's
+estimation tab links the copy inside it.
 
 ## Dependency
 

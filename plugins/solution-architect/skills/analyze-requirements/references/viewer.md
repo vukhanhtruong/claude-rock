@@ -100,7 +100,7 @@ Four steps, in order — each feeds the next:
      --root <target> \
      --arch <ARCHITECTURE.md> \
      --docs <companions+ADRs> \
-     --out viewer/ \
+     --out dist/ \
      --likec4-bundle <path> \
      --mermaid-bundle <path> \
      --theme assets/mermaid-theme.json
@@ -108,7 +108,7 @@ Four steps, in order — each feeds the next:
    Renders ARCHITECTURE.md and every companion/ADR page to HTML, injects
    heading ids (for deep links), builds the sidebar nav, embeds all seven
    template slots (`TITLE`, `FONTS`, `NAV`, `DOC`, `LIKEC4_BUNDLE`,
-   `MERMAID_BUNDLE`, `THEME`), and writes `viewer/index.html` — one
+   `MERMAID_BUNDLE`, `THEME`), and writes `dist/index.html` — one
    self-contained file.
 
    **`FONTS` needs no flag.** `scripts/lib/fonts.mjs` reads the woff2 subsets

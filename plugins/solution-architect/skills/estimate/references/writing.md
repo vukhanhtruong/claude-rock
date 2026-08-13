@@ -186,14 +186,15 @@ Write `<dir>/estimation.md` by hand, following the §2 skeleton, then:
 
 ```
 node scripts/validate.mjs --md <dir>/estimation.md --json <dir>/estimation.json
-node scripts/render.mjs --json <dir>/estimation.json --md <dir>/estimation.md --out <dir>/
+node scripts/render.mjs --json <dir>/estimation.json --md <dir>/estimation.md --out <dir>/dist/
 node ../analyze-requirements/scripts/serve.mjs <dir>/
 ```
 
-When a rendered analyze-requirements viewer exists, point `--out` at the viewer's own
-directory and add `--viewer index.html`: index.html and estimate.html then
-ship as one self-contained folder, and the viewer's estimation tab links the
-copy inside it (it falls back to an estimate.html beside estimation.md).
+`<dir>/dist/` is the one rendered-pages folder — the analyze-requirements viewer
+renders into it too. When a rendered viewer exists, add `--viewer index.html`:
+index.html and estimate.html then ship as one self-contained folder, and the
+viewer's estimation tab links the copy inside it (it falls back to an
+estimate.html beside estimation.md).
 
 `render.mjs` runs the same `checkDeliverables` validation `validate.mjs`
 runs and **refuses to write `estimate.html` on any finding** — running

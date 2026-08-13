@@ -40,11 +40,11 @@ PDF.
    fix findings, re-run validate; one re-review cycle max.
 7. **Human review**: show the user proposal.md and wait for approval.
 8. **Render**: `node scripts/render.mjs --md <dir>/proposal.md
-   --estimation <dir>/estimation.json --mermaid-bundle <path> --out <dir>`
+   --estimation <dir>/estimation.json --mermaid-bundle <path> --out <dir>/dist`
    — reuse the mermaid bundle built for the analyze-requirements viewer
-   (analyze-requirements `references/viewer.md` §1). When a rendered viewer exists,
-   `--out` the viewer's own directory so proposal.html ships beside
-   index.html and estimate.html; proposal.html itself carries no link back.
+   (analyze-requirements `references/viewer.md` §1). `<dir>/dist/` is the one
+   rendered-pages folder: proposal.html ships beside index.html and
+   estimate.html; proposal.html itself carries no link back.
 9. **Serve**: `node ../analyze-requirements/scripts/serve.mjs <dir>`; report the URL.
 
 ## Placement

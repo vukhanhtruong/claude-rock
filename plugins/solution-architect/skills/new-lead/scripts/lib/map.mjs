@@ -1,28 +1,20 @@
 // scripts/lib/map.mjs
-// new-lead-dashboard v3
-import { existsSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
+// new-lead-dashboard v6
+import { readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { leadDir, readRegistry } from './registry.mjs';
+import { leadNodes } from './map-nodes.mjs';
 
 const run = promisify(execFile);
-const X = { evidence: 0, arch: 480, estimate: 720, proposal: 960 };
+const X = { evidence: 0, arch: 480, estimate: 720, proposal: 960, page: 1200 };
 const STEP_Y = 90;
-
-// Everything the three skills write. What is left in the lead directory is what
-// the human put there, which is exactly the evidence.
-const GENERATED = new Set([
-  'ARCHITECTURE.md', 'estimation.md', 'estimation.json', 'estimation-inputs.json',
-  'proposal.md', 'proposal-figures.json', 'notes.md', 'brief.md', 'dist',
-  'CONTEXT.md', 'CONTEXT-MAP.md', 'DOMAIN-OVERVIEW.md', 'threat-model.md', 'docs',
-]);
 
 export async function buildLeadMap(root, id) {
   const dir = leadDir(root, id);
   const src = await readSources(dir);
-  const nodes = [...await evidenceNodes(dir), ...docNodes(id, dir, src)];
+  const nodes = await leadNodes(id, dir, src);
   layout(nodes);
   return { nodes, edges: edgesFor(nodes), panels: await panelsFor(root, id, src) };
 }
@@ -45,81 +37,13 @@ async function readSources(dir) {
   return { arch, estimation, inputs, brief };
 }
 
-function isEvidence(entry) {
-  return !entry.name.startsWith('.')
-    && !GENERATED.has(entry.name)
-    && !entry.name.endsWith('.c4');
-}
-
-async function evidenceNodes(dir) {
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  return entries.filter(isEvidence).map((entry) => ({
-    id: `evidence-${entry.name}`,
-    type: 'evidence',
-    position: { x: 0, y: 0 },
-    data: { label: entry.name, status: 'ready', href: null, detail: null },
-  }));
-}
-
-function docNode(id, dir, spec) {
-  const href = spec.exists && existsSync(join(dir, 'dist', spec.page))
-    ? `/leads/${id}/dist/${spec.page}` : null;
-  return {
-    id: spec.key,
-    type: 'doc',
-    position: { x: 0, y: 0 },
-    data: { label: spec.label, status: spec.exists ? 'ready' : 'pending', href, detail: null },
-  };
-}
-
-function docNodes(id, dir, src) {
-  const arch = docNode(id, dir, { key: 'arch', label: 'Architecture', page: 'index.html', exists: !!src.arch });
-  const estimate = docNode(id, dir, { key: 'estimate', label: 'Estimate', page: 'estimate.html', exists: !!src.estimation });
-  const proposal = docNode(id, dir, { key: 'proposal', label: 'Proposal', page: 'proposal.html', exists: existsSync(join(dir, 'proposal.md')) });
-  return [arch, ...componentNodes(src.arch), estimate, ...scenarioNodes(src.estimation), proposal];
-}
-
-function sliceSection(archMd) {
-  const start = archMd.match(/^##\s*6\..*$/m);
-  if (!start) return '';
-  const rest = archMd.slice(start.index + start[0].length);
-  const end = rest.match(/^##\s/m);
-  return end ? rest.slice(0, end.index) : rest;
-}
-
-function parseComponents(archMd) {
-  if (!archMd) return [];
-  const rows = sliceSection(archMd).split('\n').filter((l) => l.trim().startsWith('|'));
-  return rows.slice(1)
-    .filter((l) => !/^\|\s*-+\s*\|/.test(l.trim()))
-    .map((l) => l.split('|')[1].trim().replace(/`/g, ''));
-}
-
-function componentNodes(archMd) {
-  return parseComponents(archMd).map((name) => ({
-    id: `component-${name}`,
-    type: 'component',
-    position: { x: 0, y: 0 },
-    data: { label: name, status: 'ready', href: null, detail: null },
-  }));
-}
-
-function scenarioNodes(est) {
-  return (est?.scenarios ?? []).map((s) => ({
-    id: `scenario-${s.id ?? s.name}`,
-    type: 'scenario',
-    position: { x: 0, y: 0 },
-    data: { label: s.label ?? s.plan ?? String(s.id ?? s.name), status: 'ready', href: null, detail: null },
-  }));
-}
-
 function edge(source, target) {
   return { id: `e-${source}-${target}`, source, target };
 }
 
 function edgesFor(nodes) {
-  const has = (id) => nodes.some((n) => n.id === id);
-  const link = (a, b) => (has(a) && has(b) ? [edge(a, b)] : []);
+  const ids = new Set(nodes.map((n) => n.id));
+  const link = (a, b) => (ids.has(a) && ids.has(b) ? [edge(a, b)] : []);
   const byPrefix = (prefix) => nodes.filter((n) => n.id.startsWith(prefix));
   return [
     ...byPrefix('evidence-').flatMap((n) => link(n.id, 'arch')),
@@ -127,6 +51,9 @@ function edgesFor(nodes) {
     ...link('estimate', 'proposal'),
     ...byPrefix('component-').flatMap((n) => link('arch', n.id)),
     ...byPrefix('scenario-').flatMap((n) => link('estimate', n.id)),
+    // proposal-family mds (ids are their filenames, e.g. proposal-non-tech.md)
+    ...byPrefix('proposal').filter((n) => n.id !== 'proposal')
+      .flatMap((n) => link('estimate', n.id)),
   ];
 }
 
@@ -136,7 +63,8 @@ function colX(n) {
   if (n.id.startsWith('component-')) return X.arch + 40;
   if (n.id === 'estimate') return X.estimate;
   if (n.id.startsWith('scenario-')) return X.estimate + 40;
-  return X.proposal;
+  if (n.id.startsWith('page-')) return X.page;
+  return X.proposal; // the named proposal node plus proposal-family mds
 }
 
 function layout(nodes) {

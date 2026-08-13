@@ -36,6 +36,24 @@ test('scenario nodes from estimation.json', async () => {
   const m = await buildLeadMap(ROOT, 'acme-crm');
   assert.ok(byId(m, 'scenario-balanced'));
 });
+test('extra html pages in dist/ become clickable doc nodes', async () => {
+  const m = await buildLeadMap(ROOT, 'acme-crm');
+  const page = byId(m, 'page-threat-model.html');
+  assert.equal(page.data.status, 'ready');
+  assert.equal(page.data.href, '/leads/acme-crm/dist/threat-model.html');
+  assert.equal(byId(m, 'page-index.html'), undefined, 'known pages keep their own nodes');
+});
+test('proposal-prefixed md files are proposal nodes fed by estimate', async () => {
+  const m = await buildLeadMap(ROOT, 'acme-crm');
+  const n = byId(m, 'proposal-non-tech.md');
+  assert.equal(n.data.status, 'ready');
+  assert.equal(n.data.href, '/leads/acme-crm/dist/proposal-non-tech.html');
+  assert.ok(m.edges.some((e) => e.source === 'estimate' && e.target === 'proposal-non-tech.md'),
+    'estimate feeds every proposal-family node');
+  assert.ok(!m.nodes.some((x) => x.type === 'evidence' && x.data.label === 'proposal-non-tech.md'),
+    'proposal-family md is generated, not evidence');
+  assert.equal(byId(m, 'page-proposal-non-tech.html'), undefined, 'no duplicate generic page node');
+});
 test('facts panel is the registry entry, not an answers file', async () => {
   const m = await buildLeadMap(ROOT, 'acme-crm');
   assert.equal(m.panels.facts.client, 'Acme Corp');

@@ -49,12 +49,12 @@ test('refresh copies only newer-stamped files, keeps registry', async () => {
 test('every file init-root copies carries a stamp init-root can actually read', async () => {
   const sources = [...ASSET_FILES.map((f) => join(REAL_ASSETS, f.from)),
     ...SCRIPT_FILES.map((f) => join(REAL_SCRIPTS, f.from))];
-  assert.equal(sources.length, 9, 'a leads root is a nine-file set — update this test if that changes');
+  assert.equal(sources.length, 10, 'a leads root is a ten-file set — update this test if that changes');
   for (const src of sources) {
     assert.ok(await stampOf(src) >= 1, `${src}: stamp is invisible to stampOf, so it never refreshes`);
   }
 });
-test('a fresh root copies the whole nine-file set, and a same-stamp refresh copies none', async () => {
+test('a fresh root copies the whole ten-file set, and a same-stamp refresh copies none', async () => {
   const root = join(await mkdtemp(join(tmpdir(), 'r-')), 'leads');
   const first = await initRoot(root, REAL_ASSETS);
   assert.deepEqual([...first.copied].sort(), [...ALL_FILES].sort());

@@ -1,5 +1,5 @@
 // scripts/serve.mjs
-// new-lead-dashboard v2
+// new-lead-dashboard v3
 import { createServer } from 'node:http';
 import { readFile, writeFile, realpath, stat, lstat } from 'node:fs/promises';
 import { join, resolve, sep, extname } from 'node:path';
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { findLeadsRoot, readRegistry, writeRegistry, leadDir, STATUSES, ID_RE } from './lib/registry.mjs';
 import { enrichLead } from './lib/enrich.mjs';
 import { buildLeadMap } from './lib/map.mjs';
+import { findFreePort } from './lib/port.mjs';
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
@@ -34,7 +35,10 @@ export async function startServer(root, port) {
     if (res.headersSent) return res.destroy();
     send(res, 500, { error: 'internal error' });
   }));
-  return new Promise((ok) => server.listen(port, '127.0.0.1', () => ok(server)));
+  return new Promise((ok, fail) => {
+    server.once('error', (err) => fail(err.code === 'EADDRINUSE' ? new Error(`port ${port} in use`) : err));
+    server.listen(port, '127.0.0.1', () => ok(server));
+  });
 }
 
 async function route(root, req, res) {
@@ -153,7 +157,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { values } = parseArgs({ options: { root: { type: 'string' }, port: { type: 'string' } } });
   const root = values.root ?? findLeadsRoot(process.cwd());
   if (!root) { console.error('usage: serve.mjs [--root <dir>] [--port <n>]'); process.exit(2); }
-  const port = values.port ? Number(values.port) : DEFAULT_PORT;
+  const port = values.port ? Number(values.port) : await findFreePort(DEFAULT_PORT);
   const server = await startServer(root, port);
   console.log(`dashboard: http://127.0.0.1:${server.address().port}`);
 }

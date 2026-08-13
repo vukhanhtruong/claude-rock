@@ -50,7 +50,7 @@ test('refresh copies only newer-stamped files, keeps registry', async () => {
 test('every file init-root copies carries a stamp init-root can actually read', async () => {
   const sources = [...ASSET_FILES.map((f) => join(REAL_ASSETS, f.from)),
     ...SCRIPT_FILES.map((f) => join(REAL_SCRIPTS, f.from))];
-  assert.equal(sources.length, 12, 'the copied set changed size — update this count deliberately');
+  assert.equal(sources.length, 13, 'the copied set changed size — update this count deliberately');
   for (const src of sources) {
     assert.ok(await stampOf(src) >= 1, `${src}: stamp is invisible to stampOf, so it never refreshes`);
   }

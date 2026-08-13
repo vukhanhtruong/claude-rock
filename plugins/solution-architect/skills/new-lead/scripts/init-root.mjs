@@ -19,6 +19,7 @@ export const SCRIPT_FILES = [
   { from: 'lead-upsert.mjs', to: 'scripts/lead-upsert.mjs' },
   { from: 'validate.mjs', to: 'scripts/validate.mjs' },
   { from: 'lib/registry.mjs', to: 'scripts/lib/registry.mjs' },
+  { from: 'lib/port.mjs', to: 'scripts/lib/port.mjs' },
   { from: 'lib/enrich.mjs', to: 'scripts/lib/enrich.mjs' },
   { from: 'lib/map.mjs', to: 'scripts/lib/map.mjs' },
   { from: 'lib/map-nodes.mjs', to: 'scripts/lib/map-nodes.mjs' },

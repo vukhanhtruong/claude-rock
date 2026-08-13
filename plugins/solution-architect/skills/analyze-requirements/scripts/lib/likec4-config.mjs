@@ -18,6 +18,10 @@
 // names themselves means output lands in-palette however the model was written.
 const NEUTRALS = ['secondary', 'muted', 'gray'];
 
+// Naming the project here is what makes a bare `likec4 export json` emit an
+// array (arch-docs + default) — likec4-export.mjs pins --project to this name.
+export const PROJECT_NAME = 'arch-docs';
+
 // One hex per colour. LikeC4 derives stroke and both contrast shades from it —
 // checked against 1.59.2, where #0f766e yields exactly the #00524b / #c7ffff
 // that mermaid-theme.json already records. Writing those out here would be
@@ -27,7 +31,7 @@ export function buildLikec4Config(theme) {
   const colors = { primary: theme.likec4.brand };
   for (const name of NEUTRALS) colors[name] = theme.likec4.muted;
   return {
-    name: 'arch-docs',
+    name: PROJECT_NAME,
     styles: {
       theme: { colors },
       // Pinned, so a LikeC4 default change cannot quietly move the baseline.

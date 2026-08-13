@@ -134,7 +134,7 @@ Two separate LikeC4 invocations, different outputs, different consumers:
 
 | Command | Output | Consumer |
 |---|---|---|
-| `npx likec4 export json --outfile <out> <dir>` | model JSON | the validator (`scripts/lib/likec4-extract.mjs` reads it) |
+| `node scripts/likec4-export.mjs --dir <dir> --out <out>` | model JSON | the validator (`scripts/lib/likec4-extract.mjs` reads it) |
 | `node scripts/likec4-gen.mjs --dir <dir> --out <bundle>` | webcomponent bundle | the viewer (`viewer.md`) |
 
 The bundle is generated through the wrapper rather than by calling
@@ -148,6 +148,10 @@ and renderer expect. Omit it and LikeC4 falls back to its own default prefix,
 emitting `<likec4-view>` instead — the template's markers never match, and
 every diagram renders blank with no error.
 
-`export json` has no such wrapper and no gate. A broken model exports too, so
-the validator can be reading a model nobody wrote — run the bundle step first
-and let it fail there.
+`export json` goes through its own wrapper for a different reason: the palette
+config names the project `arch-docs`, so the workspace holds **two** projects
+(`arch-docs` + `default`) and a bare `npx likec4 export json` emits an array of
+project objects — a shape `likec4-extract.mjs` cannot read. The wrapper pins
+`--project arch-docs` and refuses an export that does not parse to a single
+object carrying `.elements`. It is still not a validation gate: a broken model
+exports too, so run the bundle step first and let it fail there.

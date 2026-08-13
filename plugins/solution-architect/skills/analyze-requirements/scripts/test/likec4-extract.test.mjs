@@ -18,6 +18,18 @@ test('collects deployed element ids from instanceOf', () => {
   assert.ok(!model.deployed.includes('shop.web'));
 });
 
+// A bare `likec4 export json` on a workspace with a named project emits an
+// array of project objects. Guarded here, where the shape is consumed, so a
+// stale or hand-made model.json cannot make validation run vacuously over
+// zero elements — the wrapper only protects people who used the wrapper.
+test('refuses an array of project objects', () => {
+  assert.throws(() => extractModel([raw]), /elements/);
+});
+
+test('refuses a model carrying no elements', () => {
+  assert.throws(() => extractModel({}), /elements/);
+});
+
 test('normalizes #external tag to kind external', () => {
   const model = extractModel(raw);
   const stripe = model.elements.find((e) => e.title === 'Stripe');

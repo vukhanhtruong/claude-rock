@@ -1,0 +1,54 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+    # NOTE: the release step commits package.json back to main. That commit
+    # must NOT match this paths filter, or the workflow retriggers forever.
+    paths:
+      - "plugins/**/plugin.json"
+
+permissions:
+  id-token: write # Required for OIDC (trusted publishing)
+  contents: write # Required to push the version-bump commit
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history so github.event.before is always reachable
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false # never use caching in release builds
+
+      - name: Detect plugin version bumps
+        id: bumps
+        run: |
+          CHANGED="$(node src/ci/changed-versions.mjs "${{ github.event.before }}" "$GITHUB_SHA")"
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Plugin versions bumped: ${CHANGED:-none}"
+
+      - name: Run tests
+        if: steps.bumps.outputs.changed != ''
+        run: npm test
+
+      - name: Bump, commit, publish
+        if: steps.bumps.outputs.changed != ''
+        run: |
+          npm version patch --no-git-tag-version
+          VERSION="$(node -p "require('./package.json').version")"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: release v$VERSION (plugins: ${{ steps.bumps.outputs.changed }})"
+          git push origin main
+          npm publish

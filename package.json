@@ -1,6 +1,7 @@
 {
-  "name": "agents-rock",
-  "version": "3.0.0",
+  "name": "@v11g/agents-rock",
+  "version": "1.0.0",
+  "publishConfig": { "access": "public" },
   "description": "Install claude-rock plugin skills for Claude Code and Codex via npx",
   "type": "module",
   "bin": { "agents-rock": "bin/agents-rock.mjs" },

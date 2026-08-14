@@ -17,10 +17,10 @@ A Claude Code plugin marketplace.
 ### Install via npx (Claude Code + Codex)
 
 ```
-npx agents-rock                                      # interactive picker
-npx agents-rock -p solution-architect -a codex      # install solution-architect for Codex
-npx agents-rock -p solution-architect -a claude -a codex  # both agents
-npx agents-rock uninstall -p solution-architect     # remove for all agents
+npx @v11g/agents-rock                                      # interactive picker
+npx @v11g/agents-rock -p solution-architect -a codex      # install solution-architect for Codex
+npx @v11g/agents-rock -p solution-architect -a claude -a codex  # both agents
+npx @v11g/agents-rock uninstall -p solution-architect     # remove for all agents
 ```
 
 Skills are copied to `.agents/skills/<skill>` in your project and symlinked

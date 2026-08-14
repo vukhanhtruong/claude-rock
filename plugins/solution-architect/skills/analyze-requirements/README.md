@@ -49,8 +49,8 @@ upfront and stops before writing anything if it's missing.
 ## Install
 
 ```
-/plugin marketplace add vukhanhtruong/claude-rock
-/plugin install analyze-requirements@claude-rock
+/plugin marketplace add vukhanhtruong/agents-rock
+/plugin install analyze-requirements@agents-rock
 ```
 
 ## Run it

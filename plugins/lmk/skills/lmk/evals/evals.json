@@ -7,7 +7,12 @@
       "prompt": "lmk how the npx installer in this repo decides where to copy skills and what gets symlinked",
       "expected_output": "A terminal flowchart (or sequence diagram) of the installer flow whose nodes name real files/paths from src/, with at most ~3 sentences of prose. No HTML file created.",
       "files": [],
-      "assertions": []
+      "assertions": [
+        "contains-terminal-visual: output includes a rendered diagram (unicode box-drawing characters) or a fenced tree/diff block",
+        "no-html-file: no .html file exists in the outputs directory and none was created in the repo",
+        "real-nodes-only: every file or component named in the visual exists in the repo (src/ installer code) - no invented components",
+        "concise-prose: prose outside fenced/visual blocks is at most 4 sentences"
+      ]
     },
     {
       "id": 1,
@@ -15,7 +20,13 @@
       "prompt": "Here's the migration plan our team wrote:\n\n1. Add new `orders_v2` table\n2. Add dual-write to orders_v2 behind flag `DUAL_WRITE`\n3. Enable DUAL_WRITE in staging\n4. Backfill historical rows into orders_v2 (script `backfill.py`)\n5. Verify row counts match\n6. Enable DUAL_WRITE in prod\n7. Re-run backfill for the gap window\n8. Verify again\n9. Switch reads to orders_v2 behind flag `READ_V2`\n10. Enable READ_V2 for 5% of traffic\n11. Watch error rates for 48h\n12. Ramp READ_V2 to 100%\n13. Stop dual-write\n14. Archive old orders table\n15. Delete DUAL_WRITE and READ_V2 flags\n\nthis is confusing, show me what's happening visually - the phases and what depends on what",
       "expected_output": "A phase-structured visual (timeline, flowchart, or gantt) grouping the 15 steps into phases and showing dependencies, rendered in the terminal. No HTML.",
       "files": [],
-      "assertions": []
+      "assertions": [
+        "contains-terminal-visual: output includes a rendered diagram (unicode box-drawing characters) or timeline/gantt/flowchart output",
+        "phases-grouped: the visual groups the 15 steps into 2+ named phases rather than listing them flat",
+        "dependencies-shown: the visual expresses ordering/dependency structure (arrows, sequential phases, or 'after' links)",
+        "no-html-file: no .html file exists in the outputs directory",
+        "concise-prose: prose outside fenced/visual blocks is at most 4 sentences"
+      ]
     },
     {
       "id": 2,
@@ -23,7 +34,13 @@
       "prompt": "we're torn between Redis and Postgres LISTEN/NOTIFY for our job queue - explain the tradeoffs so I can decide fast",
       "expected_output": "A compact comparison table (not a diagram) with a one-line recommendation. No HTML.",
       "files": [],
-      "assertions": []
+      "assertions": [
+        "comparison-table: output contains a markdown table comparing Redis vs Postgres LISTEN/NOTIFY",
+        "routed-to-table-not-diagram: output does NOT contain a box-drawing flowchart/sequence diagram (a table is the right form for a decision)",
+        "recommendation-present: output ends with or includes a clear one-line recommendation or decision rule",
+        "no-html-file: no .html file exists in the outputs directory",
+        "concise-prose: prose outside the table is at most 4 sentences"
+      ]
     }
   ]
 }

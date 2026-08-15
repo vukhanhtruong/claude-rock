@@ -41,6 +41,20 @@
         "no-html-file: no .html file exists in the outputs directory",
         "concise-prose: prose outside the table is at most 4 sentences"
       ]
+    },
+    {
+      "id": 3,
+      "name": "bare-lmk-after-change",
+      "prompt": "Conversation context: assistant just refactored saveDocument() to add content-hash caching (early return on unchanged content, cache invalidation moved after write, new hashContent helper). User replies bare: 'lmk'",
+      "expected_output": "A diff block or before/after pseudocode showing the three-part change to saveDocument(), resolved from conversation context without asking what to explain. No HTML.",
+      "files": [],
+      "assertions": [
+        "resolved-bare-topic: the answer explains the just-made change (topic resolved from conversation), not something else and not a question back",
+        "diff-or-pseudocode-form: the visual is a diff block or before/after pseudocode - the right form for a change - not a flowchart/table",
+        "change-accurate: the visual reflects all three parts of the change (early return, moved invalidation, new helper)",
+        "no-html-file: no .html file exists in the outputs directory",
+        "concise-prose: prose outside the visual is at most 4 sentences"
+      ]
     }
   ]
 }

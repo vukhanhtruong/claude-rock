@@ -22,6 +22,19 @@
       "keywords": ["architecture", "documentation", "diagrams", "likec4", "adr", "estimation", "proposal"],
       "category": "documentation",
       "strict": false
+    },
+    {
+      "name": "lmk",
+      "source": "./plugins/lmk",
+      "description": "Terminal-native visual explainer: explains the current topic with cheap diagrams (flowcharts, sequences, timelines, tables) rendered directly in the terminal via a bundled Mermaid renderer.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Truong Vu",
+        "email": "vukhanhtruong@gmail.com"
+      },
+      "keywords": ["explain", "diagrams", "terminal", "mermaid", "visualization", "ascii"],
+      "category": "documentation",
+      "strict": false
     }
   ]
 }

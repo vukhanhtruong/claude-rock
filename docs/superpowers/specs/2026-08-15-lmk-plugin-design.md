@@ -6,10 +6,9 @@ Status: approved
 ## Problem
 
 Understanding an agent's plans, changes, and explanations often means reading
-walls of text. The existing `visual-explainer` plugin solves this with rich
-HTML pages, but each page costs 5,000–15,000 output tokens and requires a
-browser. Most explanation moments need something far cheaper: a small picture
-right in the terminal.
+walls of text. HTML-based visual explanations exist, but a rich page costs
+5,000–15,000 output tokens and requires a browser. Most explanation moments
+need something far cheaper: a small picture right in the terminal.
 
 ## Goal
 
@@ -89,7 +88,7 @@ per diagram type) is documented in `references/forms.md`.
 - `render.sh` fails (no python3, unsupported syntax) → hand-drawn ASCII, kept
   small.
 - User explicitly asks for an HTML file or browser page → out of scope for
-  lmk; defer to `visual-explainer` (if installed) or plain generation.
+  lmk; let normal generation (or another installed tool) handle it.
 
 ### Output discipline
 
@@ -132,7 +131,7 @@ still never writes HTML. Deferred to keep v0.1 small.
 
 ## Rejected alternatives
 
-- Pure prompt skill (show-me style): model hand-draws diagrams —
+- Pure prompt skill with no renderer: model hand-draws diagrams —
   inconsistent and token-expensive for big graphs.
 - `uvx termaid` on demand: needs uv plus network at first use; vendoring
   removes both.

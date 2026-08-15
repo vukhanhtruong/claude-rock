@@ -44,7 +44,9 @@ plans, and concepts all use the same table.
 | logic, algorithm | pseudocode | markdown |
 | plan steps ("what I'll do") | numbered steps + verify per step | markdown |
 | scope breakdown (epic → tasks) | tree; mindmap only if deep | markdown / render.sh |
-| flow, pipeline, call chain | flowchart | render.sh |
+| linear/shallow call chain | indented call tree | markdown |
+| UI/component structure | indented component tree | markdown |
+| branching flow, pipeline | flowchart | render.sh |
 | interaction between parts | sequence diagram | render.sh |
 | states, lifecycle | state diagram | render.sh |
 | dependencies, ordering | flowchart | render.sh |

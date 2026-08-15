@@ -60,7 +60,9 @@ table.
 | logic / algorithm | pseudocode | markdown |
 | plan steps ("what I'll do") | numbered steps + verify per step | markdown |
 | scope breakdown (epic → tasks) | tree; mindmap if deep | markdown / termaid |
-| flow / pipeline / call chain | flowchart | mermaid → termaid |
+| linear/shallow call chain | indented call tree | markdown |
+| UI/component structure | indented component tree | markdown |
+| branching flow / pipeline | flowchart | mermaid → termaid |
 | interaction between parts | sequence diagram | mermaid → termaid |
 | states / lifecycle | state diagram | mermaid → termaid |
 | dependencies / ordering | flowchart | mermaid → termaid |

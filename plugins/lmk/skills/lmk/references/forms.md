@@ -2,7 +2,8 @@
 
 Read only the section for the form you chose.
 
-Contents: [diff](#diff) · [tree](#tree) · [table](#table) ·
+Contents: [diff](#diff) · [tree](#tree) · [call tree](#call-tree) ·
+[component tree](#component-tree) · [table](#table) ·
 [pseudocode](#pseudocode) · [plan steps](#plan-steps) ·
 [flowchart](#flowchart) · [sequence](#sequence) · [state](#state) ·
 [timeline](#timeline) · [gantt](#gantt) · [kanban](#kanban) ·
@@ -41,6 +42,37 @@ src/
 
 Keep it shallow — two or three levels. Depth past what the reader asked
 about is noise.
+
+## call tree
+
+Runtime control flow when the chain is linear or shallow — indentation is
+the whole diagram, no renderer needed:
+
+```text
+submitForm
+  createSession
+    persistPrompt
+    launchAgent
+  navigateToSession
+```
+
+Bad: using this for a flow with branches, retries, or cycles — indentation
+can't show a merge or a loop. That shape goes to the flowchart form
+instead.
+
+## component tree
+
+UI structure, with the state hooks and module boundaries that matter:
+
+```text
+<SessionPage>            (routes/session.tsx)
+  useSessionEvents()
+  <SessionToolbar>
+    <RunSkillButton>     (packages/ui)
+```
+
+Include only the components, props, and hooks needed for the current
+question — a full render tree is noise.
 
 ## table
 

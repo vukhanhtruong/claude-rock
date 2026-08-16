@@ -1,13 +1,28 @@
 {
   "name": "@v11g/agents-rock",
-  "version": "1.0.0",
-  "publishConfig": { "access": "public" },
+  "version": "1.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Install agents-rock plugin skills for Claude Code and Codex via npx",
   "type": "module",
-  "bin": { "agents-rock": "bin/agents-rock.mjs" },
-  "files": ["bin", "src", "plugins"],
-  "engines": { "node": ">=18.3" },
-  "scripts": { "test": "node --test tests/*.test.mjs plugins/*/skills/*/scripts/test/*.test.mjs" },
-  "repository": { "type": "git", "url": "https://github.com/vukhanhtruong/agents-rock.git" },
+  "bin": {
+    "agents-rock": "bin/agents-rock.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "plugins"
+  ],
+  "engines": {
+    "node": ">=18.3"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs plugins/*/skills/*/scripts/test/*.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vukhanhtruong/agents-rock.git"
+  },
   "license": "MIT"
 }

@@ -5,10 +5,10 @@ A Claude Code plugin marketplace.
 ## Install
 
 ```
-/plugin marketplace add git@github.com:vukhanhtruong/agents-rock.git
+/plugin marketplace add git@github.com:v11g/agents-rock.git
 ```
 
-(HTTPS equivalent: `https://github.com/vukhanhtruong/agents-rock.git`)
+(HTTPS equivalent: `https://github.com/v11g/agents-rock.git`)
 
 ```
 /plugin install <plugin>@agents-rock
@@ -35,9 +35,9 @@ Use `--force` to overwrite collisions.
 
 ## Plugins
 
-| Plugin               | Description                                                                                                                                                                                | Version |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals. | 1.0.0   |
+| Plugin               | Description                                                                                                                                                                                   | Version |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals.    | 1.0.0   |
 | `lmk`                | Terminal-native visual explainer: explains the current topic with cheap diagrams (flowcharts, sequences, timelines, tables) rendered directly in the terminal via a bundled Mermaid renderer. | 0.1.0   |
 
 ## Skills

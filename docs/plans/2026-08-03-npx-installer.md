@@ -45,9 +45,11 @@ README.md                 (Task 8) npx usage section
 ### Task 1: Package scaffolding
 
 **Files:**
+
 - Create: `package.json`
 
 **Interfaces:**
+
 - Produces: npm package `agents-rock` whose tarball contains `plugins/`; `npm test` runs `node --test tests/`.
 
 - [ ] **Step 1: Create package.json**
@@ -62,7 +64,10 @@ README.md                 (Task 8) npx usage section
   "files": ["bin", "src", "plugins"],
   "engines": { "node": ">=18" },
   "scripts": { "test": "node --test tests/" },
-  "repository": { "type": "git", "url": "https://github.com/vukhanhtruong/claude-rock.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/v11g/agents-rock.git"
+  },
   "license": "MIT"
 }
 ```
@@ -84,10 +89,12 @@ git commit -m "feat: add agents-rock npm package manifest"
 ### Task 2: Argument parsing (`args.mjs`)
 
 **Files:**
+
 - Create: `src/cli/args.mjs`
 - Test: `tests/args.test.mjs`
 
 **Interfaces:**
+
 - Produces:
   - `parseCliArgs(argv: string[]) → { command: 'install'|'uninstall', plugins: string[], agents: string[], force: boolean, help: boolean, version: boolean }` — throws `UsageError` on unknown command/flag/agent or extra positionals.
   - `class UsageError extends Error`
@@ -97,53 +104,66 @@ git commit -m "feat: add agents-rock npm package manifest"
 
 ```js
 // tests/args.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { parseCliArgs, UsageError } from '../src/cli/args.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { parseCliArgs, UsageError } from "../src/cli/args.mjs";
 
-test('defaults to install with empty selections', () => {
+test("defaults to install with empty selections", () => {
   assert.deepEqual(parseCliArgs([]), {
-    command: 'install', plugins: [], agents: [], force: false, help: false, version: false,
+    command: "install",
+    plugins: [],
+    agents: [],
+    force: false,
+    help: false,
+    version: false,
   });
 });
 
-test('parses long flags, repeatable', () => {
-  const r = parseCliArgs(['--plugin', 'a', '--plugin', 'b', '--agent', 'codex', '--force']);
-  assert.deepEqual(r.plugins, ['a', 'b']);
-  assert.deepEqual(r.agents, ['codex']);
+test("parses long flags, repeatable", () => {
+  const r = parseCliArgs([
+    "--plugin",
+    "a",
+    "--plugin",
+    "b",
+    "--agent",
+    "codex",
+    "--force",
+  ]);
+  assert.deepEqual(r.plugins, ["a", "b"]);
+  assert.deepEqual(r.agents, ["codex"]);
   assert.equal(r.force, true);
 });
 
-test('parses short aliases', () => {
-  const r = parseCliArgs(['-p', 'arch-docs', '-a', 'claude', '-f']);
-  assert.deepEqual(r.plugins, ['arch-docs']);
-  assert.deepEqual(r.agents, ['claude']);
+test("parses short aliases", () => {
+  const r = parseCliArgs(["-p", "arch-docs", "-a", "claude", "-f"]);
+  assert.deepEqual(r.plugins, ["arch-docs"]);
+  assert.deepEqual(r.agents, ["claude"]);
   assert.equal(r.force, true);
 });
 
-test('parses uninstall command', () => {
-  assert.equal(parseCliArgs(['uninstall']).command, 'uninstall');
+test("parses uninstall command", () => {
+  assert.equal(parseCliArgs(["uninstall"]).command, "uninstall");
 });
 
-test('rejects unknown command', () => {
-  assert.throws(() => parseCliArgs(['destroy']), UsageError);
+test("rejects unknown command", () => {
+  assert.throws(() => parseCliArgs(["destroy"]), UsageError);
 });
 
-test('rejects extra positionals', () => {
-  assert.throws(() => parseCliArgs(['install', 'extra']), UsageError);
+test("rejects extra positionals", () => {
+  assert.throws(() => parseCliArgs(["install", "extra"]), UsageError);
 });
 
-test('rejects unknown flag', () => {
-  assert.throws(() => parseCliArgs(['--bogus']), UsageError);
+test("rejects unknown flag", () => {
+  assert.throws(() => parseCliArgs(["--bogus"]), UsageError);
 });
 
-test('rejects unknown agent with valid list in message', () => {
-  assert.throws(() => parseCliArgs(['-a', 'gemini']), /claude, codex/);
+test("rejects unknown agent with valid list in message", () => {
+  assert.throws(() => parseCliArgs(["-a", "gemini"]), /claude, codex/);
 });
 
-test('parses help and version', () => {
-  assert.equal(parseCliArgs(['-h']).help, true);
-  assert.equal(parseCliArgs(['-v']).version, true);
+test("parses help and version", () => {
+  assert.equal(parseCliArgs(["-h"]).help, true);
+  assert.equal(parseCliArgs(["-v"]).version, true);
 });
 ```
 
@@ -155,26 +175,28 @@ Expected: FAIL — `Cannot find module '../src/cli/args.mjs'`
 - [ ] **Step 3: Implement `src/cli/args.mjs`**
 
 ```js
-import { parseArgs } from 'node:util';
+import { parseArgs } from "node:util";
 
 export class UsageError extends Error {}
 
-export const VALID_AGENTS = ['claude', 'codex'];
-const COMMANDS = new Set(['install', 'uninstall']);
+export const VALID_AGENTS = ["claude", "codex"];
+const COMMANDS = new Set(["install", "uninstall"]);
 
 const OPTIONS = {
-  plugin: { type: 'string', multiple: true, short: 'p' },
-  agent: { type: 'string', multiple: true, short: 'a' },
-  force: { type: 'boolean', short: 'f' },
-  help: { type: 'boolean', short: 'h' },
-  version: { type: 'boolean', short: 'v' },
+  plugin: { type: "string", multiple: true, short: "p" },
+  agent: { type: "string", multiple: true, short: "a" },
+  force: { type: "boolean", short: "f" },
+  help: { type: "boolean", short: "h" },
+  version: { type: "boolean", short: "v" },
 };
 
 export function parseCliArgs(argv) {
   const { values, positionals } = tryParse(argv);
-  const command = positionals[0] ?? 'install';
-  if (!COMMANDS.has(command)) throw new UsageError(`Unknown command: ${command}`);
-  if (positionals.length > 1) throw new UsageError(`Unexpected argument: ${positionals[1]}`);
+  const command = positionals[0] ?? "install";
+  if (!COMMANDS.has(command))
+    throw new UsageError(`Unknown command: ${command}`);
+  if (positionals.length > 1)
+    throw new UsageError(`Unexpected argument: ${positionals[1]}`);
   validateAgents(values.agent ?? []);
   return {
     command,
@@ -197,7 +219,9 @@ function tryParse(argv) {
 function validateAgents(agents) {
   for (const agent of agents) {
     if (!VALID_AGENTS.includes(agent)) {
-      throw new UsageError(`Unknown agent: ${agent}. Valid agents: ${VALID_AGENTS.join(', ')}`);
+      throw new UsageError(
+        `Unknown agent: ${agent}. Valid agents: ${VALID_AGENTS.join(", ")}`,
+      );
     }
   }
 }
@@ -220,10 +244,12 @@ git commit -m "feat: parse agents-rock CLI arguments"
 ### Task 3: Plugin registry (`registry.mjs`)
 
 **Files:**
+
 - Create: `src/cli/registry.mjs`
 - Test: `tests/registry.test.mjs`
 
 **Interfaces:**
+
 - Produces:
   - `loadRegistry(pluginsDir: string) → Array<{name, description, version, dir}>` — scans `<pluginsDir>/*/.claude-plugin/plugin.json`, sorted by name; missing dir → `[]`; dirs without manifest skipped.
   - `listSkills(pluginDir: string) → Array<{name, dir}>` — subdirs of `<pluginDir>/skills/`; missing → `[]`.
@@ -234,55 +260,72 @@ Tests build a fixture tree in a tmp dir — they must not depend on real repo pl
 
 ```js
 // tests/registry.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { loadRegistry, listSkills } from '../src/cli/registry.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { loadRegistry, listSkills } from "../src/cli/registry.mjs";
 
 function makeFixture() {
-  const root = mkdtempSync(path.join(tmpdir(), 'agents-rock-'));
-  const plugins = path.join(root, 'plugins');
+  const root = mkdtempSync(path.join(tmpdir(), "agents-rock-"));
+  const plugins = path.join(root, "plugins");
   const mk = (name, meta) => {
     const dir = path.join(plugins, name);
-    mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true });
-    writeFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify(meta));
-    mkdirSync(path.join(dir, 'skills', name, 'assets'), { recursive: true });
-    writeFileSync(path.join(dir, 'skills', name, 'SKILL.md'), `# ${name}`);
+    mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    writeFileSync(
+      path.join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify(meta),
+    );
+    mkdirSync(path.join(dir, "skills", name, "assets"), { recursive: true });
+    writeFileSync(path.join(dir, "skills", name, "SKILL.md"), `# ${name}`);
     return dir;
   };
-  mk('beta-plugin', { name: 'beta-plugin', description: 'B', version: '2.0.0' });
-  mk('alpha-plugin', { name: 'alpha-plugin', description: 'A', version: '1.0.0' });
-  mkdirSync(path.join(plugins, 'not-a-plugin'));
+  mk("beta-plugin", {
+    name: "beta-plugin",
+    description: "B",
+    version: "2.0.0",
+  });
+  mk("alpha-plugin", {
+    name: "alpha-plugin",
+    description: "A",
+    version: "1.0.0",
+  });
+  mkdirSync(path.join(plugins, "not-a-plugin"));
   return { root, plugins };
 }
 
-test('loadRegistry returns plugins sorted by name, skipping non-plugins', (t) => {
+test("loadRegistry returns plugins sorted by name, skipping non-plugins", (t) => {
   const { root, plugins } = makeFixture();
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const reg = loadRegistry(plugins);
-  assert.deepEqual(reg.map((p) => p.name), ['alpha-plugin', 'beta-plugin']);
-  assert.equal(reg[0].description, 'A');
-  assert.equal(reg[0].version, '1.0.0');
-  assert.ok(reg[0].dir.endsWith(path.join('plugins', 'alpha-plugin')));
+  assert.deepEqual(
+    reg.map((p) => p.name),
+    ["alpha-plugin", "beta-plugin"],
+  );
+  assert.equal(reg[0].description, "A");
+  assert.equal(reg[0].version, "1.0.0");
+  assert.ok(reg[0].dir.endsWith(path.join("plugins", "alpha-plugin")));
 });
 
-test('loadRegistry returns [] for missing dir', () => {
-  assert.deepEqual(loadRegistry('/nonexistent/nowhere'), []);
+test("loadRegistry returns [] for missing dir", () => {
+  assert.deepEqual(loadRegistry("/nonexistent/nowhere"), []);
 });
 
-test('listSkills lists skill dirs', (t) => {
+test("listSkills lists skill dirs", (t) => {
   const { root, plugins } = makeFixture();
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const skills = listSkills(path.join(plugins, 'alpha-plugin'));
-  assert.deepEqual(skills.map((s) => s.name), ['alpha-plugin']);
+  const skills = listSkills(path.join(plugins, "alpha-plugin"));
+  assert.deepEqual(
+    skills.map((s) => s.name),
+    ["alpha-plugin"],
+  );
 });
 
-test('listSkills returns [] when no skills dir', (t) => {
+test("listSkills returns [] when no skills dir", (t) => {
   const { root, plugins } = makeFixture();
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  assert.deepEqual(listSkills(path.join(plugins, 'not-a-plugin')), []);
+  assert.deepEqual(listSkills(path.join(plugins, "not-a-plugin")), []);
 });
 ```
 
@@ -294,8 +337,8 @@ Expected: FAIL — `Cannot find module '../src/cli/registry.mjs'`
 - [ ] **Step 3: Implement `src/cli/registry.mjs`**
 
 ```js
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 export function loadRegistry(pluginsDir) {
   if (!existsSync(pluginsDir)) return [];
@@ -307,18 +350,26 @@ export function loadRegistry(pluginsDir) {
 }
 
 function readPlugin(dir) {
-  const manifest = path.join(dir, '.claude-plugin', 'plugin.json');
+  const manifest = path.join(dir, ".claude-plugin", "plugin.json");
   if (!existsSync(manifest)) return null;
-  const meta = JSON.parse(readFileSync(manifest, 'utf8'));
-  return { name: meta.name, description: meta.description ?? '', version: meta.version ?? '', dir };
+  const meta = JSON.parse(readFileSync(manifest, "utf8"));
+  return {
+    name: meta.name,
+    description: meta.description ?? "",
+    version: meta.version ?? "",
+    dir,
+  };
 }
 
 export function listSkills(pluginDir) {
-  const skillsDir = path.join(pluginDir, 'skills');
+  const skillsDir = path.join(pluginDir, "skills");
   if (!existsSync(skillsDir)) return [];
   return readdirSync(skillsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => ({ name: entry.name, dir: path.join(skillsDir, entry.name) }));
+    .map((entry) => ({
+      name: entry.name,
+      dir: path.join(skillsDir, entry.name),
+    }));
 }
 ```
 
@@ -339,11 +390,13 @@ git commit -m "feat: discover bundled plugins and skills"
 ### Task 4: Install (`agents.mjs` + `install.mjs`)
 
 **Files:**
+
 - Create: `src/cli/agents.mjs`
 - Create: `src/cli/install.mjs`
 - Test: `tests/install.test.mjs`
 
 **Interfaces:**
+
 - Consumes: `listSkills(pluginDir)` from Task 3.
 - Produces:
   - `agents.mjs`: `AGENT_DIRS = { claude: '.claude', codex: '.codex' }`, `ALL_AGENTS = ['claude','codex']`, `agentSkillsDir(agent, cwd) → string` (`<cwd>/<agentDir>/skills`), `canonicalSkillsDir(cwd) → string` (`<cwd>/.agents/skills`).
@@ -358,80 +411,106 @@ git commit -m "feat: discover bundled plugins and skills"
 
 ```js
 // tests/install.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, lstatSync, readlinkSync, existsSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { installPlugin } from '../src/cli/install.mjs';
-import { agentSkillsDir, canonicalSkillsDir } from '../src/cli/agents.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  lstatSync,
+  readlinkSync,
+  existsSync,
+  readFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { installPlugin } from "../src/cli/install.mjs";
+import { agentSkillsDir, canonicalSkillsDir } from "../src/cli/agents.mjs";
 
 function makePlugin(root) {
-  const dir = path.join(root, 'bundle', 'demo');
-  mkdirSync(path.join(dir, 'skills', 'demo', 'assets'), { recursive: true });
-  writeFileSync(path.join(dir, 'skills', 'demo', 'SKILL.md'), '# demo v1');
-  writeFileSync(path.join(dir, 'skills', 'demo', 'assets', 'a.txt'), 'asset');
+  const dir = path.join(root, "bundle", "demo");
+  mkdirSync(path.join(dir, "skills", "demo", "assets"), { recursive: true });
+  writeFileSync(path.join(dir, "skills", "demo", "SKILL.md"), "# demo v1");
+  writeFileSync(path.join(dir, "skills", "demo", "assets", "a.txt"), "asset");
   return dir;
 }
 
 function setup(t) {
-  const root = mkdtempSync(path.join(tmpdir(), 'agents-rock-'));
+  const root = mkdtempSync(path.join(tmpdir(), "agents-rock-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const cwd = path.join(root, 'project');
+  const cwd = path.join(root, "project");
   mkdirSync(cwd, { recursive: true });
   return { pluginDir: makePlugin(root), cwd };
 }
 
-test('installs canonical copy plus relative symlinks per agent', (t) => {
+test("installs canonical copy plus relative symlinks per agent", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const result = installPlugin({ pluginDir, cwd, agents: ['claude', 'codex'] });
-  const canonical = path.join(canonicalSkillsDir(cwd), 'demo');
-  assert.equal(readFileSync(path.join(canonical, 'SKILL.md'), 'utf8'), '# demo v1');
-  for (const agent of ['claude', 'codex']) {
-    const link = path.join(agentSkillsDir(agent, cwd), 'demo');
+  const result = installPlugin({ pluginDir, cwd, agents: ["claude", "codex"] });
+  const canonical = path.join(canonicalSkillsDir(cwd), "demo");
+  assert.equal(
+    readFileSync(path.join(canonical, "SKILL.md"), "utf8"),
+    "# demo v1",
+  );
+  for (const agent of ["claude", "codex"]) {
+    const link = path.join(agentSkillsDir(agent, cwd), "demo");
     assert.ok(lstatSync(link).isSymbolicLink());
-    assert.equal(readlinkSync(link), path.join('..', '..', '.agents', 'skills', 'demo'));
+    assert.equal(
+      readlinkSync(link),
+      path.join("..", "..", ".agents", "skills", "demo"),
+    );
   }
   assert.equal(result.installed.length, 2);
   assert.equal(result.skipped.length, 0);
 });
 
-test('re-install is idempotent (mode linked, nothing skipped)', (t) => {
+test("re-install is idempotent (mode linked, nothing skipped)", (t) => {
   const { pluginDir, cwd } = setup(t);
-  installPlugin({ pluginDir, cwd, agents: ['claude'] });
-  const result = installPlugin({ pluginDir, cwd, agents: ['claude'] });
-  assert.deepEqual(result.installed.map((i) => i.mode), ['linked']);
+  installPlugin({ pluginDir, cwd, agents: ["claude"] });
+  const result = installPlugin({ pluginDir, cwd, agents: ["claude"] });
+  assert.deepEqual(
+    result.installed.map((i) => i.mode),
+    ["linked"],
+  );
   assert.equal(result.reused.length, 1);
   assert.equal(result.skipped.length, 0);
 });
 
-test('adding a second agent reuses existing canonical', (t) => {
+test("adding a second agent reuses existing canonical", (t) => {
   const { pluginDir, cwd } = setup(t);
-  installPlugin({ pluginDir, cwd, agents: ['claude'] });
-  const result = installPlugin({ pluginDir, cwd, agents: ['codex'] });
-  assert.equal(result.installed[0].agent, 'codex');
+  installPlugin({ pluginDir, cwd, agents: ["claude"] });
+  const result = installPlugin({ pluginDir, cwd, agents: ["codex"] });
+  assert.equal(result.installed[0].agent, "codex");
   assert.equal(result.reused.length, 1);
 });
 
-test('real dir at agent path is skipped without force', (t) => {
+test("real dir at agent path is skipped without force", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const blocker = path.join(agentSkillsDir('claude', cwd), 'demo');
+  const blocker = path.join(agentSkillsDir("claude", cwd), "demo");
   mkdirSync(blocker, { recursive: true });
-  const result = installPlugin({ pluginDir, cwd, agents: ['claude'] });
+  const result = installPlugin({ pluginDir, cwd, agents: ["claude"] });
   assert.equal(result.skipped.length, 1);
   assert.ok(!lstatSync(blocker).isSymbolicLink());
 });
 
-test('force replaces blocker and stale canonical', (t) => {
+test("force replaces blocker and stale canonical", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const blocker = path.join(agentSkillsDir('claude', cwd), 'demo');
+  const blocker = path.join(agentSkillsDir("claude", cwd), "demo");
   mkdirSync(blocker, { recursive: true });
-  const canonical = path.join(canonicalSkillsDir(cwd), 'demo');
+  const canonical = path.join(canonicalSkillsDir(cwd), "demo");
   mkdirSync(canonical, { recursive: true });
-  writeFileSync(path.join(canonical, 'SKILL.md'), 'stale');
-  const result = installPlugin({ pluginDir, cwd, agents: ['claude'], force: true });
+  writeFileSync(path.join(canonical, "SKILL.md"), "stale");
+  const result = installPlugin({
+    pluginDir,
+    cwd,
+    agents: ["claude"],
+    force: true,
+  });
   assert.equal(result.skipped.length, 0);
-  assert.equal(readFileSync(path.join(canonical, 'SKILL.md'), 'utf8'), '# demo v1');
+  assert.equal(
+    readFileSync(path.join(canonical, "SKILL.md"), "utf8"),
+    "# demo v1",
+  );
   assert.ok(lstatSync(blocker).isSymbolicLink());
 });
 ```
@@ -444,27 +523,35 @@ Expected: FAIL — `Cannot find module '../src/cli/install.mjs'`
 - [ ] **Step 3: Implement `src/cli/agents.mjs`**
 
 ```js
-import path from 'node:path';
+import path from "node:path";
 
-export const AGENT_DIRS = { claude: '.claude', codex: '.codex' };
+export const AGENT_DIRS = { claude: ".claude", codex: ".codex" };
 export const ALL_AGENTS = Object.keys(AGENT_DIRS);
 
 export function agentSkillsDir(agent, cwd) {
-  return path.join(cwd, AGENT_DIRS[agent], 'skills');
+  return path.join(cwd, AGENT_DIRS[agent], "skills");
 }
 
 export function canonicalSkillsDir(cwd) {
-  return path.join(cwd, '.agents', 'skills');
+  return path.join(cwd, ".agents", "skills");
 }
 ```
 
 - [ ] **Step 4: Implement `src/cli/install.mjs`**
 
 ```js
-import { cpSync, existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync } from 'node:fs';
-import path from 'node:path';
-import { listSkills } from './registry.mjs';
-import { agentSkillsDir, canonicalSkillsDir } from './agents.mjs';
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
+import path from "node:path";
+import { listSkills } from "./registry.mjs";
+import { agentSkillsDir, canonicalSkillsDir } from "./agents.mjs";
 
 export function installPlugin({ pluginDir, cwd, agents, force = false }) {
   const result = { installed: [], skipped: [], reused: [] };
@@ -492,41 +579,55 @@ function copyCanonical({ skill, cwd, force, result }) {
 function linkAgent({ skill, canonical, agent, cwd, force, result }) {
   const linkPath = path.join(agentSkillsDir(agent, cwd), skill);
   const status = inspectLink(linkPath, canonical);
-  if (status === 'correct') return result.installed.push({ skill, agent, mode: 'linked' });
-  if (status === 'occupied' && !force) {
-    return result.skipped.push({ skill, agent, path: linkPath, reason: 'exists (use --force)' });
+  if (status === "correct")
+    return result.installed.push({ skill, agent, mode: "linked" });
+  if (status === "occupied" && !force) {
+    return result.skipped.push({
+      skill,
+      agent,
+      path: linkPath,
+      reason: "exists (use --force)",
+    });
   }
-  if (status !== 'missing') rmSync(linkPath, { recursive: true, force: true });
+  if (status !== "missing") rmSync(linkPath, { recursive: true, force: true });
   mkdirSync(path.dirname(linkPath), { recursive: true });
-  result.installed.push({ skill, agent, mode: createLink(canonical, linkPath) });
+  result.installed.push({
+    skill,
+    agent,
+    mode: createLink(canonical, linkPath),
+  });
 }
 
 function inspectLink(linkPath, canonical) {
   let stat;
-  try { stat = lstatSync(linkPath); } catch { return 'missing'; }
-  if (!stat.isSymbolicLink()) return 'occupied';
+  try {
+    stat = lstatSync(linkPath);
+  } catch {
+    return "missing";
+  }
+  if (!stat.isSymbolicLink()) return "occupied";
   const target = path.resolve(path.dirname(linkPath), readlinkSync(linkPath));
-  return target === path.resolve(canonical) ? 'correct' : 'occupied';
+  return target === path.resolve(canonical) ? "correct" : "occupied";
 }
 
 function createLink(canonical, linkPath) {
   const relTarget = path.relative(path.dirname(linkPath), canonical);
   try {
-    symlinkSync(relTarget, linkPath, 'dir');
-    return 'symlink';
+    symlinkSync(relTarget, linkPath, "dir");
+    return "symlink";
   } catch (err) {
-    if (err.code !== 'EPERM' && err.code !== 'EACCES') throw err;
+    if (err.code !== "EPERM" && err.code !== "EACCES") throw err;
     return fallbackLink(canonical, linkPath);
   }
 }
 
 function fallbackLink(canonical, linkPath) {
   try {
-    symlinkSync(path.resolve(canonical), linkPath, 'junction');
-    return 'junction';
+    symlinkSync(path.resolve(canonical), linkPath, "junction");
+    return "junction";
   } catch {
     cpSync(canonical, linkPath, { recursive: true });
-    return 'copy';
+    return "copy";
   }
 }
 ```
@@ -550,10 +651,12 @@ git commit -m "feat: install skills as canonical copy plus agent symlinks"
 ### Task 5: Uninstall (`uninstall.mjs`)
 
 **Files:**
+
 - Create: `src/cli/uninstall.mjs`
 - Test: `tests/uninstall.test.mjs`
 
 **Interfaces:**
+
 - Consumes: `listSkills` (Task 3), `agentSkillsDir`, `canonicalSkillsDir`, `ALL_AGENTS` (Task 4), `installPlugin` (Task 4, test setup only).
 - Produces: `uninstallPlugin({pluginDir, cwd, agents, force}) → { removed: [{skill, agent}], canonicalRemoved: string[], skipped: [{skill, agent, path, reason}] }`
 - Semantics (from spec):
@@ -566,70 +669,85 @@ git commit -m "feat: install skills as canonical copy plus agent symlinks"
 
 ```js
 // tests/uninstall.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { installPlugin } from '../src/cli/install.mjs';
-import { uninstallPlugin } from '../src/cli/uninstall.mjs';
-import { agentSkillsDir, canonicalSkillsDir } from '../src/cli/agents.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { installPlugin } from "../src/cli/install.mjs";
+import { uninstallPlugin } from "../src/cli/uninstall.mjs";
+import { agentSkillsDir, canonicalSkillsDir } from "../src/cli/agents.mjs";
 
 function makePlugin(root) {
-  const dir = path.join(root, 'bundle', 'demo');
-  mkdirSync(path.join(dir, 'skills', 'demo'), { recursive: true });
-  writeFileSync(path.join(dir, 'skills', 'demo', 'SKILL.md'), '# demo');
+  const dir = path.join(root, "bundle", "demo");
+  mkdirSync(path.join(dir, "skills", "demo"), { recursive: true });
+  writeFileSync(path.join(dir, "skills", "demo", "SKILL.md"), "# demo");
   return dir;
 }
 
 function setup(t) {
-  const root = mkdtempSync(path.join(tmpdir(), 'agents-rock-'));
+  const root = mkdtempSync(path.join(tmpdir(), "agents-rock-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const cwd = path.join(root, 'project');
+  const cwd = path.join(root, "project");
   mkdirSync(cwd, { recursive: true });
   return { pluginDir: makePlugin(root), cwd };
 }
 
-test('uninstalling last agent removes canonical too', (t) => {
+test("uninstalling last agent removes canonical too", (t) => {
   const { pluginDir, cwd } = setup(t);
-  installPlugin({ pluginDir, cwd, agents: ['claude'] });
-  const result = uninstallPlugin({ pluginDir, cwd, agents: ['claude'] });
-  assert.deepEqual(result.removed, [{ skill: 'demo', agent: 'claude' }]);
-  assert.deepEqual(result.canonicalRemoved, ['demo']);
-  assert.ok(!existsSync(path.join(agentSkillsDir('claude', cwd), 'demo')));
-  assert.ok(!existsSync(path.join(canonicalSkillsDir(cwd), 'demo')));
+  installPlugin({ pluginDir, cwd, agents: ["claude"] });
+  const result = uninstallPlugin({ pluginDir, cwd, agents: ["claude"] });
+  assert.deepEqual(result.removed, [{ skill: "demo", agent: "claude" }]);
+  assert.deepEqual(result.canonicalRemoved, ["demo"]);
+  assert.ok(!existsSync(path.join(agentSkillsDir("claude", cwd), "demo")));
+  assert.ok(!existsSync(path.join(canonicalSkillsDir(cwd), "demo")));
 });
 
-test('canonical kept while another agent still references skill', (t) => {
+test("canonical kept while another agent still references skill", (t) => {
   const { pluginDir, cwd } = setup(t);
-  installPlugin({ pluginDir, cwd, agents: ['claude', 'codex'] });
-  const result = uninstallPlugin({ pluginDir, cwd, agents: ['codex'] });
+  installPlugin({ pluginDir, cwd, agents: ["claude", "codex"] });
+  const result = uninstallPlugin({ pluginDir, cwd, agents: ["codex"] });
   assert.deepEqual(result.canonicalRemoved, []);
-  assert.ok(existsSync(path.join(canonicalSkillsDir(cwd), 'demo')));
-  assert.ok(existsSync(path.join(agentSkillsDir('claude', cwd), 'demo')));
+  assert.ok(existsSync(path.join(canonicalSkillsDir(cwd), "demo")));
+  assert.ok(existsSync(path.join(agentSkillsDir("claude", cwd), "demo")));
 });
 
-test('non-symlink at agent path skipped without force', (t) => {
+test("non-symlink at agent path skipped without force", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const realDir = path.join(agentSkillsDir('claude', cwd), 'demo');
+  const realDir = path.join(agentSkillsDir("claude", cwd), "demo");
   mkdirSync(realDir, { recursive: true });
-  const result = uninstallPlugin({ pluginDir, cwd, agents: ['claude'] });
+  const result = uninstallPlugin({ pluginDir, cwd, agents: ["claude"] });
   assert.equal(result.skipped.length, 1);
   assert.ok(existsSync(realDir));
 });
 
-test('non-symlink removed with force', (t) => {
+test("non-symlink removed with force", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const realDir = path.join(agentSkillsDir('claude', cwd), 'demo');
+  const realDir = path.join(agentSkillsDir("claude", cwd), "demo");
   mkdirSync(realDir, { recursive: true });
-  const result = uninstallPlugin({ pluginDir, cwd, agents: ['claude'], force: true });
+  const result = uninstallPlugin({
+    pluginDir,
+    cwd,
+    agents: ["claude"],
+    force: true,
+  });
   assert.equal(result.skipped.length, 0);
   assert.ok(!existsSync(realDir));
 });
 
-test('uninstalling when nothing installed is a silent no-op', (t) => {
+test("uninstalling when nothing installed is a silent no-op", (t) => {
   const { pluginDir, cwd } = setup(t);
-  const result = uninstallPlugin({ pluginDir, cwd, agents: ['claude', 'codex'] });
+  const result = uninstallPlugin({
+    pluginDir,
+    cwd,
+    agents: ["claude", "codex"],
+  });
   assert.deepEqual(result, { removed: [], canonicalRemoved: [], skipped: [] });
 });
 ```
@@ -642,10 +760,10 @@ Expected: FAIL — `Cannot find module '../src/cli/uninstall.mjs'`
 - [ ] **Step 3: Implement `src/cli/uninstall.mjs`**
 
 ```js
-import { existsSync, lstatSync, rmSync } from 'node:fs';
-import path from 'node:path';
-import { listSkills } from './registry.mjs';
-import { agentSkillsDir, canonicalSkillsDir, ALL_AGENTS } from './agents.mjs';
+import { existsSync, lstatSync, rmSync } from "node:fs";
+import path from "node:path";
+import { listSkills } from "./registry.mjs";
+import { agentSkillsDir, canonicalSkillsDir, ALL_AGENTS } from "./agents.mjs";
 
 export function uninstallPlugin({ pluginDir, cwd, agents, force = false }) {
   const result = { removed: [], canonicalRemoved: [], skipped: [] };
@@ -661,9 +779,18 @@ export function uninstallPlugin({ pluginDir, cwd, agents, force = false }) {
 function removeAgentEntry({ skill, agent, cwd, force, result }) {
   const linkPath = path.join(agentSkillsDir(agent, cwd), skill);
   let stat;
-  try { stat = lstatSync(linkPath); } catch { return; }
+  try {
+    stat = lstatSync(linkPath);
+  } catch {
+    return;
+  }
   if (!stat.isSymbolicLink() && !force) {
-    return result.skipped.push({ skill, agent, path: linkPath, reason: 'not a symlink (use --force)' });
+    return result.skipped.push({
+      skill,
+      agent,
+      path: linkPath,
+      reason: "not a symlink (use --force)",
+    });
   }
   rmSync(linkPath, { recursive: true, force: true });
   result.removed.push({ skill, agent });
@@ -671,8 +798,11 @@ function removeAgentEntry({ skill, agent, cwd, force, result }) {
 
 function maybeRemoveCanonical(skill, cwd, result) {
   const stillReferenced = ALL_AGENTS.some((agent) => {
-    try { return Boolean(lstatSync(path.join(agentSkillsDir(agent, cwd), skill))); }
-    catch { return false; }
+    try {
+      return Boolean(lstatSync(path.join(agentSkillsDir(agent, cwd), skill)));
+    } catch {
+      return false;
+    }
   });
   if (stillReferenced) return;
   const canonical = path.join(canonicalSkillsDir(cwd), skill);
@@ -701,10 +831,12 @@ git commit -m "feat: uninstall skills with refcounted canonical removal"
 ### Task 6: Interactive picker (`picker.mjs`)
 
 **Files:**
+
 - Create: `src/cli/picker.mjs`
 - Test: `tests/picker.test.mjs`
 
 **Interfaces:**
+
 - Produces:
   - `createPickerState(items: Array<{value, label, hint?}>) → {items, cursor: number, selected: Set}`
   - `reduceKey(state, key: 'up'|'down'|'space'|'') → state` (pure)
@@ -715,42 +847,46 @@ git commit -m "feat: uninstall skills with refcounted canonical removal"
 
 ```js
 // tests/picker.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { createPickerState, reduceKey, renderPicker } from '../src/cli/picker.mjs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  createPickerState,
+  reduceKey,
+  renderPicker,
+} from "../src/cli/picker.mjs";
 
 const ITEMS = [
-  { value: 'a', label: 'alpha', hint: 'first' },
-  { value: 'b', label: 'beta' },
+  { value: "a", label: "alpha", hint: "first" },
+  { value: "b", label: "beta" },
 ];
 
-test('cursor moves down and clamps at both ends', () => {
+test("cursor moves down and clamps at both ends", () => {
   let s = createPickerState(ITEMS);
-  s = reduceKey(s, 'up');
+  s = reduceKey(s, "up");
   assert.equal(s.cursor, 0);
-  s = reduceKey(s, 'down');
+  s = reduceKey(s, "down");
   assert.equal(s.cursor, 1);
-  s = reduceKey(s, 'down');
+  s = reduceKey(s, "down");
   assert.equal(s.cursor, 1);
 });
 
-test('space toggles selection at cursor', () => {
+test("space toggles selection at cursor", () => {
   let s = createPickerState(ITEMS);
-  s = reduceKey(s, 'space');
-  assert.deepEqual([...s.selected], ['a']);
-  s = reduceKey(s, 'space');
+  s = reduceKey(s, "space");
+  assert.deepEqual([...s.selected], ["a"]);
+  s = reduceKey(s, "space");
   assert.deepEqual([...s.selected], []);
 });
 
-test('unknown key leaves state unchanged', () => {
+test("unknown key leaves state unchanged", () => {
   const s = createPickerState(ITEMS);
-  assert.equal(reduceKey(s, ''), s);
+  assert.equal(reduceKey(s, ""), s);
 });
 
-test('render shows cursor, checkboxes, hints', () => {
+test("render shows cursor, checkboxes, hints", () => {
   let s = createPickerState(ITEMS);
-  s = reduceKey(s, 'space');
-  const out = renderPicker(s, 'Pick plugins');
+  s = reduceKey(s, "space");
+  const out = renderPicker(s, "Pick plugins");
   assert.match(out, /Pick plugins/);
   assert.match(out, /> \[x\] alpha {2}first/);
   assert.match(out, / {2}\[ \] beta/);
@@ -766,18 +902,21 @@ Expected: FAIL — `Cannot find module '../src/cli/picker.mjs'`
 - [ ] **Step 3: Implement `src/cli/picker.mjs`**
 
 ```js
-import readline from 'node:readline';
+import readline from "node:readline";
 
 export function createPickerState(items) {
   return { items, cursor: 0, selected: new Set() };
 }
 
 export function reduceKey(state, key) {
-  if (key === 'up') return { ...state, cursor: Math.max(0, state.cursor - 1) };
-  if (key === 'down') {
-    return { ...state, cursor: Math.min(state.items.length - 1, state.cursor + 1) };
+  if (key === "up") return { ...state, cursor: Math.max(0, state.cursor - 1) };
+  if (key === "down") {
+    return {
+      ...state,
+      cursor: Math.min(state.items.length - 1, state.cursor + 1),
+    };
   }
-  if (key === 'space') return toggle(state);
+  if (key === "space") return toggle(state);
   return state;
 }
 
@@ -791,12 +930,16 @@ function toggle(state) {
 
 export function renderPicker(state, title) {
   const rows = state.items.map((item, i) => {
-    const cursor = i === state.cursor ? '>' : ' ';
-    const mark = state.selected.has(item.value) ? '[x]' : '[ ]';
-    const hint = item.hint ? `  ${item.hint}` : '';
+    const cursor = i === state.cursor ? ">" : " ";
+    const mark = state.selected.has(item.value) ? "[x]" : "[ ]";
+    const hint = item.hint ? `  ${item.hint}` : "";
     return `${cursor} ${mark} ${item.label}${hint}`;
   });
-  return [title, ...rows, '(space: toggle, enter: confirm, ctrl-c: cancel)'].join('\n');
+  return [
+    title,
+    ...rows,
+    "(space: toggle, enter: confirm, ctrl-c: cancel)",
+  ].join("\n");
 }
 
 export function runPicker({ title, items }) {
@@ -809,36 +952,38 @@ export function runPicker({ title, items }) {
       teardown(onKey);
       resolve(value);
     });
-    process.stdin.on('keypress', onKey);
+    process.stdin.on("keypress", onKey);
     draw(session);
   });
 }
 
 function makeKeyHandler(session, finish) {
   return (str, key) => {
-    if (key.ctrl && key.name === 'c') return finish(null);
-    if (key.name === 'return') return finish([...session.state.selected]);
+    if (key.ctrl && key.name === "c") return finish(null);
+    if (key.name === "return") return finish([...session.state.selected]);
     session.state = reduceKey(session.state, keyName(key));
     draw(session);
   };
 }
 
 function keyName(key) {
-  if (key.name === 'up' || key.name === 'down' || key.name === 'space') return key.name;
-  return '';
+  if (key.name === "up" || key.name === "down" || key.name === "space")
+    return key.name;
+  return "";
 }
 
 function draw(session) {
-  if (session.rendered > 0) process.stdout.write(`\x1b[${session.rendered}A\x1b[J`);
+  if (session.rendered > 0)
+    process.stdout.write(`\x1b[${session.rendered}A\x1b[J`);
   const text = renderPicker(session.state, session.title);
-  session.rendered = text.split('\n').length;
-  process.stdout.write(text + '\n');
+  session.rendered = text.split("\n").length;
+  process.stdout.write(text + "\n");
 }
 
 function teardown(onKey) {
   process.stdin.setRawMode(false);
   process.stdin.pause();
-  process.stdin.removeListener('keypress', onKey);
+  process.stdin.removeListener("keypress", onKey);
 }
 ```
 
@@ -861,11 +1006,13 @@ git commit -m "feat: add readline multi-select picker"
 ### Task 7: Orchestration + bin (`main.mjs`, `bin/agents-rock.mjs`)
 
 **Files:**
+
 - Create: `src/cli/main.mjs`
 - Create: `bin/agents-rock.mjs`
 - Test: `tests/cli.test.mjs`
 
 **Interfaces:**
+
 - Consumes: everything from Tasks 2-6.
 - Produces: `main(argv: string[]) → Promise<number>` (exit code). Bin: `#!/usr/bin/env node`, sets `process.exitCode`.
 - Behavior:
@@ -883,78 +1030,85 @@ Tests spawn the real bin against the real bundled `arch-docs` plugin, in a tmp c
 
 ```js
 // tests/cli.test.mjs
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, lstatSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, lstatSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const BIN = fileURLToPath(new URL('../bin/agents-rock.mjs', import.meta.url));
+const BIN = fileURLToPath(new URL("../bin/agents-rock.mjs", import.meta.url));
 
 function run(args, cwd) {
-  return spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: 'utf8' });
+  return spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8" });
 }
 
 function tmpProject(t) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'agents-rock-cli-'));
+  const dir = mkdtempSync(path.join(tmpdir(), "agents-rock-cli-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
-test('installs arch-docs for both agents via flags', (t) => {
+test("installs arch-docs for both agents via flags", (t) => {
   const cwd = tmpProject(t);
-  const res = run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
+  const res = run(["-p", "arch-docs", "-a", "claude", "-a", "codex"], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs/SKILL.md')));
-  assert.ok(lstatSync(path.join(cwd, '.claude/skills/arch-docs')).isSymbolicLink());
-  assert.ok(lstatSync(path.join(cwd, '.codex/skills/arch-docs')).isSymbolicLink());
+  assert.ok(existsSync(path.join(cwd, ".agents/skills/arch-docs/SKILL.md")));
+  assert.ok(
+    lstatSync(path.join(cwd, ".claude/skills/arch-docs")).isSymbolicLink(),
+  );
+  assert.ok(
+    lstatSync(path.join(cwd, ".codex/skills/arch-docs")).isSymbolicLink(),
+  );
   assert.match(res.stdout, /arch-docs/);
 });
 
-test('uninstall for one agent keeps canonical, for all removes it', (t) => {
+test("uninstall for one agent keeps canonical, for all removes it", (t) => {
   const cwd = tmpProject(t);
-  run(['-p', 'arch-docs', '-a', 'claude', '-a', 'codex'], cwd);
-  let res = run(['uninstall', '-p', 'arch-docs', '-a', 'codex'], cwd);
+  run(["-p", "arch-docs", "-a", "claude", "-a", "codex"], cwd);
+  let res = run(["uninstall", "-p", "arch-docs", "-a", "codex"], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(!existsSync(path.join(cwd, '.codex/skills/arch-docs')));
-  assert.ok(existsSync(path.join(cwd, '.agents/skills/arch-docs')));
-  res = run(['uninstall', '-p', 'arch-docs'], cwd);
+  assert.ok(!existsSync(path.join(cwd, ".codex/skills/arch-docs")));
+  assert.ok(existsSync(path.join(cwd, ".agents/skills/arch-docs")));
+  res = run(["uninstall", "-p", "arch-docs"], cwd);
   assert.equal(res.status, 0, res.stderr);
-  assert.ok(!existsSync(path.join(cwd, '.claude/skills/arch-docs')));
-  assert.ok(!existsSync(path.join(cwd, '.agents/skills/arch-docs')));
+  assert.ok(!existsSync(path.join(cwd, ".claude/skills/arch-docs")));
+  assert.ok(!existsSync(path.join(cwd, ".agents/skills/arch-docs")));
 });
 
-test('unknown plugin errors with valid names listed', (t) => {
+test("unknown plugin errors with valid names listed", (t) => {
   const cwd = tmpProject(t);
-  const res = run(['-p', 'nope', '-a', 'claude'], cwd);
+  const res = run(["-p", "nope", "-a", "claude"], cwd);
   assert.equal(res.status, 1);
   assert.match(res.stderr, /arch-docs/);
 });
 
-test('missing flags in non-TTY errors instead of hanging', (t) => {
+test("missing flags in non-TTY errors instead of hanging", (t) => {
   const cwd = tmpProject(t);
   const res = run([], cwd);
   assert.equal(res.status, 1);
   assert.match(res.stderr, /TTY/);
 });
 
-test('collision without force exits 1 and reports skip', (t) => {
+test("collision without force exits 1 and reports skip", (t) => {
   const cwd = tmpProject(t);
-  run(['-p', 'arch-docs', '-a', 'claude'], cwd);
-  rmSync(path.join(cwd, '.claude/skills/arch-docs'));
-  const mk = spawnSync('mkdir', ['-p', path.join(cwd, '.claude/skills/arch-docs')]);
+  run(["-p", "arch-docs", "-a", "claude"], cwd);
+  rmSync(path.join(cwd, ".claude/skills/arch-docs"));
+  const mk = spawnSync("mkdir", [
+    "-p",
+    path.join(cwd, ".claude/skills/arch-docs"),
+  ]);
   assert.equal(mk.status, 0);
-  const res = run(['-p', 'arch-docs', '-a', 'claude'], cwd);
+  const res = run(["-p", "arch-docs", "-a", "claude"], cwd);
   assert.equal(res.status, 1);
   assert.match(res.stdout, /force/);
 });
 
-test('--help and --version exit 0', (t) => {
+test("--help and --version exit 0", (t) => {
   const cwd = tmpProject(t);
-  assert.match(run(['--help'], cwd).stdout, /Usage: agents-rock/);
-  assert.match(run(['--version'], cwd).stdout, /\d+\.\d+\.\d+/);
+  assert.match(run(["--help"], cwd).stdout, /Usage: agents-rock/);
+  assert.match(run(["--version"], cwd).stdout, /\d+\.\d+\.\d+/);
 });
 ```
 
@@ -966,17 +1120,17 @@ Expected: FAIL — bin does not exist (spawn error / status null)
 - [ ] **Step 3: Implement `src/cli/main.mjs`**
 
 ```js
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { parseCliArgs, UsageError, VALID_AGENTS } from './args.mjs';
-import { loadRegistry } from './registry.mjs';
-import { runPicker } from './picker.mjs';
-import { installPlugin } from './install.mjs';
-import { uninstallPlugin } from './uninstall.mjs';
-import { ALL_AGENTS } from './agents.mjs';
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseCliArgs, UsageError, VALID_AGENTS } from "./args.mjs";
+import { loadRegistry } from "./registry.mjs";
+import { runPicker } from "./picker.mjs";
+import { installPlugin } from "./install.mjs";
+import { uninstallPlugin } from "./uninstall.mjs";
+import { ALL_AGENTS } from "./agents.mjs";
 
-const PACKAGE_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const PACKAGE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
 export async function main(argv) {
   try {
@@ -992,10 +1146,11 @@ async function run(argv) {
   const args = parseCliArgs(argv);
   if (args.help) return printHelp();
   if (args.version) return printVersion();
-  const registry = loadRegistry(path.join(PACKAGE_ROOT, 'plugins'));
+  const registry = loadRegistry(path.join(PACKAGE_ROOT, "plugins"));
   const plugins = await resolvePlugins(args, registry);
   const agents = await resolveAgents(args);
-  if (!plugins.length || !agents.length) throw new UsageError('Nothing selected.');
+  if (!plugins.length || !agents.length)
+    throw new UsageError("Nothing selected.");
   return execute({ args, plugins, agents });
 }
 
@@ -1003,42 +1158,57 @@ async function resolvePlugins(args, registry) {
   const names = registry.map((p) => p.name);
   for (const name of args.plugins) {
     if (!names.includes(name)) {
-      throw new UsageError(`Unknown plugin: ${name}. Available: ${names.join(', ')}`);
+      throw new UsageError(
+        `Unknown plugin: ${name}. Available: ${names.join(", ")}`,
+      );
     }
   }
-  if (args.plugins.length) return args.plugins.map((n) => registry.find((p) => p.name === n));
+  if (args.plugins.length)
+    return args.plugins.map((n) => registry.find((p) => p.name === n));
   requireInteractive();
   const picked = await runPicker({
-    title: 'Select plugins:',
-    items: registry.map((p) => ({ value: p.name, label: p.name, hint: p.description })),
+    title: "Select plugins:",
+    items: registry.map((p) => ({
+      value: p.name,
+      label: p.name,
+      hint: p.description,
+    })),
   });
-  if (picked === null) throw new UsageError('Cancelled.');
+  if (picked === null) throw new UsageError("Cancelled.");
   return picked.map((n) => registry.find((p) => p.name === n));
 }
 
 async function resolveAgents(args) {
   if (args.agents.length) return args.agents;
-  if (args.command === 'uninstall') return ALL_AGENTS;
+  if (args.command === "uninstall") return ALL_AGENTS;
   requireInteractive();
   const picked = await runPicker({
-    title: 'Select agents:',
+    title: "Select agents:",
     items: VALID_AGENTS.map((a) => ({ value: a, label: a })),
   });
-  if (picked === null) throw new UsageError('Cancelled.');
+  if (picked === null) throw new UsageError("Cancelled.");
   return picked;
 }
 
 function requireInteractive() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new UsageError('Missing --plugin/--agent; interactive mode requires a TTY.');
+    throw new UsageError(
+      "Missing --plugin/--agent; interactive mode requires a TTY.",
+    );
   }
 }
 
 function execute({ args, plugins, agents }) {
   let skippedTotal = 0;
   for (const plugin of plugins) {
-    const opts = { pluginDir: plugin.dir, cwd: process.cwd(), agents, force: args.force };
-    const result = args.command === 'install' ? installPlugin(opts) : uninstallPlugin(opts);
+    const opts = {
+      pluginDir: plugin.dir,
+      cwd: process.cwd(),
+      agents,
+      force: args.force,
+    };
+    const result =
+      args.command === "install" ? installPlugin(opts) : uninstallPlugin(opts);
     skippedTotal += printSummary(plugin.name, result);
   }
   return skippedTotal > 0 ? 1 : 0;
@@ -1049,7 +1219,9 @@ function printSummary(pluginName, result) {
     console.log(`↻ ${item.skill} (canonical exists, reused)`);
   }
   for (const item of result.installed ?? []) {
-    console.log(`✔ ${pluginName}: ${item.skill} → ${item.agent} (${item.mode})`);
+    console.log(
+      `✔ ${pluginName}: ${item.skill} → ${item.agent} (${item.mode})`,
+    );
   }
   for (const item of result.removed ?? []) {
     console.log(`✔ ${pluginName}: removed ${item.skill} ← ${item.agent}`);
@@ -1078,7 +1250,9 @@ Options:
 }
 
 function printVersion() {
-  const pkg = JSON.parse(readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'));
+  const pkg = JSON.parse(
+    readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8"),
+  );
   console.log(pkg.version);
   return 0;
 }
@@ -1090,7 +1264,7 @@ Note: `printSummary` handles both install and uninstall result shapes via `?? []
 
 ```js
 #!/usr/bin/env node
-import { main } from '../src/cli/main.mjs';
+import { main } from "../src/cli/main.mjs";
 
 process.exitCode = await main(process.argv.slice(2));
 ```
@@ -1118,9 +1292,11 @@ git commit -m "feat: wire agents-rock CLI entry with picker and summary"
 ### Task 8: Docs + final validation
 
 **Files:**
+
 - Modify: `README.md` (add npx section after the existing marketplace Install section)
 
 **Interfaces:**
+
 - Consumes: the finished CLI.
 
 - [ ] **Step 1: Add README section**

@@ -49,7 +49,7 @@ upfront and stops before writing anything if it's missing.
 ## Install
 
 ```
-/plugin marketplace add vukhanhtruong/agents-rock
+/plugin marketplace add v11g/agents-rock
 /plugin install analyze-requirements@agents-rock
 ```
 

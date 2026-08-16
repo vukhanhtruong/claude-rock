@@ -1,4 +1,5 @@
 plugins/**/.claude-plugin/*.*
+!plugins/**/.claude-plugin/plugin.json
 !.claude-plugin
 
 node_modules/

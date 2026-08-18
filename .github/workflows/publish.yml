@@ -7,6 +7,12 @@ on:
     # must NOT match this paths filter, or the workflow retriggers forever.
     paths:
       - "plugins/**/plugin.json"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "patch, minor, major, or an exact version such as 2.0.0"
+        required: true
+        default: patch
 
 permissions:
   id-token: write # Required for OIDC (trusted publishing)
@@ -30,25 +36,88 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false # never use caching in release builds
 
+      # A manual run publishes whatever ref it was started from, but the release
+      # commit is pushed to main. Refuse any other ref rather than push a commit
+      # main never contained.
+      - name: Require main for manual runs
+        if: github.event_name == 'workflow_dispatch' && github.ref_name != 'main'
+        run: |
+          echo "::error::Release manually only from main (got ${{ github.ref_name }})."
+          exit 1
+
+      # github.event.before does not exist on workflow_dispatch, so this only
+      # runs for pushes.
       - name: Detect plugin version bumps
         id: bumps
+        if: github.event_name == 'push'
         run: |
           CHANGED="$(node src/ci/changed-versions.mjs "${{ github.event.before }}" "$GITHUB_SHA")"
           echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
           echo "Plugin versions bumped: ${CHANGED:-none}"
 
+      # Interpolating the dispatch input straight into a shell would let it run
+      # as code, so it arrives via env and is validated before use.
+      - name: Decide whether to release
+        id: gate
+        env:
+          BUMP: ${{ inputs.version }}
+          CHANGED: ${{ steps.bumps.outputs.changed }}
+          # npm happily accepts an older exact version, which would drag the
+          # "latest" dist-tag backwards. Require the release triple to be
+          # newer, allowing only a prerelease being promoted to its final.
+          NEWER_CHECK: |
+            const next = process.argv[1];
+            const cur = require('./package.json').version;
+            const triple = (v) => v.split('-')[0].split('.').map(Number);
+            const [a, b] = [triple(next), triple(cur)];
+            const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            const pre = (v) => v.includes('-');
+            if (!(cmp > 0 || (cmp === 0 && pre(cur) && !pre(next)))) {
+              console.error(`::error::${next} is not newer than the current ${cur}.`);
+              process.exit(1);
+            }
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            case "$BUMP" in
+              patch | minor | major) ;;
+              [0-9]*.[0-9]*.[0-9]*) node -e "$NEWER_CHECK" "$BUMP" || exit 1 ;;
+              *)
+                echo "::error::Invalid version input: '$BUMP'."
+                exit 1
+                ;;
+            esac
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+            echo "reason=manual release: $BUMP" >> "$GITHUB_OUTPUT"
+          elif [ -n "$CHANGED" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "bump=patch" >> "$GITHUB_OUTPUT"
+            echo "reason=plugins: $CHANGED" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "No plugin version changed; nothing to publish."
+          fi
+
+      - name: Install dependencies
+        if: steps.gate.outputs.release == 'true'
+        run: npm ci
+
       - name: Run tests
-        if: steps.bumps.outputs.changed != ''
+        if: steps.gate.outputs.release == 'true'
         run: npm test
 
       - name: Bump, commit, publish
-        if: steps.bumps.outputs.changed != ''
+        if: steps.gate.outputs.release == 'true'
+        env:
+          BUMP: ${{ steps.gate.outputs.bump }}
+          REASON: ${{ steps.gate.outputs.reason }}
         run: |
-          npm version patch --no-git-tag-version
+          npm version "$BUMP" --no-git-tag-version
           VERSION="$(node -p "require('./package.json').version")"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: release v$VERSION (plugins: ${{ steps.bumps.outputs.changed }})"
-          git push origin main
+          git add package.json package-lock.json
+          git commit -m "chore: release v$VERSION ($REASON)"
+          git tag "v$VERSION"
+          git push origin main --follow-tags
           npm publish

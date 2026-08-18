@@ -1,12 +1,12 @@
-import path from 'node:path';
+/**
+ * Per-agent home directory plus the env var that relocates it. Both are only
+ * consulted for user scope; project scope always nests inside the project root.
+ */
+export const AGENT_HOMES = {
+  claude: { dir: '.claude', env: 'CLAUDE_CONFIG_DIR' },
+  codex: { dir: '.codex', env: 'CODEX_HOME' },
+};
 
-export const AGENT_DIRS = { claude: '.claude', codex: '.codex' };
-export const ALL_AGENTS = Object.keys(AGENT_DIRS);
+export const ALL_AGENTS = Object.keys(AGENT_HOMES);
 
-export function agentSkillsDir(agent, cwd) {
-  return path.join(cwd, AGENT_DIRS[agent], 'skills');
-}
-
-export function canonicalSkillsDir(cwd) {
-  return path.join(cwd, '.agents', 'skills');
-}
+export const AGENT_LABELS = { claude: 'Claude Code', codex: 'Codex' };

@@ -24,5 +24,9 @@
     "type": "git",
     "url": "https://github.com/v11g/agents-rock.git"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "picocolors": "^1.1.1"
+  }
 }

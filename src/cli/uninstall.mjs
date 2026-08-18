@@ -1,21 +1,20 @@
 import { existsSync, lstatSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { listSkills } from './registry.mjs';
-import { agentSkillsDir, canonicalSkillsDir, ALL_AGENTS } from './agents.mjs';
 
-export function uninstallPlugin({ pluginDir, cwd, agents, force = false }) {
+export function uninstallPlugin({ pluginDir, targets, agents, force = false }) {
   const result = { removed: [], canonicalRemoved: [], skipped: [] };
   for (const skill of listSkills(pluginDir)) {
     for (const agent of agents) {
-      removeAgentEntry({ skill: skill.name, agent, cwd, force, result });
+      removeAgentEntry({ skill: skill.name, agent, targets, force, result });
     }
-    maybeRemoveCanonical(skill.name, cwd, result);
+    maybeRemoveCanonical(skill.name, targets, result);
   }
   return result;
 }
 
-function removeAgentEntry({ skill, agent, cwd, force, result }) {
-  const linkPath = path.join(agentSkillsDir(agent, cwd), skill);
+function removeAgentEntry({ skill, agent, targets, force, result }) {
+  const linkPath = path.join(targets.agentDirs[agent], skill);
   let stat;
   try { stat = lstatSync(linkPath); } catch { return; }
   if (!stat.isSymbolicLink() && !force) {
@@ -25,13 +24,13 @@ function removeAgentEntry({ skill, agent, cwd, force, result }) {
   result.removed.push({ skill, agent });
 }
 
-function maybeRemoveCanonical(skill, cwd, result) {
-  const stillReferenced = ALL_AGENTS.some((agent) => {
-    try { return Boolean(lstatSync(path.join(agentSkillsDir(agent, cwd), skill))); }
+function maybeRemoveCanonical(skill, targets, result) {
+  const stillReferenced = Object.values(targets.agentDirs).some((dir) => {
+    try { return Boolean(lstatSync(path.join(dir, skill))); }
     catch { return false; }
   });
   if (stillReferenced) return;
-  const canonical = path.join(canonicalSkillsDir(cwd), skill);
+  const canonical = path.join(targets.canonical, skill);
   if (!existsSync(canonical)) return;
   rmSync(canonical, { recursive: true, force: true });
   result.canonicalRemoved.push(skill);

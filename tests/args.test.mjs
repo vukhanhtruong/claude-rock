@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCliArgs, UsageError } from '../src/cli/args.mjs';
 
-test('defaults to install with empty selections', () => {
+test('defaults to install with empty selections and no scope', () => {
   assert.deepEqual(parseCliArgs([]), {
-    command: 'install', plugins: [], agents: [], force: false, help: false, version: false,
+    command: 'install', plugins: [], agents: [], scope: null, dir: null,
+    yes: false, force: false, help: false, version: false,
   });
 });
 
@@ -45,4 +46,38 @@ test('rejects unknown agent with valid list in message', () => {
 test('parses help and version', () => {
   assert.equal(parseCliArgs(['-h']).help, true);
   assert.equal(parseCliArgs(['-v']).version, true);
+});
+
+test('-g and --global select user scope', () => {
+  assert.equal(parseCliArgs(['-g']).scope, 'user');
+  assert.equal(parseCliArgs(['--global']).scope, 'user');
+});
+
+test('--project selects project scope', () => {
+  assert.equal(parseCliArgs(['--project']).scope, 'project');
+});
+
+test('rejects --global together with --project', () => {
+  assert.throws(() => parseCliArgs(['--global', '--project']), UsageError);
+});
+
+test('parses -y and --yes', () => {
+  assert.equal(parseCliArgs(['-y']).yes, true);
+  assert.equal(parseCliArgs(['--yes']).yes, true);
+});
+
+test('--dir carries the path and implies project scope', () => {
+  const r = parseCliArgs(['--dir', '/work/app']);
+  assert.equal(r.dir, '/work/app');
+  assert.equal(r.scope, 'project');
+});
+
+test('rejects --dir combined with --global', () => {
+  assert.throws(() => parseCliArgs(['--dir', '/work/app', '--global']), UsageError);
+});
+
+test('--dir agrees with an explicit --project', () => {
+  const r = parseCliArgs(['--dir', '/work/app', '--project']);
+  assert.equal(r.scope, 'project');
+  assert.equal(r.dir, '/work/app');
 });

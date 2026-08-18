@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+The `npx` installer now asks before it writes. Running it bare shows prompts for
+plugins, agents, and install scope, then a summary you confirm — built on
+`@clack/prompts` in place of the hand-rolled picker.
+
+Install scope is now a choice. `--global`/`-g` installs under your home
+directory (honoring `CLAUDE_CONFIG_DIR` and `CODEX_HOME`); `--project` installs
+under the detected project root, found by walking up for `.git` and then for
+`package.json`, `pyproject.toml`, `go.mod`, or `Cargo.toml`. When that root is
+not your current directory the installer shows both and asks. `--dir <path>`
+names the directory outright, `-y`/`--yes` skips confirmations and assumes
+`--project`.
+
+### Fixed
+
+Running `npx @v11g/agents-rock` with no `--plugin` left the picker unusable. It
+redrew by counting logical lines rather than wrapped terminal rows, so the long
+plugin descriptions wrapped and every keypress left stale duplicate rows behind;
+Enter also went unhandled whenever the terminal reported it as `enter` rather
+than `return`, leaving the prompt stuck.
+
+Installing from a subdirectory no longer creates a stray skills directory there
+— project scope resolves to the repository root.
+
+### BREAKING CHANGES
+
+An install or uninstall run without a terminal now requires an explicit scope.
+`npx @v11g/agents-rock -p lmk -a claude` errors naming `--global` and
+`--project`; add `--project` to keep the previous behavior. Interactive runs are
+unaffected — they ask.
+
 ## v3.0.0 (2026-08-10)
 
 A rewrite. The repository shipped a single skill at v2.0.1; it now ships a

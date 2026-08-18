@@ -20,18 +20,62 @@ Replace `<plugin>` with any plugin from the table below, e.g.
 ### Install via npx (Claude Code + Codex)
 
 ```
-npx @v11g/agents-rock                                # interactive picker
-npx @v11g/agents-rock -p <plugin> -a claude          # one plugin for Claude Code
-npx @v11g/agents-rock -p <plugin> -a codex           # same plugin for Codex
-npx @v11g/agents-rock -p <plugin> -a claude -a codex # both agents
-npx @v11g/agents-rock uninstall -p <plugin>          # remove for all agents
+npx @v11g/agents-rock                                   # interactive: pick plugins, agents, scope
+npx @v11g/agents-rock -p <plugin> -a claude --project   # this project, Claude Code
+npx @v11g/agents-rock -p <plugin> -a codex --global     # your home dir, Codex
+npx @v11g/agents-rock -p <plugin> -a claude -a codex -g # both agents, home dir
+npx @v11g/agents-rock uninstall -p <plugin> --project   # remove from this project, all agents
 ```
 
-`-p <plugin>` installs all skills that plugin ships.
+`-p <plugin>` installs every skill that plugin ships.
 
-Skills are copied to `.agents/skills/<skill>` in your project and symlinked
-from `.claude/skills/` (Claude Code) and/or `.codex/skills/` (Codex).
-Use `--force` to overwrite collisions.
+Run with no options and you get prompts for plugins, agents, and scope, then a
+summary to confirm before anything is written. Nothing is written until you
+confirm.
+
+#### Scope
+
+| Flag | Where skills land | Good for |
+| --- | --- | --- |
+| `--project` | the detected project root | skills committed alongside one repo |
+| `--global` / `-g` | your home directory | skills you want in every project |
+
+`--project` walks up from the current directory looking for `.git`, then for
+`package.json`, `pyproject.toml`, `go.mod`, or `Cargo.toml`. When the root it
+finds is not the directory you are standing in, it shows you both and asks which
+to use — so running the installer from `packages/web/src` does not quietly
+create a skills directory there. Use `--dir <path>` to name the directory
+yourself and skip detection.
+
+`--global` honors `CLAUDE_CONFIG_DIR` and `CODEX_HOME` if you have relocated
+either agent's config.
+
+#### Layout
+
+Both scopes use the same shape — one canonical copy, symlinked per agent:
+
+```
+project scope                        user scope
+<root>/.agents/skills/<skill>        ~/.agents/skills/<skill>      canonical copy
+<root>/.claude/skills/<skill>   ->   ~/.claude/skills/<skill>      symlink
+<root>/.codex/skills/<skill>    ->   ~/.codex/skills/<skill>       symlink
+```
+
+Editing the canonical copy updates every agent. On systems that refuse symlinks
+the installer falls back to a junction, then to a plain copy, and warns that
+updates will no longer propagate.
+
+#### Other flags
+
+| Flag | Effect |
+| --- | --- |
+| `-y`, `--yes` | Skip confirmations; assumes `--project` |
+| `-f`, `--force` | Overwrite or remove collisions |
+| `-h`, `--help` | Full flag list |
+
+Flags let the installer run unattended. Without a terminal it never guesses:
+missing `--plugin`, `--agent`, or a scope flag is an error naming the flag,
+rather than a hang.
 
 ## Plugins
 

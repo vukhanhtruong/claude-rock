@@ -1,21 +1,20 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 import { listSkills } from './registry.mjs';
-import { agentSkillsDir, canonicalSkillsDir } from './agents.mjs';
 
-export function installPlugin({ pluginDir, cwd, agents, force = false }) {
+export function installPlugin({ pluginDir, targets, agents, force = false }) {
   const result = { installed: [], skipped: [], reused: [] };
   for (const skill of listSkills(pluginDir)) {
-    const canonical = copyCanonical({ skill, cwd, force, result });
+    const canonical = copyCanonical({ skill, targets, force, result });
     for (const agent of agents) {
-      linkAgent({ skill: skill.name, canonical, agent, cwd, force, result });
+      linkAgent({ skill: skill.name, canonical, agent, targets, force, result });
     }
   }
   return result;
 }
 
-function copyCanonical({ skill, cwd, force, result }) {
-  const dest = path.join(canonicalSkillsDir(cwd), skill.name);
+function copyCanonical({ skill, targets, force, result }) {
+  const dest = path.join(targets.canonical, skill.name);
   if (existsSync(dest) && !force) {
     result.reused.push({ skill: skill.name, path: dest });
     return dest;
@@ -26,8 +25,8 @@ function copyCanonical({ skill, cwd, force, result }) {
   return dest;
 }
 
-function linkAgent({ skill, canonical, agent, cwd, force, result }) {
-  const linkPath = path.join(agentSkillsDir(agent, cwd), skill);
+function linkAgent({ skill, canonical, agent, targets, force, result }) {
+  const linkPath = path.join(targets.agentDirs[agent], skill);
   const status = inspectLink(linkPath, canonical);
   if (status === 'correct') return result.installed.push({ skill, agent, mode: 'linked' });
   if (status === 'occupied' && !force) {

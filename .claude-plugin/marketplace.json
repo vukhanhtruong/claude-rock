@@ -35,6 +35,19 @@
       "keywords": ["explain", "diagrams", "terminal", "mermaid", "visualization", "ascii"],
       "category": "documentation",
       "strict": false
+    },
+    {
+      "name": "business-analyst",
+      "source": "./plugins/business-analyst",
+      "description": "Business-analysis toolkit: interview-driven requirements discovery that turns raw client input into a validated, traceable requirements package ready for solution architecture.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Truong Vu",
+        "email": "vukhanhtruong@gmail.com"
+      },
+      "keywords": ["business-analysis", "requirements", "discovery", "elicitation", "pre-sales"],
+      "category": "documentation",
+      "strict": false
     }
   ]
 }

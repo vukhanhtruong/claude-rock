@@ -776,7 +776,7 @@ function renderEvidence() {
   const el = document.getElementById('evidence');
   if (!el) return;
   const rows = Object.entries(DATA.computed.tasks)
-    .flatMap(([id, t]) => (t.evidence ?? []).map((e) => `<tr><td>${e.id}</td><td>${e.description}</td><td class="num">${e.minutes}</td><td>${id}</td></tr>`))
+    .flatMap(([id, t]) => (t.evidence ?? []).map((e) => `<tr><td>${e.id}</td><td>${e.description ?? '—'}</td><td class="num">${e.minutes}</td><td>${id}</td></tr>`))
     .join('');
   el.innerHTML = `<table><caption>Evidence — measured runs backing the baselines ${help(
     'Every baseline is the median of these actual past executions. No row here, no number above.')}</caption>

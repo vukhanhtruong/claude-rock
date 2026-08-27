@@ -3,6 +3,14 @@
 // hours per scenario) before it ships, unless the inputs opt out via
 // exposeRatesToClient. Assumptions/risks are left alone — those are
 // client-facing per spec.
+//
+// Agentic-only fields are stripped unconditionally (not gated on
+// exposeRatesToClient, which is a pricing-transparency opt-out, not a
+// privacy one): the local measurements dataset path (absolute, carries the
+// operator's username), the operator's repository name, and evidence task
+// descriptions (the global measurements store can carry other projects'
+// task descriptions). These fields don't exist in team-mode estimations, so
+// team-mode output is unaffected.
 function redactScenarioTeam(team) {
   return team.map(({ rate, ...rest }) => rest);
 }
@@ -14,17 +22,32 @@ function redactComputedScenarios(scenarios) {
   }));
 }
 
+function redactAgenticInputs({ measurementsPath, agentContext, ...rest }) {
+  if (!agentContext) return rest;
+  const { repository, ...clientAgentContext } = agentContext;
+  return { ...rest, agentContext: clientAgentContext };
+}
+
+function redactComputedTasks(tasks) {
+  return Object.fromEntries(Object.entries(tasks).map(([id, t]) => [
+    id,
+    t.evidence ? { ...t, evidence: t.evidence.map(({ description, ...rest }) => rest) } : t,
+  ]));
+}
+
 export function redactForClient(estimation) {
-  if (estimation.inputs.exposeRatesToClient) return estimation;
+  const inputs = redactAgenticInputs(estimation.inputs);
+  const computed = { ...estimation.computed, tasks: redactComputedTasks(estimation.computed.tasks) };
+  if (estimation.inputs.exposeRatesToClient) return { ...estimation, inputs, computed };
   return {
     ...estimation,
     inputs: {
-      ...estimation.inputs,
-      scenarios: estimation.inputs.scenarios.map((s) => ({ ...s, team: redactScenarioTeam(s.team) })),
+      ...inputs,
+      scenarios: inputs.scenarios.map((s) => ({ ...s, team: redactScenarioTeam(s.team) })),
     },
     computed: {
-      ...estimation.computed,
-      scenarios: redactComputedScenarios(estimation.computed.scenarios),
+      ...computed,
+      scenarios: redactComputedScenarios(computed.scenarios),
     },
   };
 }

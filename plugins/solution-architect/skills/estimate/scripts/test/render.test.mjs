@@ -152,3 +152,17 @@ test('agentic client render still redacts rates', () => {
   const html = renderAgentic({ clientOnly: true });
   assert.doesNotMatch(html, /"rate":/);
 });
+
+test('agentic client render strips the measurements path, repository, and evidence descriptions', () => {
+  const full = renderAgentic();
+  assert.match(full, new RegExp(measurementsFixture.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(full, /"repository":"project-a"/);
+  assert.match(full, /Refactor A/);
+
+  const client = renderAgentic({ clientOnly: true });
+  assert.doesNotMatch(client, new RegExp(measurementsFixture.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(client, /"measurementsPath":/);
+  assert.doesNotMatch(client, /"repository":/);
+  assert.doesNotMatch(client, /Refactor A/);
+  assert.doesNotMatch(client, />undefined</); // renderEvidence tolerates a stripped description
+});

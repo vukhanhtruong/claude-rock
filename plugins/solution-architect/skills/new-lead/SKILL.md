@@ -5,9 +5,9 @@ description: Set up a pre-sales lead workspace and walk the human through the so
 
 # new-lead
 
-Prepare a lead's workspace, then run `/analyze-requirements`, `/estimate` and
-`/proposal` in that order, stopping between each so the human sees what was
-produced. Also maintains the leads dashboard: a `leads.json` registry and a
+Prepare a lead's workspace, then run `/business-analyst` (when installed),
+`/analyze-requirements`, `/estimate` and `/proposal` in that order, stopping
+between each so the human sees what was produced. Also maintains the leads dashboard: a `leads.json` registry and a
 self-contained local server.
 
 ## Hard rules

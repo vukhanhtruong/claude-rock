@@ -1,0 +1,45 @@
+{
+  "project": "Booking revamp",
+  "deliveryMode": "agentic",
+  "technique": "measurement-based",
+  "depth": "STANDARD",
+  "agentContext": { "agent": "claude-code", "model": "sonnet", "repository": "project-a" },
+  "measurementsPath": "FIXTURE_MEASUREMENTS",
+  "overheadPct": 0.1,
+  "assumptions": ["Existing CI pipeline stays as is"],
+  "risks": [
+    { "name": "SDK incompatibility", "probability": 0.3, "impactMinutes": 30, "reason": "new SDK may break integration test mocks" }
+  ],
+  "features": [
+    {
+      "id": "plan", "name": "Planning", "provenance": "proposed",
+      "tasks": [
+        { "id": "plan-refactor", "shape": "planning", "model": "opus",
+          "scope": {}, "seedMinutes": { "o": 20, "m": 40, "p": 80 },
+          "assumptions": [], "provenance": "proposed" }
+      ]
+    },
+    {
+      "id": "client-swap", "name": "API client swap", "provenance": "stated",
+      "tasks": [
+        { "id": "swap-refactor", "shape": "cross_file_refactor",
+          "scope": { "affectedFiles": 8, "complexity": "low" },
+          "seedMinutes": { "o": 10, "m": 20, "p": 45 },
+          "assumptions": ["old client has no dynamic call sites"], "provenance": "stated" },
+        { "id": "swap-tests", "shape": "test_creation",
+          "scope": { "affectedFiles": 2, "complexity": "low" },
+          "seedMinutes": { "o": 5, "m": 10, "p": 20 },
+          "assumptions": [], "provenance": "proposed" },
+        { "id": "swap-db", "shape": "database_change",
+          "scope": { "affectedFiles": 2, "complexity": "med" },
+          "seedMinutes": { "o": 15, "m": 30, "p": 60 },
+          "assumptions": [], "provenance": "proposed" }
+      ]
+    }
+  ],
+  "scenarios": [
+    { "id": "solo", "plan": "max5x", "team": [{ "seniority": "senior", "rate": 90 }] },
+    { "id": "pair", "plan": "max20x", "team": [{ "seniority": "senior", "rate": 90 }, { "seniority": "mid", "rate": 60 }] }
+  ],
+  "recommendedScenario": "solo"
+}

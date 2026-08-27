@@ -127,3 +127,49 @@ test('a blank milestone is refused; none at all is fine', () => {
   for (const f of bare.features) delete f.milestone;
   assert.deepEqual(checkInputs(bare), []);           // no milestones at all → still valid
 });
+
+// Agentic-mode schema branch.
+const agenticFixturePath = new URL('./fixtures/agentic-inputs.json', import.meta.url).pathname;
+const agenticFixture = () => JSON.parse(readFileSync(agenticFixturePath, 'utf8'));
+
+test('agentic fixture validates clean', () => {
+  assert.deepEqual(checkInputs(agenticFixture()), []);
+});
+
+test('agentic tasks reject team-mode and script-owned fields', () => {
+  const inputs = agenticFixture();
+  Object.assign(inputs.features[1].tasks[0], { category: 'boilerplate', confidence: 'HIGH', o: 1, m: 2, p: 3 });
+  const findings = checkInputs(inputs);
+  for (const banned of ['category', 'confidence', '"o"', '"m"', '"p"']) {
+    assert.ok(findings.some((f) => f.includes(banned)), `expected finding for ${banned}: ${findings}`);
+  }
+});
+
+test('agentic tasks require shape, scope, ordered positive seedMinutes', () => {
+  const inputs = agenticFixture();
+  const task = inputs.features[1].tasks[0];
+  task.shape = 'jazz_hands';
+  task.seedMinutes = { o: 45, m: 20, p: 10 };
+  delete task.scope;
+  const findings = checkInputs(inputs);
+  assert.ok(findings.some((f) => f.includes('unknown shape')));
+  assert.ok(findings.some((f) => f.includes('seedMinutes')));
+  assert.ok(findings.some((f) => f.includes('scope')));
+});
+
+test('agentic mode requires agentContext and minute-based risks with reasons', () => {
+  const inputs = agenticFixture();
+  delete inputs.agentContext;
+  inputs.risks = [{ name: 'r', probability: 0.5, impactHours: 2 }];
+  const findings = checkInputs(inputs);
+  assert.ok(findings.some((f) => f.includes('agentContext')));
+  assert.ok(findings.some((f) => f.includes('impactMinutes')));
+  assert.ok(findings.some((f) => f.includes('reason')));
+});
+
+test('deliveryMode vocabulary is enforced; team inputs stay valid', () => {
+  const inputs = agenticFixture();
+  inputs.deliveryMode = 'vibes';
+  assert.ok(checkInputs(inputs).some((f) => f.includes('deliveryMode')));
+  assert.deepEqual(checkInputs(fixture()), []); // existing booking fixture untouched
+});

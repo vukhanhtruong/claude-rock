@@ -2,10 +2,34 @@
 // checks here are the contract that keeps interview output honest before any
 // arithmetic happens. Findings are strings with the offending id in them.
 import { AI_CATEGORIES, SENIORITY_FACTOR, PLAN_PRICES } from './estimate-math.mjs';
+import { TASK_SHAPES } from './measurements.mjs';
 
 const PROVENANCE = ['observed', 'stated', 'researched', 'proposed'];
 const CONFIDENCE = ['HIGH', 'MED', 'LOW'];
+const DELIVERY_MODES = ['traditional', 'agentic'];
 const pct = (v) => typeof v === 'number' && v >= 0 && v < 1;
+const isAgentic = (inputs) => inputs.deliveryMode === 'agentic';
+
+// Durations and confidence are script-owned in agentic mode: their absence
+// from inputs is the structural guarantee the agent never invents them.
+const AGENTIC_BANNED = ['category', 'confidence', 'o', 'm', 'p'];
+
+function checkAgenticTask(task, out) {
+  if (!TASK_SHAPES.includes(task.shape)) out.push(`task ${task.id}: unknown shape "${task.shape}"`);
+  const s = task.seedMinutes ?? {};
+  if (!['o', 'm', 'p'].every((k) => typeof s[k] === 'number' && s[k] > 0)) {
+    out.push(`task ${task.id}: seedMinutes o, m, p must be positive numbers`);
+  } else if (!(s.o <= s.m && s.m <= s.p)) out.push(`task ${task.id}: seedMinutes expected o <= m <= p`);
+  if (typeof task.scope !== 'object' || task.scope === null) out.push(`task ${task.id}: scope object is required`);
+  for (const key of AGENTIC_BANNED) {
+    if (Object.hasOwn(task, key)) out.push(`task ${task.id}: "${key}" is not an agentic input — the script computes it`);
+  }
+  if (task.model !== undefined && !(typeof task.model === 'string' && task.model.trim())) {
+    out.push(`task ${task.id}: model must be a non-empty string`);
+  }
+  if (!Array.isArray(task.assumptions)) out.push(`task ${task.id}: assumptions array is required`);
+  if (!PROVENANCE.includes(task.provenance)) out.push(`task ${task.id}: provenance not in vocabulary`);
+}
 
 function checkTask(task, out) {
   if (!['o', 'm', 'p'].every((k) => typeof task[k] === 'number')) out.push(`task ${task.id}: o, m, p must be numbers`);
@@ -19,14 +43,14 @@ function checkTask(task, out) {
   if (!PROVENANCE.includes(task.provenance)) out.push(`task ${task.id}: provenance not in vocabulary`);
 }
 
-function checkFeature(feature, out) {
+function checkFeature(feature, out, agentic) {
   // Scope items are the clear-vs-assumed split itself: only stated|proposed.
   // (Task rows keep the full four-word vocabulary for their src column.)
   if (!['stated', 'proposed'].includes(feature.provenance)) {
     out.push(`feature ${feature.id}: scope provenance must be stated|proposed`);
   }
   if (!(feature.tasks?.length > 0)) out.push(`feature ${feature.id}: must have at least one task`);
-  for (const task of feature.tasks ?? []) checkTask(task, out);
+  for (const task of feature.tasks ?? []) (agentic ? checkAgenticTask(task, out) : checkTask(task, out));
 }
 
 // Roadmap is all-or-nothing: a half-labeled feature list would render a
@@ -105,24 +129,38 @@ function checkScenarios(inputs, out) {
 
 // Anything compute.mjs would turn into NaN gets refused here instead: the
 // "computed truth" contract holds only if every operand is a sane number.
-function checkGlobals(inputs, out) {
+// Risks carry hours in team mode and minutes in agentic mode — the unit the
+// rest of that mode's math already runs on.
+function checkGlobals(inputs, out, agentic) {
   if (!pct(inputs.overheadPct)) out.push('overheadPct must be a number in [0, 1)');
-  if (!pct(inputs.verificationPct)) out.push('verificationPct must be a number in [0, 1)');
+  if (!agentic && !pct(inputs.verificationPct)) out.push('verificationPct must be a number in [0, 1)');
   for (const r of inputs.risks ?? []) {
     if (!(typeof r.probability === 'number' && r.probability >= 0 && r.probability <= 1)) out.push(`risk "${r.name}": probability must be in [0, 1]`);
-    if (!(typeof r.impactHours === 'number' && r.impactHours > 0)) out.push(`risk "${r.name}": impactHours must be positive`);
+    if (agentic) {
+      if (!(typeof r.impactMinutes === 'number' && r.impactMinutes > 0)) out.push(`risk "${r.name}": impactMinutes must be positive`);
+      if (!(typeof r.reason === 'string' && r.reason.trim())) out.push(`risk "${r.name}": reason is required`);
+    } else if (!(typeof r.impactHours === 'number' && r.impactHours > 0)) out.push(`risk "${r.name}": impactHours must be positive`);
   }
 }
 
 export function checkInputs(inputs) {
   const out = [];
+  const agentic = isAgentic(inputs);
+  if (inputs.deliveryMode !== undefined && !DELIVERY_MODES.includes(inputs.deliveryMode)) out.push('deliveryMode must be traditional|agentic');
   for (const key of ['project', 'technique', 'features', 'risks', 'assumptions', 'scenarios']) {
     if (!(key in inputs)) out.push(`missing top-level "${key}"`);
   }
-  for (const feature of inputs.features ?? []) checkFeature(feature, out);
+  if (agentic) {
+    const ctx = inputs.agentContext;
+    if (typeof ctx !== 'object' || ctx === null) out.push('agentic mode requires top-level agentContext');
+    else for (const key of ['agent', 'model']) {
+      if (!(typeof ctx[key] === 'string' && ctx[key].trim())) out.push(`agentContext.${key} must be a non-empty string`);
+    }
+  }
+  for (const feature of inputs.features ?? []) checkFeature(feature, out, agentic);
   checkMilestones(inputs.features ?? [], out);
   checkComponents(inputs, out);
   checkScenarios(inputs, out);
-  checkGlobals(inputs, out);
+  checkGlobals(inputs, out, agentic);
   return out;
 }

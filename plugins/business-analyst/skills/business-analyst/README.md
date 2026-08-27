@@ -1,0 +1,20 @@
+# business-analyst
+
+Requirements discovery for pre-sales leads. Feed it raw client input —
+emails, meeting notes, transcripts, briefs — and it interviews you to fill
+the gaps, then writes a validated requirements package:
+
+- `requirements.md` — discovery brief, process analysis, requirements,
+  acceptance scenarios, readiness report (five parts, one file)
+- `requirements.json` — machine-readable handoff with stable IDs
+
+Designed to run before the solution-architect plugin's chain
+(`analyze-requirements` → `estimate` → `proposal`); its `new-lead`
+orchestrator offers this skill as step 0 when installed. Also works
+standalone: `/business-analyst` in any project directory.
+
+The package is gated by `scripts/validate.mjs`: schema, ID traceability,
+label discipline, an ambiguity lint on requirement text, readiness math,
+and md↔json consistency.
+
+Requires Node ≥ 20. No npm dependencies.

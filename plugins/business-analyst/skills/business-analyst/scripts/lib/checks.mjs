@@ -1,4 +1,4 @@
-import { REGISTERS } from './schema.mjs';
+import { REGISTERS, STATUSES, AREAS } from './schema.mjs';
 
 const LABELED = ['requirements', 'nfrs', 'integrations', 'data'];
 const SOURCED = ['requirements', 'businessRules', 'constraints'];
@@ -55,6 +55,49 @@ export function checkLabels(pkg) {
     if (fr.label === 'recommended' && fr.scope === 'in' && !hasOpenQuestionFor(pkg, fr.id)) {
       findings.push(`${fr.id}: recommended requirement in scope "in" without a paired open question`);
     }
+  }
+  return findings;
+}
+
+export const AMBIGUOUS = [
+  'fast', 'quick', 'easy', 'simple', 'user-friendly', 'intuitive', 'flexible',
+  'robust', 'seamless', 'efficient', 'optimal', 'appropriate', 'various',
+  'etc', 'some', 'many', 'several', 'as needed',
+];
+
+export function checkAmbiguity(pkg) {
+  const findings = [];
+  for (const row of [...(pkg.requirements ?? []), ...(pkg.nfrs ?? [])]) {
+    for (const word of AMBIGUOUS) {
+      const re = new RegExp(`\\b${word.replace(/[-\s]/g, '[-\\s]')}\\b`, 'i');
+      if (re.test(row.text ?? '')) {
+        findings.push(`${row.id}: ambiguous term "${word}" — replace with a measurable statement`);
+      }
+    }
+  }
+  return findings;
+}
+
+export function checkReadiness(pkg) {
+  const findings = [];
+  const r = pkg.readiness ?? {};
+  const values = AREAS.map((a) => r.areas?.[a]).filter((v) => typeof v === 'number');
+  if (values.length !== AREAS.length) findings.push('readiness.areas: missing area score');
+  const mean = Math.round(values.reduce((s, v) => s + v, 0) / (values.length || 1));
+  if (r.overall !== mean) findings.push(`readiness.overall ${r.overall} != recomputed mean ${mean}`);
+  const openBlockers = (pkg.openQuestions ?? []).filter((q) => q.status === 'open' && q.architectureBlocker);
+  if (openBlockers.length && STATUSES.indexOf(pkg.status) > STATUSES.indexOf('ANALYZED')) {
+    findings.push(`status ${pkg.status} with open architecture blockers: ${openBlockers.map((q) => q.id).join(', ')}`);
+  }
+  for (const q of openBlockers) {
+    if (!(r.blockers ?? []).includes(q.id)) findings.push(`readiness.blockers missing ${q.id}`);
+  }
+  const risky = (pkg.assumptions ?? []).filter((a) => a.impact === 'high' && a.status === 'unconfirmed');
+  if (pkg.status === 'READY_FOR_ARCHITECTURE' && risky.length) {
+    findings.push(`READY_FOR_ARCHITECTURE with unconfirmed high-impact assumptions: ${risky.map((a) => a.id).join(', ')}`);
+  }
+  if (pkg.status === 'READY_FOR_ARCHITECTURE' && (pkg.conflicts ?? []).some((c) => c.status === 'open')) {
+    findings.push('READY_FOR_ARCHITECTURE with open conflicts');
   }
   return findings;
 }

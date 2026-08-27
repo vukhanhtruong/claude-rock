@@ -621,3 +621,72 @@ test('no milestones → the roadmap section is absent, no placeholder', skip, as
     assert.deepEqual(page.errors, []);
   } finally { page.close(); }
 });
+
+// --- breakdown scoring mode: the workbook's five scores rendered in-page ---
+
+const HEADS = `[...document.querySelectorAll('#feature-table th')].map((h) => h.textContent.trim())`;
+const enterScoring = (page) => page.eval(`document.querySelector('#feature-table [data-mode="scores"]').click()`);
+
+test('a columns pill swaps the breakdown to workbook scores and back', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.ok((await page.eval(HEADS)).includes('Range'), 'estimate columns by default');
+    await enterScoring(page);
+    const heads = await page.eval(HEADS);
+    for (const h of ['Tech', 'Size', 'Deps', 'Unc', 'Risk', 'Σ', 'Tier']) {
+      assert.ok(heads.includes(h), `scoring header ${h} missing: ${heads}`);
+    }
+    assert.ok(!heads.includes('Range'), 'estimate columns must swap out');
+    const booking = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.feat-row')[0].querySelectorAll('td.score')].map((c) => c.textContent.trim())`);
+    assert.deepEqual(booking, ['2', '4', '2', '4', '3', '15', 'M']);
+    await page.eval(`document.querySelector('#feature-table [data-mode="estimate"]').click()`);
+    assert.ok((await page.eval(HEADS)).includes('Range'), 'estimate pill must swap back');
+    assert.deepEqual(page.errors, []);
+  } finally { page.close(); }
+});
+
+test('scoring-mode task rows show each task\'s input to every score', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    await enterScoring(page);
+    await page.eval(`document.querySelector('#feature-table tr.feat-row .expand').click()`);
+    const rows = await page.eval(
+      `[...document.querySelectorAll('#feature-table tr.task-row')].map((r) => r.textContent.replace(/\\s+/g, ' ').trim())`);
+    assert.equal(rows.length, 2);
+    assert.match(rows[0], /boilerplate ×1\.5/);
+    assert.match(rows[0], /25\.3h/);
+    assert.match(rows[1], /logic ×3/);
+    assert.match(rows[1], /44(\.0)?h/);
+  } finally { page.close(); }
+});
+
+test('the scoring guide fold explains the anchors in the workbook\'s words', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    assert.equal(await page.eval(`document.querySelector('#feature-table details.guide')`), null,
+      'no guide fold in estimate mode');
+    await enterScoring(page);
+    assert.ok(await page.eval(`document.querySelector('#feature-table details.guide').open`),
+      'guide must open on first switch');
+    const text = await page.eval(`document.querySelector('#feature-table details.guide').textContent`);
+    for (const anchor of ['Standard CRUD, well-documented library usage',
+      'Epic-scale feature', 'Deep cross-system dependencies', 'Highly experimental',
+      'Core infrastructure, compliance requirements']) {
+      assert.ok(text.includes(anchor), `guide missing workbook anchor: ${anchor}`);
+    }
+    assert.match(text, /hours-weighted/); // each dimension states its derivation
+  } finally { page.close(); }
+});
+
+test('scoring mode is internal-only: client view resets and hides the pill', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    await enterScoring(page);
+    await page.eval(`document.getElementById('view-toggle').click()`);
+    assert.ok((await page.eval(HEADS)).includes('Range'), 'client view must reset to estimate columns');
+    assert.equal(await page.eval(
+      `getComputedStyle(document.querySelector('#feature-table [data-mode="scores"]').closest('.bd-filter-group')).display`),
+    'none');
+  } finally { page.close(); }
+});

@@ -110,7 +110,9 @@ function sectionBodies(md) {
   const bodies = {};
   for (const chunk of md.split(/^## /m).slice(1)) {
     const nl = chunk.indexOf('\n');
-    bodies[chunk.slice(0, nl).trim()] = chunk.slice(nl + 1);
+    const title = nl === -1 ? chunk.trim() : chunk.slice(0, nl).trim();
+    const body = nl === -1 ? '' : chunk.slice(nl + 1);
+    bodies[title] = body;
   }
   return bodies;
 }
@@ -125,11 +127,14 @@ export function checkMd(pkg, md) {
     if (!key) findings.push(`md: missing section "## ${part}"`);
     else if (!bodies[key].trim()) findings.push(`md: empty section "## ${part}"`);
   }
+  const mdIds = new Set([...md.matchAll(ID_TOKEN)].map((m) => m[0]));
   for (const id of collectIds(pkg)) {
-    if (!md.includes(id)) findings.push(`md: id ${id} absent from requirements.md`);
+    if (!mdIds.has(id)) findings.push(`md: id ${id} absent from requirements.md`);
   }
   const fmStatus = md.match(/^status:\s*(\S+)/m)?.[1];
   if (fmStatus !== pkg.status) findings.push(`md frontmatter status ${fmStatus} != json status ${pkg.status}`);
+  const fmDepth = md.match(/^depth:\s*(\S+)/m)?.[1];
+  if (fmDepth !== pkg.depth) findings.push(`md frontmatter depth ${fmDepth} != json depth ${pkg.depth}`);
   const fmReadiness = Number(md.match(/^readiness:\s*(\d+)/m)?.[1]);
   if (fmReadiness !== pkg.readiness?.overall) {
     findings.push(`md frontmatter readiness ${fmReadiness} != json readiness.overall ${pkg.readiness?.overall}`);

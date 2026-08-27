@@ -155,3 +155,34 @@ test('a frontmatter status mismatch is refused', () => {
   const md = loadMd().replace('status: CLARIFICATION_REQUIRED', 'status: VALIDATED');
   assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('frontmatter status')));
 });
+
+test('a frontmatter readiness mismatch is refused', () => {
+  const md = loadMd().replace('readiness: 73', 'readiness: 99');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('frontmatter readiness')));
+});
+
+test('a frontmatter depth mismatch is refused', () => {
+  const md = loadMd().replace('depth: STANDARD', 'depth: DEEP');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('frontmatter depth')));
+});
+
+test('a dropped FR-001 is not masked by NFR-001 substring match', () => {
+  const md = loadMd()
+    .replace(/\| FR-001 \|[^\n]*\n/, '')
+    .replace('(FR-001)', '(FR-002)');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('FR-001') && f.includes('absent')));
+});
+
+test('a heading at eof with no trailing newline is an empty section', () => {
+  const md = loadMd().replace(/## Part 5[\s\S]*$/, '## Part 5 — Readiness Report');
+  const findings = checkPackage({ pkg: load(), md });
+  assert.ok(findings.some((f) => f.includes('empty section') && f.includes('Part 5')));
+});
+
+test('a blank Part 4 section body is an empty section', () => {
+  const md = loadMd().replace(
+    /(## Part 4 — Acceptance Scenarios\n)[\s\S]*?(?=## Part 5)/,
+    '$1\n\n',
+  );
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('empty section') && f.includes('Part 4')));
+});

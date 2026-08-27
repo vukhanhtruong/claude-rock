@@ -2,13 +2,15 @@
 // estimation.json a machine computed. Rules 1-4/9 check structure, 5-6 check
 // table rows, 7-8 cross-check the JSON against a fresh recompute.
 import { computeEstimation } from './rollup.mjs';
+import { loadMeasurements, resolveMeasurementsPath } from './measurements.mjs';
+import { agenticFindings } from './agentic-checks.mjs';
 
 const PROVENANCE = ['observed', 'stated', 'researched', 'proposed'];
 const CONFIDENCE = ['HIGH', 'MED', 'LOW'];
 
 // Returns the text of the section/subsection starting at heading `name`, up
 // to (not including) the next heading of the same or shallower level.
-function heading(md, name) {
+export function heading(md, name) {
   const m = new RegExp(`^(#{2,4})\\s*${name}\\b.*$`, 'm').exec(md);
   if (!m) return null;
   const rest = md.slice(m.index + m[0].length);
@@ -22,7 +24,7 @@ function cells(line) {
 
 // Groups contiguous `| ... |` lines into tables, dropping the `| --- |`
 // separator row, and returns each as { header, rows } of trimmed cells.
-function tables(text) {
+export function tables(text) {
   const groups = [];
   let cur = [];
   for (const line of (text ?? '').split('\n')) {
@@ -95,9 +97,12 @@ function checkRoadmap(md, estimation, out) {
   }
 }
 
-function checkRows(md) {
+// Team-mode task rows require HIGH|MED|LOW confidence; agentic rows carry
+// UNCALIBRATED and are checked separately (agentic-checks.mjs), so the two
+// modes never run the same row rule against the same table.
+function checkRows(md, estimation) {
   const out = [];
-  checkTaskRows(heading(md, 'Estimation detail') ?? '', out);
+  if (estimation.inputs.deliveryMode !== 'agentic') checkTaskRows(heading(md, 'Estimation detail') ?? '', out);
   checkScopeRows(heading(md, 'Summary') ?? '', out);
   return out;
 }
@@ -105,10 +110,13 @@ function checkRows(md) {
 // Rules 7-8: the JSON side. A fresh recompute from the same inputs must
 // deep-equal the stored computed block (catches hand-edits), and every
 // feature's low/hours/high must be strictly ordered (or all equal, for the
-// degenerate zero-spread case).
+// degenerate zero-spread case). Agentic recompute needs the measurements the
+// original run used, loaded fresh — never trusted from the stored computed.
 function checkNumbers(estimation) {
   const out = [];
-  const recomputed = computeEstimation(estimation.inputs).computed;
+  const agentic = estimation.inputs.deliveryMode === 'agentic';
+  const measurements = agentic ? loadMeasurements(resolveMeasurementsPath(estimation.inputs)).records : undefined;
+  const recomputed = computeEstimation(estimation.inputs, measurements).computed;
   if (JSON.stringify(recomputed) !== JSON.stringify(estimation.computed)) {
     out.push('computed block does not match recomputed totals (hand-edited JSON?)');
   }
@@ -122,7 +130,8 @@ function checkNumbers(estimation) {
 }
 
 export function checkDeliverables({ md, estimation }) {
-  const out = [...checkStructure(md), ...checkRows(md), ...checkNumbers(estimation)];
+  const out = [...checkStructure(md), ...checkRows(md, estimation), ...checkNumbers(estimation)];
   checkRoadmap(md, estimation, out);
+  if (estimation.inputs.deliveryMode === 'agentic') out.push(...agenticFindings({ md, estimation }));
   return out;
 }

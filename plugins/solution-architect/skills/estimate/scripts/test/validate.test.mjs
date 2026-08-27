@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { checkDeliverables } from '../lib/checks.mjs';
 import { computeEstimation } from '../lib/rollup.mjs';
+import { loadMeasurements } from '../lib/measurements.mjs';
 
 const read = (f) => readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8');
 const inputs = () => JSON.parse(read('booking-inputs.json'));
@@ -69,4 +70,39 @@ test('the roadmap honesty line is mandatory', () => {
   const md = read('estimation-pass.md').replace(/not calendar dates/, 'roughly');
   const findings = checkDeliverables({ md, estimation: computeEstimation(inputs()) });
   assert.ok(findings.some((f) => f.includes('not calendar dates')));
+});
+
+// Agentic deliverable checks.
+const agenticMd = (f) => readFileSync(new URL(`./fixtures/${f}`, import.meta.url).pathname, 'utf8');
+const measurementsFixture = new URL('./fixtures/measurements.jsonl', import.meta.url).pathname;
+
+function agenticEstimation() {
+  const agenticInputs = JSON.parse(
+    readFileSync(new URL('./fixtures/agentic-inputs.json', import.meta.url).pathname, 'utf8'));
+  agenticInputs.measurementsPath = measurementsFixture;
+  return computeEstimation(agenticInputs, loadMeasurements(measurementsFixture).records);
+}
+
+test('agentic pass fixture validates clean', () => {
+  assert.deepEqual(checkDeliverables({ md: agenticMd('agentic-estimation-pass.md'), estimation: agenticEstimation() }), []);
+});
+
+test('agentic fail fixture trips every enforcement rule', () => {
+  const findings = checkDeliverables({ md: agenticMd('agentic-estimation-fail.md'), estimation: agenticEstimation() });
+  assert.ok(findings.some((f) => /vague estimate language/.test(f)), 'vague range');
+  assert.ok(findings.some((f) => /uncalibrated/i.test(f)), 'uncalibrated masked as measured');
+  assert.ok(findings.some((f) => /evidence/i.test(f) && /m99/.test(f)), 'invented evidence');
+});
+
+test('agentic estimation without a planning task is refused', () => {
+  const estimation = agenticEstimation();
+  estimation.inputs.features = estimation.inputs.features.filter((f) => f.id !== 'plan');
+  const findings = checkDeliverables({ md: agenticMd('agentic-estimation-pass.md'), estimation });
+  assert.ok(findings.some((f) => /planning/.test(f)));
+});
+
+test('missing Delivery header line is a finding', () => {
+  const md = agenticMd('agentic-estimation-pass.md').replace(/Delivery: agentic.*\n/, '');
+  const findings = checkDeliverables({ md, estimation: agenticEstimation() });
+  assert.ok(findings.some((f) => /Delivery:/.test(f)));
 });

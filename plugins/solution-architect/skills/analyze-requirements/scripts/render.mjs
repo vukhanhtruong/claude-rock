@@ -12,6 +12,7 @@ import { estimateLink } from './lib/companion-links.mjs';
 import { sectionHelp, serialiseHelp } from './lib/section-help.mjs';
 import { stripRemoteAssets } from './lib/offline.mjs';
 import { buildFontFaces } from './lib/fonts.mjs';
+import { buildLogo } from './lib/logo.mjs';
 import { validatePalette } from './lib/validate-palette.mjs';
 
 function consumeDocs(argv, i, docs) {
@@ -110,11 +111,13 @@ const template = readFileSync(templateUrl, 'utf8');
 // fixed bytes that never need regenerating, so there is nothing for a caller to
 // choose and no build step to get wrong.
 const fontsDir = new URL('../assets/fonts/', import.meta.url).pathname;
+const brandDir = new URL('../assets/brand/', import.meta.url).pathname;
 const html = embed({
   template,
   slots: {
     TITLE: docTitle(archMd),
     FONTS: buildFontFaces(fontsDir),
+    LOGO: buildLogo(brandDir),
     NAV: buildNav(linked, routes),
     DOC: buildDoc(linked, routes),
     LIKEC4_BUNDLE: stripRemoteAssets(likec4Bundle),

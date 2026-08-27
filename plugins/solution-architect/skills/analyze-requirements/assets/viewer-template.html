@@ -11,13 +11,18 @@
 <meta name="description" content="Architecture documentation — one self-contained page, no network.">
 <!-- The rail's own mark, inline. A linked file would be a second request from a
      viewer whose whole premise is one offline file. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%230f766e' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M10 1.8 18 6v8l-8 4.2L2 14V6z'/%3E%3Cpath d='M10 10.2 18 6M10 10.2v8M10 10.2 2 6'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23F15927' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M10 1.8 18 6v8l-8 4.2L2 14V6z'/%3E%3Cpath d='M10 10.2 18 6M10 10.2v8M10 10.2 2 6'/%3E%3C/svg%3E">
 <title><!-- slot:TITLE --></title>
 <style>
 /* The two faces the stacks below name and could not rely on, embedded as base64
    woff2 by scripts/lib/fonts.mjs — nothing is fetched, and the bytes are not in
    this file. Declared first, before anything names them. */
 <!-- slot:FONTS -->
+
+/* The studio wordmark, embedded by scripts/lib/logo.mjs on the same terms: the
+   bytes are not in this file, and nothing is fetched. Two variants, keyed by
+   mode — the orange-on-transparent mark vanishes against the dark palette. */
+<!-- slot:LOGO -->
 
 /* Still no network: what the slot embeds is IBM Plex Sans and Mono, the two
    stacks whose fallback crosses a genre boundary. The display serif is left to
@@ -31,19 +36,34 @@
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', 'Cascadia Code',
                'DejaVu Sans Mono', ui-monospace, monospace;
 
-  --bg: #fbfaf7; --surface: #ffffff; --surface-2: #f4f2ec; --surface-3: #edeae1;
-  --border: #e3dfd5; --border-strong: #cec8b9;
-  --text: #1c1b18; --text-dim: #6b675e; --text-faint: #938f84;
-  --accent: #0f766e; --accent-soft: rgba(15, 118, 110, .09); --accent-line: rgba(15, 118, 110, .35);
-  --shadow: 0 1px 2px rgba(28, 27, 24, .04), 0 8px 24px -12px rgba(28, 27, 24, .12);
+  /* Code Engine Studio's palette. The guide gives five colours — off-white
+     #FDFFFC, navy #273043, orange #F15927, teal #0892A5, gray #848C8E — and the
+     viewer needs about fifteen, so the rest are those five moved along one axis
+     rather than colours found elsewhere: the surfaces and hairlines are navy at
+     4/8/14/26% over the off-white, which makes the 14% rung the guide's own
+     `rgba(39, 48, 67, .14)` border, and the inks are a guide colour held at its
+     hue and saturation with only its lightness taken down until it clears the
+     contrast this design already held. Every substitution is recorded that way
+     in the test, against the ratio the pre-brand viewer shipped. */
+  --bg: #FDFFFC; --surface: #ffffff; --surface-2: #f4f7f5; --surface-3: #eceeed;
+  --border: #dfe2e2; --border-strong: #c5c9cc;
+  --text: #273043; --text-dim: #62696a; --text-faint: #848C8E;
+  /* Two oranges, because one cannot do both jobs: #F15927 on the off-white is
+     3.37:1, which carries a rule, a focus ring or a progress line but not a
+     word. --accent-ink is that same orange at L .42 — 5.05:1, near the 5.24:1
+     the teal it replaces was holding. Anything that paints text reaches for the
+     ink; anything that paints a surface or an edge keeps the brand hex. */
+  --accent: #F15927; --accent-ink: #c93c0d;
+  --accent-soft: rgba(241, 89, 39, .09); --accent-line: rgba(241, 89, 39, .35);
+  --shadow: 0 1px 2px rgba(39, 48, 67, .05), 0 8px 24px -12px rgba(39, 48, 67, .16);
 
-  /* State is its own scale, deliberately not the accent: teal already means
-     "link, brand, this diagram's elements" everywhere else, and a status that
-     borrows it says nothing. Ochre for a decision still open, brick for one
-     rejected — both warm, so they sit in the same world as the neutrals rather
-     than arriving from a UI kit. */
-  --state-open: #8a5a09; --state-open-soft: rgba(138, 90, 9, .11);
-  --state-stop: #a1322c; --state-stop-soft: rgba(161, 50, 44, .11);
+  /* State stays its own scale rather than borrowing the accent, for the reason
+     it always did: orange already means "link, brand, emphasis" everywhere else,
+     and a status painted in it says nothing. The guide's functional mapping
+     picks the two — teal is its calmer attention cue, so a decision still open;
+     orange is its danger colour, so one rejected — each darkened to clear AA. */
+  --state-open: #066c7a; --state-open-soft: rgba(8, 146, 165, .11);
+  --state-stop: #ac330b; --state-stop-soft: rgba(241, 89, 39, .11);
 
   /* One column, one width. A diagram or a wide table used to take a 1080px
      track centred on the prose axis, which put its left edge ~190px outside
@@ -75,24 +95,25 @@
      length down, `--measure` itself has to come down and the tables need
      somewhere else to go. */
 }
-/* Dark palette is applied by both the media query and the explicit attribute so
-   the toggle wins in either direction. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0c1211; --surface: #121a19; --surface-2: #0f1716; --surface-3: #16211f;
-    --border: #22302e; --border-strong: #354743;
-    --text: #e9e7e1; --text-dim: #97a29e; --text-faint: #6d7772;
-    --accent: #2dd4bf; --accent-soft: rgba(45, 212, 191, .12); --accent-line: rgba(45, 212, 191, .4);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -14px rgba(0, 0, 0, .7);
-    --state-open: #e0b567; --state-open-soft: rgba(224, 181, 103, .15);
-    --state-stop: #ef8f88; --state-stop-soft: rgba(239, 143, 136, .15);
-  }
-}
+/* Dark is now reached only by asking for it. It used to be applied by a
+   `prefers-color-scheme` query as well, which meant a reader with a dark desktop
+   was shown the unbranded palette without ever choosing it — and this document
+   goes to clients. The one place the system preference is still honoured is the
+   `color-scheme` meta, so the UA's own scrollbar and form controls follow the
+   page once a reader has switched.
+   The palette below is deliberately unchanged. The CES guide defines no dark
+   mode, so branding this block would mean inventing half a dozen hexes and
+   attributing them to a guide that does not contain them; the toggle keeps
+   working and keeps the colours it has always had. --accent-ink is the single
+   addition, set to the accent this mode already used: the light mode needed to
+   split link ink from fill orange, and a token the light block introduces has to
+   resolve here too or dark loses its link colour entirely. */
 :root[data-theme="dark"] {
   --bg: #0c1211; --surface: #121a19; --surface-2: #0f1716; --surface-3: #16211f;
   --border: #22302e; --border-strong: #354743;
   --text: #e9e7e1; --text-dim: #97a29e; --text-faint: #6d7772;
-  --accent: #2dd4bf; --accent-soft: rgba(45, 212, 191, .12); --accent-line: rgba(45, 212, 191, .4);
+  --accent: #2dd4bf; --accent-ink: #2dd4bf;
+  --accent-soft: rgba(45, 212, 191, .12); --accent-line: rgba(45, 212, 191, .4);
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -14px rgba(0, 0, 0, .7);
   --state-open: #e0b567; --state-open-soft: rgba(224, 181, 103, .15);
   --state-stop: #ef8f88; --state-stop-soft: rgba(239, 143, 136, .15);
@@ -163,6 +184,25 @@ body {
 .skip:focus { translate: 0 0; outline: 2px solid var(--text); outline-offset: 2px; }
 /* The target takes focus programmatically and should not draw a ring for it. */
 .main:focus { outline: none; }
+
+/* The studio's own line, closing the column. Same micro-label texture as the
+   eyebrow below rather than a second treatment: it is metadata about the
+   document, not part of it. */
+/* Two rules, and the split is load-bearing. --measure is min(96ch, 100%), and
+   `ch` resolves against the font of the element it is written on — so stating
+   both the measure and the 10px mono here gave the footer a column ~40% narrower
+   than the prose it closes, centred inside it and visibly its own track. The box
+   keeps the inherited body metrics, which is what .doc computes its width from;
+   the label styling goes on a child where it cannot reach the width.
+   `auto` for the same reason .doc uses it: the column is centred in .main. */
+.doc-foot {
+  max-width: var(--measure); margin: 56px auto 0; padding: 18px 0 40px;
+  border-top: 1px solid var(--border);
+}
+.doc-foot span {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .18em; color: var(--text-faint);
+}
 
 /* Micro-label: the recurring texture for every piece of metadata. */
 .eyebrow {
@@ -236,14 +276,12 @@ body {
 }
 .i-sun { opacity: 1; scale: 1; filter: blur(0px); }
 .i-moon { opacity: 0; scale: .25; filter: blur(4px); }
+/* The bare rules above are the light state, which is now also the default one,
+   so the attribute rules below are the whole of the rest: the four extra
+   selectors this block used to need existed only to unpick a system preference
+   that no longer reaches the palette. */
 :root[data-theme="dark"] .i-sun { opacity: 0; scale: .25; filter: blur(4px); }
 :root[data-theme="dark"] .i-moon { opacity: 1; scale: 1; filter: blur(0px); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .i-sun { opacity: 0; scale: .25; filter: blur(4px); }
-  :root:not([data-theme="light"]) .i-moon { opacity: 1; scale: 1; filter: blur(0px); }
-  :root[data-theme="light"] .i-sun { opacity: 1; scale: 1; filter: blur(0px); }
-  :root[data-theme="light"] .i-moon { opacity: 0; scale: .25; filter: blur(4px); }
-}
 
 /* ---------- rail ---------- */
 .sidebar {
@@ -252,6 +290,17 @@ body {
   background: var(--surface-2); border-right: 1px solid var(--border);
 }
 .rail-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+/* The studio's mark, top-left, at the 26px the brand guide asks for. The bytes
+   arrive as a --mark custom property from the LOGO slot, one per mode, so this
+   rule states the geometry and nothing else.
+   A div with role="img" rather than an <img>: the file is chosen by CSS, and an
+   <img> would need either both variants in the DOM or a script to swap the src
+   on every toggle. `contain` keeps the 1002×216 wordmark's proportions whatever
+   the rail does. */
+.brand-logo {
+  width: 122px; height: 26px; margin-bottom: 16px;
+  background: var(--mark) left center / contain no-repeat;
+}
 .rail-mark { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
 .rail-mark svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
 .rail-title {
@@ -302,7 +351,7 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .nav-sec[open] > .nav-sec__head .nav-sec__title { color: var(--text); }
-.nav-sec.is-current > .nav-sec__head .nav-sec__title { color: var(--accent); }
+.nav-sec.is-current > .nav-sec__head .nav-sec__title { color: var(--accent-ink); }
 /* Recessed well: 11px outer radius less its 3px padding gives the 8px document
    rows inside it — concentric, so the corners nest instead of fighting. */
 .nav-sec[open] > .nav-sec__body {
@@ -327,9 +376,9 @@ body {
 }
 .nav-sec.is-current > .nav-sec__head .nav-sec__count,
 .nav-group.is-current > .nav-group__head .nav-group__count {
-  background: var(--accent-soft); color: var(--accent);
+  background: var(--accent-soft); color: var(--accent-ink);
 }
-.nav-group.is-current > .nav-group__head .nav-group__title { color: var(--accent); }
+.nav-group.is-current > .nav-group__head .nav-group__title { color: var(--accent-ink); }
 
 /* Hairline spine so nested links read as one run, like an index. */
 .nav-group__body { margin: 2px 0 6px; padding-left: 15px; border-left: 1px solid var(--border); }
@@ -346,7 +395,7 @@ body {
   background: var(--border-strong);
 }
 .nav-link.is-active {
-  color: var(--accent); background: var(--accent-soft);
+  color: var(--accent-ink); background: var(--accent-soft);
   border-left-color: var(--accent); font-weight: 600;
 }
 .nav-empty {
@@ -425,7 +474,7 @@ body {
 /* Underline with an offset instead of a border: the border sat on the
    descenders of g, y and p in every inline link. */
 .main a {
-  color: var(--accent); text-decoration: underline;
+  color: var(--accent-ink); text-decoration: underline;
   text-decoration-color: var(--accent-line); text-decoration-thickness: 1px;
   text-underline-offset: .18em; transition: text-decoration-color .15s;
 }
@@ -468,7 +517,7 @@ body {
 }
 .help-btn:hover { color: var(--text); border-color: var(--text-faint); }
 .help-btn::after { content: ''; position: absolute; inset: -12px; }
-.help-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.help-btn[aria-expanded="true"] { color: var(--accent-ink); border-color: var(--accent); }
 details.help { margin: 0 0 18px; }
 details.help > summary { display: none; }
 .help__body {
@@ -1069,6 +1118,7 @@ c4-view { display: block; width: 100%; height: 460px; }
 
 <nav class="sidebar" id="sidebar" aria-label="Document sections">
   <div class="rail-head">
+    <div class="brand-logo" role="img" aria-label="Code Engine Studio"></div>
     <div class="rail-mark">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"
            stroke-linejoin="round" aria-hidden="true">
@@ -1098,6 +1148,10 @@ document.getElementById('rail-title').textContent = document.title;
      the next Tab returns the reader to the row they were escaping. -->
 <main class="main" id="main-content" tabindex="-1">
   <article class="doc"><!-- slot:DOC --></article>
+  <!-- Inside .main, so it takes the column's measure and its left edge rather
+       than floating against the viewport. One page is in the layout at a time,
+       so this sits under whichever is open — and it prints on the last sheet. -->
+  <footer class="doc-foot"><span>codeenginestudio.com</span></footer>
 </main>
 
 <div class="drawer-scrim" id="drawer-scrim"></div>
@@ -1128,9 +1182,12 @@ var root = document.documentElement;
    the router reads this on every jump. */
 var reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
+/* Light unless asked otherwise — the same rule the stylesheet now follows. The
+   system preference used to be the fallback here, which put diagrams in dark
+   chrome on a page whose palette had never left light once the media query went.
+   The two have to answer the same way or the page and its diagrams disagree. */
 function isDark() {
-  var set = root.getAttribute('data-theme');
-  return set ? set === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  return root.getAttribute('data-theme') === 'dark';
 }
 
 /* Mermaid bakes colours into the SVG at render time, so the palette has to be

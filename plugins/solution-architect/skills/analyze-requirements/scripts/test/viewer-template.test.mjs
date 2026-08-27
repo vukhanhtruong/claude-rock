@@ -5,10 +5,11 @@ import { embed } from '../lib/embed.mjs';
 
 const tpl = readFileSync(new URL('../../assets/viewer-template.html', import.meta.url), 'utf8');
 
-test('template has exactly the eight slots and no external URLs', () => {
+test('template has exactly the nine slots and no external URLs', () => {
   const markers = [...tpl.matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]).sort();
   assert.deepEqual(markers,
-    ['DOC', 'FONTS', 'LIKEC4_BUNDLE', 'MERMAID_BUNDLE', 'NAV', 'SECTION_HELP', 'THEME', 'TITLE']);
+    ['DOC', 'FONTS', 'LIKEC4_BUNDLE', 'LOGO', 'MERMAID_BUNDLE', 'NAV', 'SECTION_HELP',
+      'THEME', 'TITLE']);
   assert.doesNotMatch(tpl, /https?:\/\/(?!www\.w3\.org)/);
 });
 
@@ -27,7 +28,7 @@ test('template embeds cleanly and keeps required controls', () => {
   const out = embed({ template: tpl, slots: {
     TITLE: 't', NAV: '<a href="#x">x</a>', DOC: '<h2 id="x">x</h2>',
     LIKEC4_BUNDLE: '/*l*/', MERMAID_BUNDLE: '/*m*/', THEME: '{"themeVariables":{}}',
-    FONTS: '/*fonts*/', SECTION_HELP: '{"spine":{},"companions":{}}',
+    FONTS: '/*fonts*/', LOGO: '/*logo*/', SECTION_HELP: '{"spine":{},"companions":{}}',
   } });
   for (const control of ['data-zoom-in', 'data-zoom-out', 'data-zoom-reset', 'data-expand', 'data-fullscreen']) {
     assert.match(out, new RegExp(control));
@@ -1203,4 +1204,108 @@ test('the help panel and its toggle are styled', () => {
   assert.match(tpl, /details\.help \{|\.help \{/);
   // A 40px hit area is the standard this template already holds for icon buttons.
   assert.match(tpl, /\.help-btn::after \{[^}]*inset:/);
+});
+
+/* ---------- CES brand ----------
+   The viewer used to carry its own palette — warm paper, teal accent, ochre and
+   brick states. It is a Code Engine Studio deliverable, so the light mode is the
+   brand's: off-white page, navy ink, orange accent, per the CES style guide.
+
+   Dark mode is deliberately left alone. The guide defines no dark palette, and
+   inventing one would put five unsourced hexes in the file; the toggle keeps
+   working and keeps its existing colours. What did change is which mode a reader
+   lands in: the page now opens light — the branded one — unless they ask for the
+   other. */
+
+const light = tpl.match(/^:root \{[\s\S]*?^\}/m)[0];
+
+test('the light palette is the CES brand palette', () => {
+  const expected = {
+    '--bg': '#FDFFFC',
+    '--surface': '#ffffff',
+    '--text': '#273043',
+    '--accent': '#F15927',
+  };
+  for (const [token, hex] of Object.entries(expected)) {
+    assert.match(light, new RegExp(`${token}:\\s*${hex};`),
+      `${token} is not the CES ${hex}`);
+  }
+});
+
+// #F15927 on #FDFFFC is 3.37:1 — enough for a rule, a focus ring or a progress
+// line, not for a word. The guide gives one orange, so the ink is that orange
+// darkened on its own hue rather than a second colour introduced beside it.
+test('accent text uses the ink variant rather than the fill orange', () => {
+  assert.match(light, /--accent-ink:/, 'light mode defines no accent ink');
+  const inline = tpl.match(/\n\.main a \{[\s\S]*?\n\}/)[0];
+  assert.match(inline, /color:\s*var\(--accent-ink\)/,
+    'inline links are painted with the fill orange, which does not clear AA');
+  // The dark blocks keep their own colours, but they still have to answer for
+  // every token the light one introduces, or dark mode loses its link colour.
+  for (const block of tpl.match(/\[data-theme="dark"\] \{[\s\S]*?\n\s*\}/g)) {
+    assert.match(block, /--accent-ink:/, 'a dark block is missing --accent-ink');
+  }
+});
+
+// The floor each ink has to clear for the job it does, not the ratio it happened
+// to have before. Navy is 13.14:1 against the off-white where the near-black it
+// replaces was 16.50:1 — a drop, and an irrelevant one: both are far past AAA,
+// and navy is what the brand guide says body text is. What this pass exists to
+// catch is the opposite move, an ink lightened toward the brand hex until it
+// stops being readable, which is exactly what #F15927 would do to a link at
+// 3.37:1 if --accent-ink were not kept separate from --accent.
+test('every CES ink clears the contrast floor its job requires', () => {
+  const token = (name) => light.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`))[1];
+  const bg = token('--bg');
+  const floor = {
+    // Body copy, so AAA rather than AA: this is a document people read at length.
+    '--text': 7,
+    // Secondary prose — breadcrumbs, table captions, blockquotes. AA.
+    '--text-dim': 4.5,
+    // Eyebrows and the footer: 10px uppercase used as texture, never as the only
+    // statement of anything. Held to the UI floor, which is where it already sat.
+    '--text-faint': 3,
+    // Words a reader clicks.
+    '--accent-ink': 4.5,
+    // Status pills carry their own text.
+    '--state-open': 4.5, '--state-stop': 4.5,
+  };
+  for (const [name, min] of Object.entries(floor)) {
+    const ratio = contrast(token(name), bg);
+    assert.ok(ratio >= min,
+      `${name} is ${ratio.toFixed(2)}:1 on ${bg}, under the ${min}:1 floor for its role`);
+  }
+  // The fill orange is deliberately below the text floor. If it ever creeps into
+  // prose the pass above cannot see it, so state the split here instead.
+  assert.ok(contrast(token('--accent'), bg) >= 3,
+    'the accent no longer clears the 3:1 a rule or a focus ring needs');
+});
+
+// A reader with a dark desktop used to get the teal viewer without asking. The
+// branded mode is the light one, so that is what an unconfigured page shows;
+// the toggle still reaches dark and localStorage still remembers the choice.
+test('the viewer opens in the branded light mode unless the reader asks otherwise', () => {
+  assert.doesNotMatch(tpl, /@media \(prefers-color-scheme: dark\)/,
+    'a system preference still overrides the brand palette');
+  const isDark = tpl.match(/function isDark\(\) \{[\s\S]*?\n\}/)[0];
+  assert.doesNotMatch(isDark, /matchMedia/,
+    'isDark still consults the system, so the default is not light');
+  assert.match(isDark, /getAttribute\('data-theme'\)/);
+  assert.match(tpl, /<meta name="color-scheme" content="light dark">/);
+});
+
+// Base64 in the slot, not in the template — the same rule the fonts follow, and
+// for the same reason: ~42KB of it would bury a file people read. The slot emits
+// CSS rather than an <img>, so the mark that suits the mode is chosen by the
+// stylesheet: the toggle has no script to run and print gets the dark-on-light
+// variant whichever mode the reader was in.
+test('the rail head carries the CES logo and the page its wordmark', () => {
+  assert.match(tpl, /<!-- slot:LOGO -->/);
+  assert.ok(tpl.indexOf('<!-- slot:LOGO -->') > tpl.indexOf('<style>'),
+    'the logo slot is outside the stylesheet it writes into');
+  const head = tpl.match(/<div class="rail-head">[\s\S]*?<div class="rail-mark">/)[0];
+  assert.match(head, /class="brand-logo"/, 'the logo is not at the head of the rail');
+  assert.match(tpl, /aria-label="Code Engine Studio"/, 'the mark is unlabelled');
+  assert.match(tpl, /\.brand-logo \{/, 'the logo is unstyled');
+  assert.match(tpl, /codeenginestudio\.com/, 'the footer does not name the studio');
 });

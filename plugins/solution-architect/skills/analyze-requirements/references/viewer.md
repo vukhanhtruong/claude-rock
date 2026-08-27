@@ -106,10 +106,17 @@ Four steps, in order — each feeds the next:
      --theme assets/mermaid-theme.json
    ```
    Renders ARCHITECTURE.md and every companion/ADR page to HTML, injects
-   heading ids (for deep links), builds the sidebar nav, embeds all seven
-   template slots (`TITLE`, `FONTS`, `NAV`, `DOC`, `LIKEC4_BUNDLE`,
-   `MERMAID_BUNDLE`, `THEME`), and writes `dist/index.html` — one
-   self-contained file.
+   heading ids (for deep links), builds the sidebar nav, embeds all nine
+   template slots (`TITLE`, `FONTS`, `LOGO`, `NAV`, `DOC`, `LIKEC4_BUNDLE`,
+   `MERMAID_BUNDLE`, `THEME`, `SECTION_HELP`), and writes `dist/index.html` —
+   one self-contained file.
+
+   **`LOGO` needs no flag either**, on the same terms. `scripts/lib/logo.mjs`
+   reads the two Code Engine Studio wordmarks in `assets/brand/` and emits CSS
+   setting a `--mark` custom property per mode, with the PNG bytes inline as
+   base64 (~42KB for both). CSS rather than an `<img>` so the mark that suits the
+   mode is chosen by the stylesheet: the theme toggle has no script to run, and
+   print takes the dark-on-light variant whichever mode the reader was in.
 
    **`FONTS` needs no flag.** `scripts/lib/fonts.mjs` reads the woff2 subsets
    shipped in `assets/fonts/` and emits one `@font-face` per file with the bytes
@@ -315,7 +322,51 @@ Security DFD) follows all of these, no exceptions:
   ships with macOS, Windows or a stock Linux desktop, so the diagrams rendered in
   system-ui while the page around them did the same, and the match held only by
   both missing.
-- Accent colors: an approved pair only — teal `#0f766e` + slate `#475569`, as
+- **The page is Code Engine Studio's; the diagrams are not, yet.** The viewer's
+  light mode is the CES brand palette — off-white `#FDFFFC`, navy `#273043`,
+  orange `#F15927` — and the diagram palette below is still the teal/slate pair
+  it always was. That is a deliberate, reversible split, not an oversight: the
+  diagram brand hex is the one LikeC4 derives its stroke and both contrast
+  shades from, and none of the CES colours survives that derivation at AA.
+  Measured against LikeC4 1.59.2's own `computeColorValues`, text on its own
+  fill comes out at 3.39:1 for the orange, 3.71:1 for the teal and 3.43:1 for
+  the gray, against the 4.5:1 the diagram-contrast test enforces. Navy is the
+  one that clears it, at 12.69:1 — so a diagram rebrand means navy nodes with
+  orange reserved for relations and accents, plus re-sampling the compound-group
+  chrome from a real LikeC4 render the way the table further down was sampled.
+
+- **The page palette's substitutions, and why each one moved.** The guide gives
+  five colours and the viewer needs about fifteen. The surfaces and hairlines
+  are navy at 4/8/14/26% over the off-white, which makes the 14% rung the
+  guide's own `rgba(39, 48, 67, .14)`. The inks are a guide colour held at its
+  hue and saturation with only its lightness taken down until it clears the
+  contrast the pre-brand viewer already held:
+
+  | token | guide colour | shipped | on `#FDFFFC` | why not the guide hex |
+  |---|---|---|---|---|
+  | `--text` | navy `#273043` | `#273043` | 13.14:1 | — |
+  | `--text-dim` | gray `#848C8E` | `#62696a` | 5.57:1 | guide gray is 3.41:1, under AA for prose |
+  | `--text-faint` | gray `#848C8E` | `#848C8E` | 3.41:1 | — (10px texture, UI floor) |
+  | `--accent` | orange `#F15927` | `#F15927` | 3.37:1 | — (rules, rings, fills only) |
+  | `--accent-ink` | orange `#F15927` | `#c93c0d` | 5.05:1 | link text; the brand hex is 3.37:1 |
+  | `--state-open` | teal `#0892A5` | `#066c7a` | 6.08:1 | guide teal is 3.69:1 |
+  | `--state-stop` | orange `#F15927` | `#ac330b` | 6.46:1 | guide orange is 3.37:1 |
+
+  The two oranges are the load-bearing part. `--accent` paints anything that is
+  a surface or an edge, `--accent-ink` anything that is a word; a test states
+  the split, because a single token would either fail AA on links or wash the
+  brand out of the rules.
+
+- **Dark mode is not branded, on purpose.** The guide defines no dark palette,
+  so the `[data-theme="dark"]` block keeps the colours it always had rather than
+  carrying five hexes attributed to a guide that does not contain them. What did
+  change is the default: the `prefers-color-scheme` query is gone, so a reader
+  with a dark desktop is no longer shown the unbranded palette without choosing
+  it. `isDark()` reads the attribute and nothing else — the stylesheet and the
+  diagram renderers have to answer the same way or the page and its diagrams
+  disagree about which mode they are in.
+
+- Diagram accent colors: an approved pair only — teal `#0f766e` + slate `#475569`, as
   shipped in `assets/mermaid-theme.json`. No violet-fuchsia accents.
 - **Fills are solid, never semi-transparent.** They used to be 8-digit hex tints
   with a dark border and dark text, which looked nothing like the LikeC4 diagram

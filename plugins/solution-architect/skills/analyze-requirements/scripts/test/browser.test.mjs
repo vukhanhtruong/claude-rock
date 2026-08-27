@@ -135,6 +135,24 @@ describe('the viewer in a real browser', { skip: findChrome() ? false : 'no chro
     }
   });
 
+  // The studio's line closes the column, so it has to *be* the column. It very
+  // nearly was not: --measure is min(96ch, 100%), `ch` resolves against the font
+  // of the element carrying it, and the footer's own 10px mono made 96ch about
+  // 40% of what the 16.5px prose resolves it to — a centred rule, visibly its
+  // own track, under a full-width table. Nothing in the template's text says so;
+  // only a laid-out page does, which is why this check lives here.
+  test('the footer closes the prose column rather than starting a new one', async () => {
+    const edges = await page.eval(`(() => {
+      const vis = (s) => [...document.querySelectorAll(s)].find((e) => e.offsetParent);
+      const foot = vis('.doc-foot').getBoundingClientRect();
+      const block = vis('.table-wrap').getBoundingClientRect();
+      return [Math.round(foot.left - block.left), Math.round(foot.right - block.right)];
+    })()`);
+    const [left, right] = edges;
+    assert.ok(Math.abs(left) < 2, `the footer starts ${left}px off the column edge`);
+    assert.ok(Math.abs(right) < 2, `the footer ends ${right}px short of the column edge`);
+  });
+
   // overflow-x: auto computes overflow-y to auto, so .table-scroll is a
   // scrollport — and a sticky header has nothing to stick inside unless that
   // scrollport is also given a height. Both halves are asserted, because the

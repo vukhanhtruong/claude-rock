@@ -1,10 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { collectIds, checkDuplicates, checkRefs, checkLabels, checkAmbiguity, checkReadiness } from '../lib/checks.mjs';
+import { collectIds, checkDuplicates, checkRefs, checkLabels, checkAmbiguity, checkReadiness, checkPackage } from '../lib/checks.mjs';
 
 const load = () =>
   JSON.parse(readFileSync(new URL('./fixtures/requirements-pass.json', import.meta.url), 'utf8'));
+
+const loadMd = () =>
+  readFileSync(new URL('./fixtures/requirements-pass.md', import.meta.url), 'utf8');
 
 test('the pass fixture has no integrity findings', () => {
   const pkg = load();
@@ -103,4 +106,52 @@ test('READY with an open conflict is refused', () => {
   pkg.status = 'READY_FOR_ARCHITECTURE';
   pkg.conflicts.push({ id: 'CONFLICT-001', topic: 'approval', statements: ['A: all', 'B: under $1,000 auto'], status: 'open' });
   assert.ok(checkReadiness(pkg).some((f) => f.includes('open conflicts')));
+});
+
+test('the pass pair passes checkPackage end to end', () => {
+  assert.deepEqual(checkPackage({ pkg: load(), md: loadMd() }), []);
+});
+
+test('schema findings short-circuit the deeper checks', () => {
+  const pkg = load();
+  delete pkg.readiness;
+  const findings = checkPackage({ pkg, md: loadMd() });
+  assert.ok(findings.some((f) => f.includes('readiness')));
+  assert.ok(!findings.some((f) => f.includes('recomputed')));
+});
+
+test('a placeholder in the md is refused', () => {
+  const findings = checkPackage({ pkg: load(), md: loadMd() + '\nTBD\n' });
+  assert.ok(findings.some((f) => f.includes('placeholder')));
+});
+
+test('a missing required section is refused', () => {
+  const md = loadMd().replace('## Part 4 — Acceptance Scenarios', '## Acceptance');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('Part 4')));
+});
+
+test('QUICK depth requires only parts 1, 3 and 5', () => {
+  const pkg = load();
+  pkg.depth = 'QUICK';
+  const md = loadMd()
+    .replace(/## Part 2[\s\S]*?(?=## Part 3)/, '')
+    .replace(/## Part 4[\s\S]*?(?=## Part 5)/, '')
+    .replace('depth: STANDARD', 'depth: QUICK');
+  const findings = checkPackage({ pkg, md });
+  assert.ok(!findings.some((f) => f.includes('Part 2') || f.includes('Part 4')));
+});
+
+test('a json id absent from the md is refused', () => {
+  const md = loadMd().replaceAll('ASM-001', 'ASM-0O1');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('ASM-001') && f.includes('absent')));
+});
+
+test('an unknown id in the md is refused', () => {
+  const md = loadMd() + '\nSee FR-042 for details.\n';
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('unknown id FR-042')));
+});
+
+test('a frontmatter status mismatch is refused', () => {
+  const md = loadMd().replace('status: CLARIFICATION_REQUIRED', 'status: VALIDATED');
+  assert.ok(checkPackage({ pkg: load(), md }).some((f) => f.includes('frontmatter status')));
 });

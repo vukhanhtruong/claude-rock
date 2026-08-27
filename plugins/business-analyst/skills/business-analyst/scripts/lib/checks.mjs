@@ -1,4 +1,4 @@
-import { REGISTERS, STATUSES, AREAS } from './schema.mjs';
+import { REGISTERS, STATUSES, AREAS, checkSchema } from './schema.mjs';
 
 const LABELED = ['requirements', 'nfrs', 'integrations', 'data'];
 const SOURCED = ['requirements', 'businessRules', 'constraints'];
@@ -100,4 +100,62 @@ export function checkReadiness(pkg) {
     findings.push('READY_FOR_ARCHITECTURE with open conflicts');
   }
   return findings;
+}
+
+const PARTS = ['Part 1', 'Part 2', 'Part 3', 'Part 4', 'Part 5'];
+const QUICK_PARTS = ['Part 1', 'Part 3', 'Part 5'];
+const ID_TOKEN = /\b(?:G|ACT|WF|FR|BR|SC|NFR|INT|DAT|CON|ASM|Q|CONFLICT)-\d{3}\b/g;
+
+function sectionBodies(md) {
+  const bodies = {};
+  for (const chunk of md.split(/^## /m).slice(1)) {
+    const nl = chunk.indexOf('\n');
+    bodies[chunk.slice(0, nl).trim()] = chunk.slice(nl + 1);
+  }
+  return bodies;
+}
+
+export function checkMd(pkg, md) {
+  const findings = [];
+  if (/\[TODO\]|\bTBD\b|\bXXX\b/.test(md)) findings.push('md: placeholder found ([TODO]/TBD/XXX)');
+  const bodies = sectionBodies(md);
+  const required = pkg.depth === 'QUICK' ? QUICK_PARTS : PARTS;
+  for (const part of required) {
+    const key = Object.keys(bodies).find((h) => h.startsWith(part));
+    if (!key) findings.push(`md: missing section "## ${part}"`);
+    else if (!bodies[key].trim()) findings.push(`md: empty section "## ${part}"`);
+  }
+  for (const id of collectIds(pkg)) {
+    if (!md.includes(id)) findings.push(`md: id ${id} absent from requirements.md`);
+  }
+  const fmStatus = md.match(/^status:\s*(\S+)/m)?.[1];
+  if (fmStatus !== pkg.status) findings.push(`md frontmatter status ${fmStatus} != json status ${pkg.status}`);
+  const fmReadiness = Number(md.match(/^readiness:\s*(\d+)/m)?.[1]);
+  if (fmReadiness !== pkg.readiness?.overall) {
+    findings.push(`md frontmatter readiness ${fmReadiness} != json readiness.overall ${pkg.readiness?.overall}`);
+  }
+  return findings;
+}
+
+export function checkMdOrphanIds(pkg, md, ids) {
+  const findings = [];
+  for (const m of md.matchAll(ID_TOKEN)) {
+    if (!ids.has(m[0])) findings.push(`md: unknown id ${m[0]}`);
+  }
+  return findings;
+}
+
+export function checkPackage({ pkg, md }) {
+  const schemaFindings = checkSchema(pkg);
+  if (schemaFindings.length) return schemaFindings;
+  const ids = collectIds(pkg);
+  return [
+    ...checkDuplicates(pkg),
+    ...checkRefs(pkg, ids),
+    ...checkLabels(pkg),
+    ...checkAmbiguity(pkg),
+    ...checkReadiness(pkg),
+    ...checkMd(pkg, md),
+    ...checkMdOrphanIds(pkg, md, ids),
+  ];
 }

@@ -6,6 +6,7 @@ import {
 } from './estimate-math.mjs';
 import { roadmapFor } from './roadmap.mjs';
 import { componentHoursFor } from './components.mjs';
+import { agenticTask } from './baselines.mjs';
 
 function sortedMap(entries) {
   return Object.fromEntries(entries.sort(([a], [b]) => a.localeCompare(b)));
@@ -17,13 +18,12 @@ export function round2(n) {
 
 export function taskHoursFor(scenario, tasks) {
   const seniority = dominantSeniority(scenario.team);
-  const entries = Object.keys(tasks).map((id) => [
-    id,
-    taskHours({
+  const entries = Object.keys(tasks).map((id) => [id, tasks[id].evidence !== undefined
+    ? tasks[id].e
+    : taskHours({
       e: tasks[id].e, seniority, plan: scenario.plan,
       category: tasks[id].category, verificationPct: tasks[id].verificationPct,
-    }),
-  ]);
+    })]);
   return sortedMap(entries);
 }
 
@@ -49,7 +49,7 @@ export function scenarioBlock(scenario, ctx) {
   };
 }
 
-const CONFIDENCE_RANK = { HIGH: 0, MED: 1, LOW: 2 };
+const CONFIDENCE_RANK = { HIGH: 0, MED: 1, LOW: 2, UNCALIBRATED: 3 };
 
 export function criticalConfidence(features, tasks) {
   let critical = null;
@@ -78,14 +78,27 @@ function buildTasks(inputs) {
   return tasks;
 }
 
+function buildAgenticTasks(inputs, measurements) {
+  const agentContext = { ...inputs.agentContext, repository: inputs.agentContext.repository ?? inputs.project };
+  const ctx = { records: measurements ?? [], agentContext };
+  const tasks = {};
+  for (const feature of inputs.features) {
+    for (const task of feature.tasks) {
+      const a = agenticTask(task, ctx);
+      tasks[task.id] = { ...a, o: a.lowH, p: a.highH };
+    }
+  }
+  return tasks;
+}
+
 function buildFeatures(inputs, tasks) {
   const features = {};
   const summaries = [];
   for (const feature of inputs.features) {
     const taskIds = feature.tasks.map((t) => t.id);
     const hours = taskIds.reduce((sum, id) => sum + tasks[id].e, 0);
-    const low = feature.tasks.reduce((sum, t) => sum + t.o, 0);
-    const high = feature.tasks.reduce((sum, t) => sum + t.p, 0);
+    const low = taskIds.reduce((sum, id) => sum + tasks[id].o, 0);
+    const high = taskIds.reduce((sum, id) => sum + tasks[id].p, 0);
     features[feature.id] = { hours: round2(hours), low: round2(low), high: round2(high) };
     summaries.push({ hours, taskIds });
   }
@@ -98,25 +111,43 @@ function globalBuffers(tasks, risks) {
   return { devHours, spreadBufferHours, riskBufferHours: riskBufferHours(risks) };
 }
 
-export function computeEstimation(inputs) {
-  const tasks = buildTasks(inputs);
+const isAgentic = (inputs) => inputs.deliveryMode === 'agentic';
+
+const normalizeRisks = (inputs) => (isAgentic(inputs)
+  ? inputs.risks.map((r) => ({ ...r, impactHours: r.impactMinutes / 60 }))
+  : inputs.risks);
+
+const taskSummary = (t) => (t.evidence !== undefined
+  ? {
+    e: round2(t.e), sigma: round2(t.sigma), minutes: t.minutes, samples: t.samples,
+    matchLevel: t.matchLevel, confidence: t.confidence, calibrated: t.calibrated, evidence: t.evidence,
+  }
+  : { e: round2(t.e), sigma: round2(t.sigma) });
+
+const computedBlock = (ctx) => ({
+  tasks: sortedMap(Object.entries(ctx.tasks).map(([id, t]) => [id, taskSummary(t)])),
+  features: ctx.features,
+  ...(ctx.components ? { components: ctx.components } : {}),
+  devHours: round2(ctx.buffers.devHours),
+  overheadHours: round2(ctx.buffers.devHours * ctx.overheadPct),
+  spreadBufferHours: round2(ctx.buffers.spreadBufferHours),
+  riskBufferHours: round2(ctx.buffers.riskBufferHours),
+  scenarios: ctx.scenarios,
+  projectConfidence: criticalConfidence(ctx.summaries, ctx.tasks),
+});
+
+export function computeEstimation(inputs, measurements) {
+  const risks = normalizeRisks(inputs);
+  const tasks = isAgentic(inputs) ? buildAgenticTasks(inputs, measurements) : buildTasks(inputs);
   const { features, summaries } = buildFeatures(inputs, tasks);
-  const buffers = globalBuffers(tasks, inputs.risks);
+  const buffers = globalBuffers(tasks, risks);
   const ctx = { tasks, features: inputs.features, overheadPct: inputs.overheadPct, ...buffers };
   const scenarios = sortedMap(inputs.scenarios.map((s) => [s.id, scenarioBlock(s, ctx)]));
   const components = componentHoursFor(inputs, features);
   return {
     inputs,
-    computed: {
-      tasks: sortedMap(Object.entries(tasks).map(([id, t]) => [id, { e: round2(t.e), sigma: round2(t.sigma) }])),
-      features,
-      ...(components ? { components } : {}),
-      devHours: round2(buffers.devHours),
-      overheadHours: round2(buffers.devHours * inputs.overheadPct),
-      spreadBufferHours: round2(buffers.spreadBufferHours),
-      riskBufferHours: round2(buffers.riskBufferHours),
-      scenarios,
-      projectConfidence: criticalConfidence(summaries, tasks),
-    },
+    computed: computedBlock({
+      tasks, features, components, buffers, overheadPct: inputs.overheadPct, scenarios, summaries,
+    }),
   };
 }

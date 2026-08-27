@@ -86,3 +86,47 @@ test('no milestones → no roadmap key at all', () => {
     assert.ok(!('roadmap' in s), 'roadmap key must be absent, not empty');
   }
 });
+
+// Agentic-mode rollup.
+import { loadMeasurements } from '../lib/measurements.mjs';
+
+const agenticInputsPath = new URL('./fixtures/agentic-inputs.json', import.meta.url).pathname;
+const measurementsFixture = new URL('./fixtures/measurements.jsonl', import.meta.url).pathname;
+function agenticInputs() {
+  const inputs = JSON.parse(readFileSync(agenticInputsPath, 'utf8'));
+  inputs.measurementsPath = measurementsFixture;
+  return inputs;
+}
+const measurements = () => loadMeasurements(measurementsFixture).records;
+
+test('agentic tasks are baseline-driven and scenario-independent', () => {
+  const { computed } = computeEstimation(agenticInputs(), measurements());
+  const swap = computed.tasks['swap-refactor'];
+  assert.equal(swap.samples, 7);
+  assert.equal(swap.matchLevel, 1);
+  assert.equal(swap.confidence, 'MED');
+  assert.equal(swap.calibrated, true);
+  assert.equal(swap.minutes, 11);
+  assert.ok(Math.abs(swap.e - 13.17 / 60) < 0.01);
+  const db = computed.tasks['swap-db'];
+  assert.equal(db.confidence, 'UNCALIBRATED');
+  assert.equal(db.calibrated, false);
+  // measured durations do not vary by team or plan
+  assert.deepEqual(computed.scenarios.solo.taskHours, computed.scenarios.pair.taskHours);
+});
+
+test('agentic risks convert minutes to hours; uncalibrated task taints project confidence', () => {
+  const { computed } = computeEstimation(agenticInputs(), measurements());
+  assert.equal(computed.riskBufferHours, Math.round((0.3 * 30 / 60) * 100) / 100);
+  assert.equal(computed.projectConfidence, 'UNCALIBRATED'); // swap-db sits on the largest feature
+});
+
+test('compute.mjs CLI resolves measurementsPath itself', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'agentic-'));
+  const inPath = join(dir, 'inputs.json');
+  const outPath = join(dir, 'estimation.json');
+  writeFileSync(inPath, JSON.stringify(agenticInputs()));
+  execFileSync('node', [cli, '--inputs', inPath, '--out', outPath]);
+  const estimation = JSON.parse(readFileSync(outPath, 'utf8'));
+  assert.equal(estimation.computed.tasks['swap-refactor'].samples, 7);
+});

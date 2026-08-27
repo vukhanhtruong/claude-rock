@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { checkInputs } from './lib/schema.mjs';
 import { computeEstimation } from './lib/rollup.mjs';
+import { loadMeasurements, resolveMeasurementsPath } from './lib/measurements.mjs';
 
 function parseArgs(argv) {
   const args = {};
@@ -19,5 +20,8 @@ if (findings.length) {
   process.exit(1);
 }
 mkdirSync(dirname(args.out), { recursive: true });
-writeFileSync(args.out, `${JSON.stringify(computeEstimation(inputs), null, 2)}\n`);
+const measurements = inputs.deliveryMode === 'agentic'
+  ? loadMeasurements(resolveMeasurementsPath(inputs)).records
+  : undefined;
+writeFileSync(args.out, `${JSON.stringify(computeEstimation(inputs, measurements), null, 2)}\n`);
 console.log(args.out);

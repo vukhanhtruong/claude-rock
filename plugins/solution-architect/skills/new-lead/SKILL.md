@@ -64,7 +64,7 @@ self-contained local server.
 | --- | --- | --- |
 | new | folder present, no registry entry | adopt, then run the chain |
 | WIP | entry present, one of `requirements.json` (checked only when the business-analyst skill is installed) / `ARCHITECTURE.md` / `estimation.json` / `proposal.md` missing | resume at the first gap |
-| done | entry present, all three present | nothing; re-run a named step on request |
+| done | entry present, no artifact from the WIP row missing | nothing; re-run a named step on request |
 | orphan | entry present, folder gone | report only — never delete |
 
 ## Adoption

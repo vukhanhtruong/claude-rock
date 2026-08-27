@@ -96,7 +96,7 @@ You judge each area score (0–100) and justify it in Part 5 prose. The
 script recomputes `overall` as the rounded mean and refuses a mismatch.
 Status rules the validator enforces:
 
-- open P1 question with `architectureBlocker: true` → status at most `ANALYZED`;
+- open question with `architectureBlocker: true` → status at most `ANALYZED`;
 - `READY_FOR_ARCHITECTURE` requires no unconfirmed high-impact assumptions
   and no open conflicts;
 - every open architecture blocker appears in `readiness.blockers`.

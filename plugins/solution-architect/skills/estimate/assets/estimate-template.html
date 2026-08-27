@@ -1236,6 +1236,46 @@ function buildSheet1(xml, rows) {
     .replaceAll('H7:H26', `H7:H${total - 1}`);
 }
 
+// --- Task Breakdown tab: one row per task of every exported feature, for
+// reference next to the scoring tab. Filter, sort, and search all come from
+// the autofilter dropdowns; the header row is frozen so they survive scrolling.
+const TASK_HEADERS = ['FEATURE', 'TASK', 'CATEGORY', 'OPTIMISTIC (H)', 'MOST LIKELY (H)',
+  'PESSIMISTIC (H)', 'EXPECTED (PERT)', 'CONFIDENCE', 'ASSUMPTIONS', 'MILESTONE', 'CONTAINER'];
+
+function taskRowXml(f, t, r) {
+  const texts = { A: f.name, B: t.name, C: t.category, H: t.confidence,
+    I: t.assumptions.join('; '), J: f.milestone ?? '', K: xlsxContainer(f) };
+  return `<row r="${r}">` + Object.entries(texts).slice(0, 3).map(([c, v]) => sCell(c + r, 0, v)).join('')
+    + [t.o, t.m, t.p].map((v, i) => nCell('DEF'[i] + r, 0, v)).join('')
+    + fCell(`G${r}`, 0, `(D${r}+4*E${r}+F${r})/6`)
+    + Object.entries(texts).slice(3).map(([c, v]) => sCell(c + r, 0, v)).join('') + '</row>';
+}
+
+function buildTaskSheet(rows) {
+  const body = rows.flatMap((f) => f.tasks.map((t) => [f, t]))
+    .map(([f, t], i) => taskRowXml(f, t, i + 2)).join('');
+  const last = 1 + rows.reduce((s, f) => s + f.tasks.length, 0);
+  const head = `<row r="1">${TASK_HEADERS.map((h, i) =>
+    sCell(String.fromCharCode(65 + i) + 1, XLSX_STYLE.head, h)).join('')}</row>`;
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" '
+    + 'activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    + `<sheetData>${head}${body}</sheetData><autoFilter ref="A1:K${last}"/></worksheet>`;
+}
+
+// Registers sheet4 in the three package indexes the clone does not have yet.
+function registerTaskSheet(files, enc) {
+  const patch = (path, find, add) => files.set(path,
+    enc.encode(new TextDecoder().decode(files.get(path)).replace(find, add + find)));
+  patch('xl/workbook.xml', '</sheets>',
+    '<sheet state="visible" name="Task Breakdown" sheetId="100" r:id="rIdTasks"/>');
+  patch('xl/_rels/workbook.xml.rels', '</Relationships>',
+    '<Relationship Id="rIdTasks" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>');
+  patch('[Content_Types].xml', '</Types>',
+    '<Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>');
+}
+
 // --- minimal zip: read the deflated template, write a stored archive ---
 function b64Bytes(b64) {
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -1332,8 +1372,12 @@ function zipStore(files) {
 
 async function buildWorkbook() {
   const files = await unzip(b64Bytes(XLSX_TEMPLATE));
+  const enc = new TextEncoder();
+  const rows = exportRows();
   const xml = new TextDecoder().decode(files.get('xl/worksheets/sheet1.xml'));
-  files.set('xl/worksheets/sheet1.xml', new TextEncoder().encode(buildSheet1(xml, exportRows())));
+  files.set('xl/worksheets/sheet1.xml', enc.encode(buildSheet1(xml, rows)));
+  files.set('xl/worksheets/sheet4.xml', enc.encode(buildTaskSheet(rows)));
+  registerTaskSheet(files, enc);
   return zipStore(files);
 }
 window.__buildWorkbook = async () => bytesB64(await buildWorkbook());

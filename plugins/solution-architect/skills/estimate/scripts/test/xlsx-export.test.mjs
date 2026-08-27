@@ -111,3 +111,42 @@ test('the export honours the active source filter', skip, async () => {
     assert.equal(inlineText(cell(xml, 'A27')), 'PROJECT TOTAL', 'total row must survive filtering');
   } finally { page.close(); }
 });
+
+const sheetTasks = (files) => files.get('xl/worksheets/sheet4.xml')?.toString('utf8') ?? '';
+
+test('the export adds a registered Task Breakdown tab', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const files = await exportedFiles(page);
+    assert.ok(files.has('xl/worksheets/sheet4.xml'), 'sheet4.xml missing');
+    assert.match(files.get('xl/workbook.xml').toString('utf8'), /name="Task Breakdown"/);
+    assert.match(files.get('xl/_rels/workbook.xml.rels').toString('utf8'), /Target="worksheets\/sheet4\.xml"/);
+    assert.match(files.get('[Content_Types].xml').toString('utf8'), /PartName="\/xl\/worksheets\/sheet4\.xml"/);
+  } finally { page.close(); }
+});
+
+test('task rows carry the PERT formula in-cell and ride the feature filter', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    await page.eval(`document.querySelector('#feature-table [data-prov="stated"]').click()`);
+    const xml = sheetTasks(await exportedFiles(page));
+    assert.equal(inlineText(cell(xml, 'A2')), 'User can book appointment');
+    assert.equal(inlineText(cell(xml, 'B2')), 'Booking CRUD API');
+    assert.deepEqual(['D2', 'E2', 'F2'].map((r) => cellNumber(cell(xml, r))), [16, 24, 40]);
+    assert.match(cellFormula(cell(xml, 'G2')) ?? '', /\(D2\+4\*E2\+F2\)\/6/);
+    assert.equal(inlineText(cell(xml, 'H2')), 'HIGH');
+    assert.equal(inlineText(cell(xml, 'K2')), 'Booking API');
+    assert.doesNotMatch(xml, /Scheduled reminder jobs/, 'filtered-out feature tasks must not export');
+  } finally { page.close(); }
+});
+
+test('the task tab is filterable and sortable: autofilter over a frozen header', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const xml = sheetTasks(await exportedFiles(page));
+    assert.equal(inlineText(cell(xml, 'A1')), 'FEATURE');
+    // 3 fixture tasks under rows 2-4
+    assert.match(xml, /<autoFilter ref="A1:K4"\/>/);
+    assert.match(xml, /<pane ySplit="1"[^>]*state="frozen"/);
+  } finally { page.close(); }
+});

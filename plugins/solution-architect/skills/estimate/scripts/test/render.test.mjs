@@ -31,7 +31,9 @@ test('render refuses a deliverable that fails validation', () => {
 test('template carries exactly the five slots and no external URLs', () => {
   const markers = [...tpl().matchAll(/<!-- slot:(\w+) -->/g)].map((m) => m[1]).sort();
   assert.deepEqual([...new Set(markers)], ['DATA', 'FONTS', 'MATH', 'TITLE', 'VIEWER']);
-  assert.doesNotMatch(tpl(), /https?:\/\/(?!www\.w3\.org)/);
+  // openxmlformats URIs are XML namespace identifiers the xlsx export writes
+  // into generated sheets — never fetched, so the page stays self-contained.
+  assert.doesNotMatch(tpl(), /https?:\/\/(?!www\.w3\.org|schemas\.openxmlformats\.org)/);
 });
 
 // Companion mode: the analyze-requirements viewer links this page, and this page links

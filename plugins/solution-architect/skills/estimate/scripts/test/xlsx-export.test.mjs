@@ -74,6 +74,22 @@ test('rows land as inline strings ordered by milestone with derived 1-5 scores',
   } finally { page.close(); }
 });
 
+test('tech and size scores follow the Scoring Guide definitions', skip, async () => {
+  const page = await openPage(buildPage());
+  try {
+    const xml = sheet1(await exportedFiles(page));
+    // TECH: hours-weighted category score (boilerplate 1.5, logic 3, novel 5).
+    // Booking mixes boilerplate(25.3h) + logic(44h) → 2.45 → 2; reminders is
+    // logic-only → 3.
+    assert.equal(cellNumber(cell(xml, 'B7')), 2);
+    assert.equal(cellNumber(cell(xml, 'B8')), 3);
+    // SIZE: absolute expected-hour bands [8, 24, 64, 128] per the guide's
+    // "<1 day → epic" scale. Booking ≈69h → 4; reminders ≈21h → 2.
+    assert.equal(cellNumber(cell(xml, 'C7')), 4);
+    assert.equal(cellNumber(cell(xml, 'C8')), 2);
+  } finally { page.close(); }
+});
+
 test('score math stays in the sheet: G-K are formulas, total row uses SUMIF', skip, async () => {
   const page = await openPage(buildPage());
   try {

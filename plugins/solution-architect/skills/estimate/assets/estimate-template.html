@@ -1160,12 +1160,15 @@ function band(value, thresholds) {
 }
 
 // The sample's five scoring dimensions, derived from what the estimate
-// already knows. Size is relative to the largest feature overall (not the
-// filtered set) so a feature keeps its score across filter changes.
-function deriveScores(f, maxHours) {
-  const pmRatio = f.tasks.reduce((s, t) => s + t.p / t.m, 0) / f.tasks.length;
+// already knows, matching the workbook's own Scoring Guide tab: tech is the
+// hours-weighted task-category score (CRUD → custom logic → R&D), size is
+// absolute expected-hour bands (<1 day → epic).
+const TECH_CATEGORY_SCORE = { boilerplate: 1.5, logic: 3, novel: 5 };
+function deriveScores(f) {
+  const weighted = f.tasks.reduce((s, t) => s + TECH_CATEGORY_SCORE[t.category] * pert(t).e, 0);
+  const totalE = f.tasks.reduce((s, t) => s + pert(t).e, 0);
   const assumptions = f.tasks.reduce((s, t) => s + t.assumptions.length, 0);
-  return [band(pmRatio, [1.5, 2, 2.5, 3]), band(f.hours / maxHours, [0.15, 0.35, 0.6, 0.85]),
+  return [Math.round(weighted / totalE), band(f.hours, [8, 24, 64, 128]),
     band(assumptions, [0, 2, 4, 6]), band(f.spread / f.hours, [0.3, 0.6, 0.9, 1.2]),
     { HIGH: 2, MED: 3, LOW: 5 }[f.conf]];
 }
@@ -1183,8 +1186,8 @@ function rowFormulas(r) {
 const fxCells = (r) => Object.entries(rowFormulas(r))
   .map(([col, f]) => fCell(col + r, XLSX_STYLE[col], f)).join('');
 
-function featureRowXml(f, r, maxHours) {
-  const scores = deriveScores(f, maxHours);
+function featureRowXml(f, r) {
+  const scores = deriveScores(f);
   return `<row r="${r}" ht="29.25" customHeight="1">` + sCell(`A${r}`, XLSX_STYLE.A, f.name)
     + ['B', 'C', 'D', 'E', 'F'].map((col, i) => nCell(col + r, XLSX_STYLE.score, scores[i])).join('')
     + fxCells(r) + sCell(`L${r}`, XLSX_STYLE.A, f.milestone ?? '')
@@ -1223,8 +1226,7 @@ function exportRows() {
 function buildSheet1(xml, rows) {
   const slots = Math.max(rows.length, XLSX_MIN_SLOTS);
   const total = XLSX_ROW0 + slots;
-  const maxHours = Math.max(...breakdownData().map((f) => f.hours));
-  const body = rows.map((f, i) => featureRowXml(f, XLSX_ROW0 + i, maxHours)).join('')
+  const body = rows.map((f, i) => featureRowXml(f, XLSX_ROW0 + i)).join('')
     + Array.from({ length: slots - rows.length },
       (_, i) => emptyRowXml(XLSX_ROW0 + rows.length + i)).join('')
     + totalRowXml(total);

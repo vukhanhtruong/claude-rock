@@ -40,6 +40,7 @@ Calibration: 20 measurement records; 1 of 4 tasks uncalibrated.
 | m01 | Refactor A | 6 |
 | m02 | Refactor B | 8 |
 | m99 | Invented run | 3 |
+| m01 | Refactor A | 600 |
 
 ### Assumptions
 

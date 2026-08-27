@@ -92,6 +92,7 @@ test('agentic fail fixture trips every enforcement rule', () => {
   assert.ok(findings.some((f) => /vague estimate language/.test(f)), 'vague range');
   assert.ok(findings.some((f) => /uncalibrated/i.test(f)), 'uncalibrated masked as measured');
   assert.ok(findings.some((f) => /evidence/i.test(f) && /m99/.test(f)), 'invented evidence');
+  assert.ok(findings.some((f) => /evidence/i.test(f) && /m01/.test(f) && /600/.test(f)), 'wrong evidence minutes');
 });
 
 test('agentic estimation without a planning task is refused', () => {

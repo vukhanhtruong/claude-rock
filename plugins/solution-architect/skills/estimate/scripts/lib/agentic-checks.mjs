@@ -20,13 +20,19 @@ function checkVagueness(md, out) {
 }
 
 // The md may only cite history the script actually matched: every Evidence
-// id must exist in computed.tasks[*].evidence.
+// row's id AND minutes must match computed.tasks[*].evidence (spec §4:
+// "ids, minutes") — a real id with a fabricated Actual (min) cell is just as
+// dishonest as an invented id.
 function checkEvidence(md, estimation, out) {
   const section = heading(md, 'Evidence');
   if (section === null) { out.push('missing ### Evidence section'); return; }
-  const known = new Set(Object.values(estimation.computed.tasks).flatMap((t) => (t.evidence ?? []).map((e) => e.id)));
+  const known = new Map(
+    Object.values(estimation.computed.tasks).flatMap((t) => (t.evidence ?? []).map((e) => [e.id, e.minutes])));
   for (const row of tables(section).flatMap((t) => t.rows)) {
-    if (!known.has(row[0])) out.push(`evidence row "${row[0]}": not among script-matched measurements`);
+    if (!known.has(row[0])) { out.push(`evidence row "${row[0]}": not among script-matched measurements`); continue; }
+    if (Number(row[2]) !== known.get(row[0])) {
+      out.push(`evidence row "${row[0]}": Actual (min) "${row[2]}" does not match matched minutes ${known.get(row[0])}`);
+    }
   }
 }
 

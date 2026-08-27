@@ -174,10 +174,11 @@ skeleton with these additions (mirror
   estimated"** in the Baseline column and `UNCALIBRATED` in Confidence — a
   zero-sample row rendered with any other confidence label is refused.
 - **`### Evidence` section** — a table of `Id | Task | Actual (min)` rows,
-  one per matched historical measurement actually cited. Every id here must
-  exist in `estimation.json`'s `computed.tasks[*].evidence` — the validator
-  refuses an evidence row that isn't script-matched, so never invent or
-  hand-add a history row.
+  one per matched historical measurement actually cited. Every row's id AND
+  Actual (min) value must match `estimation.json`'s
+  `computed.tasks[*].evidence` — the validator refuses an evidence row whose
+  id isn't script-matched, or whose minutes cell doesn't match the matched
+  record, so never invent, hand-add, or alter a history row.
 - **Risks table** — same section as team mode, but the Impact column is in
   minutes with an added Reason column: `Risk | Probability | Impact (min) |
   Reason`. Every risk row needs all four cells; a generic buffer with no

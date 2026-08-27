@@ -34,6 +34,19 @@ before scope confirmation and before any factor scoring.
 | STANDARD | task-level three-point PERT | ± moderate |
 | DEEP | STANDARD plus per-scenario detail (multiple team/plan combinations sized individually) | ± narrower |
 
+## 2b. Delivery mode — ask second
+
+| Mode | Meaning | Sizing path |
+| --- | --- | --- |
+| TRADITIONAL | humans write the code | technique menu (`techniques.md`) |
+| AGENTIC | AI coding agents write the code, humans plan and review | measurement-based (`agentic-estimation.md`) |
+
+AGENTIC replaces the technique question and AI-category scoring entirely.
+Follow-ups it adds: which agent + model executes (calibration context,
+written to `agentContext`; ask whether planning uses a different model —
+per-task `model` override); per task, a shape from `task-shapes.md`, scope
+attributes, and seed minutes (o/m/p) used only when no baseline exists.
+
 ## 3. Clear-vs-assumed gate
 
 Before any sizing happens, present two lists side by side:
@@ -62,7 +75,9 @@ Ask one thing at a time, in this order:
    `stated`, recorded in the deliverable's Roadmap section.
 3. **Factor scores per feature** — five factors, each scored 1-5: tech
    complexity, feature size, dependencies, uncertainty, risk. (STANDARD/DEEP
-   also want task-level O/M/P — see `techniques.md`.)
+   also want task-level O/M/P — see `techniques.md`.) TRADITIONAL-only: in
+   AGENTIC mode this step is replaced entirely — ask shape + scope + seed
+   minutes per task instead (§2b, `task-shapes.md`).
 4. **Team options + rates + seniority mix** — how many engineers, what they
    cost per hour, and whether each is junior/mid/senior.
 5. **Claude plan availability** — none / Max 5x / Max 20x, per scenario.

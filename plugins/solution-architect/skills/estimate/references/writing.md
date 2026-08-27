@@ -158,6 +158,36 @@ Roadmap (mirrors `checkRoadmap` in `scripts/lib/checks.mjs`):
     `computed.scenarios[recommendedScenario].roadmap` — covered by the
     recompute rule 12, same as every other number.
 
+## 3b. Agentic deliverable additions
+
+When `deliveryMode: "agentic"`, `estimation.md` follows the same two-part
+skeleton with these additions (mirror
+`scripts/test/fixtures/agentic-estimation-pass.md` exactly):
+
+- **Summary header line** — immediately under `## Summary`, before the
+  feature table: `Delivery: agentic (<agent> + <model>) · Baselines: <N>
+  measurements, <K> shapes matched`. `agenticFindings` in
+  `lib/agentic-checks.mjs` refuses a deliverable missing this line.
+- **Estimation detail task table** — agentic columns replace the
+  traditional PERT columns: `Task | Baseline (min) | Samples | Match |
+  Confidence | Assumptions | src`. A zero-sample task writes **"not
+  estimated"** in the Baseline column and `UNCALIBRATED` in Confidence — a
+  zero-sample row rendered with any other confidence label is refused.
+- **`### Evidence` section** — a table of `Id | Task | Actual (min)` rows,
+  one per matched historical measurement actually cited. Every id here must
+  exist in `estimation.json`'s `computed.tasks[*].evidence` — the validator
+  refuses an evidence row that isn't script-matched, so never invent or
+  hand-add a history row.
+- **Risks table** — same section as team mode, but the Impact column is in
+  minutes with an added Reason column: `Risk | Probability | Impact (min) |
+  Reason`. Every risk row needs all four cells; a generic buffer with no
+  reason is refused the same as in team mode.
+- **Calibration nudge** — when any task is UNCALIBRATED or low-sample, the
+  detail section's calibration line should point at recording actuals to
+  close the loop (see `docs/requirements/record-task.md` — the capture
+  skill that will fill the dataset is designed but not yet built; do not
+  describe it as available functionality).
+
 ## 4. File placement
 
 Two modes:

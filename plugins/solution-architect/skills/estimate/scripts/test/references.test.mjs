@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { AI_CATEGORIES, PLAN_PRICES, TIER_BREAKS } from '../lib/estimate-math.mjs';
+import { TASK_SHAPES } from '../lib/measurements.mjs';
 
 const ref = (f) => readFileSync(new URL(`../../references/${f}`, import.meta.url), 'utf8');
-const ALL = ['interview.md', 'techniques.md', 'ai-multipliers.md', 'writing.md', 'slicing.md'];
+const ALL = ['interview.md', 'techniques.md', 'ai-multipliers.md', 'writing.md', 'slicing.md',
+  'task-shapes.md', 'agentic-estimation.md'];
 
 test('no reference doc carries placeholders', () => {
   for (const f of ALL) assert.doesNotMatch(ref(f), /\bTBD\b|\bTODO\b/, f);
@@ -54,6 +56,28 @@ test('slicing.md carries the vertical-slice rules and split patterns', () => {
     assert.ok(doc.includes(needle), `slicing.md missing: ${needle}`);
   }
   assert.ok(/## Sources/.test(doc), 'slicing.md missing Sources section');
+});
+
+test('task-shapes.md names every shape in the code taxonomy', () => {
+  const doc = ref('task-shapes.md');
+  for (const shape of TASK_SHAPES) assert.ok(doc.includes(shape), `task-shapes.md missing: ${shape}`);
+});
+
+test('agentic-estimation.md states ladder, math bands, confidence, and sources', () => {
+  const doc = ref('agentic-estimation.md');
+  for (const needle of ['repo', 'lognormal', '1.645', 'UNCALIBRATED', 'planning',
+    'means sum', 'impactMinutes', 'measurements.jsonl']) {
+    assert.ok(doc.includes(needle), `agentic-estimation.md missing: ${needle}`);
+  }
+  assert.ok(/## Sources/.test(doc));
+  for (const src of ['erikbern.com', 'Vacanti', 'atomicobject.com']) assert.ok(doc.includes(src), src);
+});
+
+test('interview.md carries the delivery-mode fork', () => {
+  const doc = ref('interview.md');
+  for (const needle of ['Delivery mode', 'TRADITIONAL', 'AGENTIC', 'agentContext', 'seed']) {
+    assert.ok(doc.includes(needle), `interview.md missing: ${needle}`);
+  }
 });
 
 test('method sources are cited where techniques are recommended', () => {

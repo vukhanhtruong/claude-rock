@@ -5,6 +5,16 @@ Read while assigning a `category` to each task and again while choosing
 how the formula in `estimate-math.mjs` uses it, and the one rule that keeps
 an agent from inventing a project-wide speedup number.
 
+**In AGENTIC delivery mode this model is retired from estimation** —
+measurement-based baselines (`references/agentic-estimation.md`) replace
+category scoring and the formula below entirely; agentic tasks carry a
+`shape`, not a `category`, and `schema.mjs` rejects `category` on an agentic
+task outright. This doc's model survives only as intuition for
+`seedMinutes` on an uncalibrated shape — the categories below are a useful
+gut-check for an o/m/p seed guess, nothing more, in that one case. For
+TRADITIONAL scenarios (humans code, with or without AI-assisted plans), the
+categories and formula below are unchanged.
+
 ## 1. Category table
 
 | Category | AI speedup range | Example tasks |

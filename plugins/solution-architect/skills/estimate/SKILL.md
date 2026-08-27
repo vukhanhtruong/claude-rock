@@ -19,19 +19,25 @@ interactive what-if page served on localhost.
 4. Never apply one blanket AI multiplier to a whole project — per-task
    category only (`references/ai-multipliers.md`).
 5. `node scripts/validate.mjs` must exit 0 before the page renders.
+6. Agentic estimates: baselines and confidence come from scripts reading
+   measurements.jsonl — the agent never writes a duration, confidence, or
+   evidence row.
 
 ## Flow
 
 1. **Detect evidence**: requirements/RFP? ARCHITECTURE.md? codebase? none?
    State findings; the user can override. (`references/interview.md` §1)
-2. **Depth**: ask QUICK / STANDARD / DEEP first.
+2. **Depth and delivery mode**: ask QUICK / STANDARD / DEEP, then TRADITIONAL
+   / AGENTIC (`references/interview.md` §2b). Delivery mode decides step 4.
 3. **Interview**: follow `references/interview.md` — pre-fill from evidence,
    ask only holes, run the clear-vs-assumed gate before sizing. Before
    proposing milestones, read `references/slicing.md` — slices are judged
    there, not computed.
-4. **Technique**: recommend from `references/techniques.md`, state why,
-   cite the method's sources (its §Sources — attribution + link, never
-   quoted text), confirm.
+4. **Technique**: TRADITIONAL-only — recommend from `references/techniques.md`,
+   state why, cite the method's sources (its §Sources — attribution + link,
+   never quoted text), confirm. AGENTIC reads
+   `references/agentic-estimation.md` and `references/task-shapes.md`
+   instead: no technique to recommend, shape + scope + seed minutes per task.
 5. **Size**: write judgments to `estimation-inputs.json`
    (`references/writing.md` — the booking fixture is the canonical shape).
 6. **Compute**: `node scripts/compute.mjs --inputs estimation-inputs.json --out estimation.json`
@@ -42,7 +48,9 @@ interactive what-if page served on localhost.
    `node scripts/render.mjs --json estimation.json --md estimation.md --out <dir>`
    (add `--client-only` for a client-safe file) — render re-runs the validation
    checks itself and refuses on findings, so an unvalidated page cannot ship.
-   Then serve with the analyze-requirements skill's `serve.mjs`; report the URL.
+   `deliveryMode: "agentic"` routes rendering to the agentic HTML template
+   automatically; nothing to choose here. Then serve with the
+   analyze-requirements skill's `serve.mjs`; report the URL.
 
 ## Companion mode
 

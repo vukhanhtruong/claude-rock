@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0",
+  "lead": "acme-crm",
+  "status": "CLARIFICATION_REQUIRED",
+  "depth": "STANDARD",
+  "updated": "2026-08-27",
+  "mode": "existing",
+  "context": {
+    "problem": "Invoice approval is manual; finance spends 3 days per cycle chasing approvers.",
+    "goals": [
+      { "id": "G-001", "goal": "Cut invoice approval cycle time", "metric": "median cycle < 1 day", "source": "kickoff call 2026-08-20" }
+    ],
+    "successMetrics": ["median approval cycle time under 1 day within 3 months"]
+  },
+  "actors": [
+    { "id": "ACT-001", "name": "Finance Officer", "type": "human", "goal": "process invoices without chasing approvers", "painPoints": ["chasing approvers by email"] },
+    { "id": "ACT-002", "name": "Manager", "type": "human", "goal": "approve high-value invoices", "painPoints": ["no visibility of the pending queue"] }
+  ],
+  "workflows": [
+    { "id": "WF-001", "name": "Invoice approval", "state": "as-is", "trigger": "invoice received by email", "steps": ["finance officer logs invoice", "emails manager for approval", "manager replies", "officer pays"], "exceptions": ["manager on leave: invoice waits"] }
+  ],
+  "requirements": [
+    { "id": "FR-001", "text": "The system must route invoices above the approval threshold to a manager for approval.", "label": "confirmed", "source": "kickoff call 2026-08-20", "traces": { "goal": "G-001", "workflow": "WF-001", "rules": ["BR-001"] }, "scope": "in", "acceptance": ["SC-001", "SC-002"] },
+    { "id": "FR-002", "text": "The system must record an audit trail of every approval decision.", "label": "assumed", "source": "compliance mention in meeting notes 2026-08-21", "traces": { "goal": "G-001", "workflow": "WF-001", "rules": [] }, "scope": "in", "acceptance": [] }
+  ],
+  "businessRules": [
+    { "id": "BR-001", "rule": "Invoices above $10,000 require manager approval.", "source": "kickoff call 2026-08-20", "examples": ["$8,000 -> no approval", "$15,000 -> approval required"], "openQuestion": "Q-001" }
+  ],
+  "scenarios": [
+    { "id": "SC-001", "requirement": "FR-001", "type": "happy", "given": "an invoice of $15,000", "when": "the invoice is submitted", "then": "manager approval is requested" },
+    { "id": "SC-002", "requirement": "FR-001", "type": "edge", "given": "an invoice of exactly $10,000", "when": "the invoice is submitted", "then": "no approval is requested" }
+  ],
+  "nfrs": [
+    { "id": "NFR-001", "area": "auditability", "text": "Approval decisions must be retained for 7 years.", "label": "assumed" }
+  ],
+  "integrations": [
+    { "id": "INT-001", "system": "Xero", "direction": "read", "label": "confirmed" }
+  ],
+  "data": [
+    { "id": "DAT-001", "entity": "Invoice", "sensitivity": "financial", "volume": "about 400 per month", "label": "confirmed" }
+  ],
+  "constraints": [
+    { "id": "CON-001", "text": "Must run inside the client's existing Microsoft 365 tenant.", "source": "client IT policy document" }
+  ],
+  "assumptions": [
+    { "id": "ASM-001", "text": "Managers authenticate through Microsoft Entra.", "impact": "high", "status": "unconfirmed" }
+  ],
+  "openQuestions": [
+    { "id": "Q-001", "question": "Is the $10,000 threshold in local currency or USD equivalent?", "priority": "P1", "reason": "changes the approval rule for multi-currency invoices", "affects": ["BR-001", "FR-001"], "status": "open", "answer": null, "architectureBlocker": true }
+  ],
+  "conflicts": [],
+  "scope": { "out": ["payment execution"], "future": ["mobile approvals"], "unconfirmed": ["multi-entity support"] },
+  "ai": null,
+  "readiness": {
+    "overall": 73,
+    "areas": { "businessContext": 90, "workflows": 80, "rules": 70, "integrations": 60, "data": 70, "nfrs": 70 },
+    "blockers": ["Q-001", "ASM-001"]
+  }
+}

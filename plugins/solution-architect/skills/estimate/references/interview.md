@@ -44,7 +44,11 @@ before scope confirmation and before any factor scoring.
 AGENTIC replaces the technique question and AI-category scoring entirely.
 Follow-ups it adds: which agent + model executes (calibration context,
 written to `agentContext`; ask whether planning uses a different model —
-per-task `model` override); per task, a shape from `task-shapes.md`, scope
+per-task `model` override); which repository the work targets (optional
+`agentContext.repository`, matching the `repository` field of measurement
+records — omit it and the script falls back to `project`, but set it when
+the project's repo name differs from `project` so rung 1 of the retrieval
+ladder can match); per task, a shape from `task-shapes.md`, scope
 attributes, and seed minutes (o/m/p) used only when no baseline exists.
 
 ## 3. Clear-vs-assumed gate

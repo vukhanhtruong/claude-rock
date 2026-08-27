@@ -130,10 +130,17 @@ function checkScenarios(inputs, out) {
 // Anything compute.mjs would turn into NaN gets refused here instead: the
 // "computed truth" contract holds only if every operand is a sane number.
 // Risks carry hours in team mode and minutes in agentic mode — the unit the
-// rest of that mode's math already runs on.
+// rest of that mode's math already runs on. `agentContext.repository` is
+// optional (rollup.mjs falls back to `project`) but must be a real value
+// when set — rung 1 of the retrieval ladder needs it to mean something.
 function checkGlobals(inputs, out, agentic) {
   if (!pct(inputs.overheadPct)) out.push('overheadPct must be a number in [0, 1)');
   if (!agentic && !pct(inputs.verificationPct)) out.push('verificationPct must be a number in [0, 1)');
+  const ctx = inputs.agentContext;
+  if (agentic && typeof ctx === 'object' && ctx !== null && 'repository' in ctx
+    && !(typeof ctx.repository === 'string' && ctx.repository.trim())) {
+    out.push('agentContext.repository must be a non-empty string when present');
+  }
   for (const r of inputs.risks ?? []) {
     if (!(typeof r.probability === 'number' && r.probability >= 0 && r.probability <= 1)) out.push(`risk "${r.name}": probability must be in [0, 1]`);
     if (agentic) {

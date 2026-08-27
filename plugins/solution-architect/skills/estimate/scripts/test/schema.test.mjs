@@ -167,6 +167,19 @@ test('agentic mode requires agentContext and minute-based risks with reasons', (
   assert.ok(findings.some((f) => f.includes('reason')));
 });
 
+test('agentContext.repository, when present, must be a non-empty string', () => {
+  const inputs = agenticFixture();
+  inputs.agentContext.repository = '';
+  const findings = checkInputs(inputs);
+  assert.ok(findings.some((f) => f.includes('agentContext.repository')));
+});
+
+test('agentContext.repository is optional', () => {
+  const inputs = agenticFixture();
+  delete inputs.agentContext.repository;
+  assert.deepEqual(checkInputs(inputs), []);
+});
+
 test('deliveryMode vocabulary is enforced; team inputs stay valid', () => {
   const inputs = agenticFixture();
   inputs.deliveryMode = 'vibes';

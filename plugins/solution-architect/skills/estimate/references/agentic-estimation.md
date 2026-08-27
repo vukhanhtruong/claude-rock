@@ -28,6 +28,14 @@ Historical execution data lives in one global, append-only file:
 path via top-level `measurementsPath` (used by tests, and by any project
 that wants a scoped dataset).
 
+Each measurement record carries a `repository` field. `agentContext.repository`
+in `estimation-inputs.json` (optional, validated non-empty when set by
+`lib/schema.mjs`) tells the ladder which repository's history this estimate
+targets; when absent, `lib/rollup.mjs` falls back to the top-level `project`
+name. Set it explicitly whenever the project's repo name differs from
+`project` — rung 1 of the ladder (below) can only match on `repository` when
+it means the same string on both sides.
+
 A missing file is the cold-start case, not an error: every task renders
 UNCALIBRATED and the estimate still produces a full deliverable — this is
 designed behavior, not a degraded mode. Corrupt lines are skipped with a

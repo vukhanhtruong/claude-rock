@@ -72,3 +72,49 @@ test('confidence tiers follow the spec table', () => {
   assert.equal(confidenceFor({ samples: 10, p50: 10, p80: 11.2 }), 'HIGH');
   assert.equal(confidenceFor({ samples: 10, p50: 10, p80: 25 }), 'MED'); // high variance demotes
 });
+
+// Task 3 appends: duration math.
+import { agenticTask } from '../lib/baselines.mjs';
+
+test('n>=5: lognormal fit — mean above median, spread from log-space z', () => {
+  const a = agenticTask(
+    { shape: 'cross_file_refactor', scope: { affectedFiles: 8 }, seedMinutes: { o: 10, m: 20, p: 45 } },
+    { records: records(), agentContext: CTX },
+  );
+  // p50=11, p95=29.5 → σ_log=ln(29.5/11)/1.645≈0.5997
+  // e = 11·exp(σ_log²/2) ≈ 13.17 min; σ = e·√(exp(σ_log²)−1) ≈ 8.66 min
+  near(a.e, 13.17 / 60);
+  near(a.sigma, 8.66 / 60);
+  near(a.lowH, 11 / 60);
+  near(a.highH, 29.5 / 60);
+  assert.equal(a.calibrated, true);
+  assert.equal(a.confidence, 'MED');
+  near(a.minutes, 11);
+});
+
+test('1<=n<5: median of matches + seed-derived sigma', () => {
+  const a = agenticTask(
+    { shape: 'planning', scope: {}, model: 'opus', seedMinutes: { o: 20, m: 40, p: 80 } },
+    { records: records(), agentContext: { agent: 'claude-code', model: 'sonnet', repository: 'project-b' } },
+  );
+  near(a.e, 47.5 / 60);          // median of [40, 55]
+  near(a.sigma, (80 - 20) / 6 / 60);
+  near(a.lowH, 40 / 60);         // small samples: bounds are min/max of matches
+  near(a.highH, 55 / 60);
+  assert.equal(a.confidence, 'LOW');
+  assert.equal(a.calibrated, true);
+});
+
+test('n=0: seed pert, uncalibrated', () => {
+  const a = agenticTask(
+    { shape: 'database_change', scope: {}, seedMinutes: { o: 10, m: 20, p: 40 } },
+    { records: records(), agentContext: CTX },
+  );
+  near(a.e, ((10 + 80 + 40) / 6) / 60);   // pert e = 21.67 min
+  near(a.sigma, (30 / 6) / 60);
+  near(a.lowH, 10 / 60);
+  near(a.highH, 40 / 60);
+  assert.equal(a.calibrated, false);
+  assert.equal(a.confidence, 'UNCALIBRATED');
+  assert.equal(a.minutes, null);
+});

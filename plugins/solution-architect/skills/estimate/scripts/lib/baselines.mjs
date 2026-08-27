@@ -62,3 +62,46 @@ export function confidenceFor(stats) {
   if (stats.samples < 10) return 'MED';
   return stats.p80 / stats.p50 < 2 ? 'HIGH' : 'MED';
 }
+
+function lognormalFit(stats) {
+  const sigmaLog = Math.log(stats.p95 / stats.p50) / Z95;
+  const mean = stats.p50 * Math.exp((sigmaLog ** 2) / 2);
+  return { e: mean / 60, sigma: (mean * Math.sqrt(Math.exp(sigmaLog ** 2) - 1)) / 60 };
+}
+
+// Spec §3 bands: >=5 samples fit a lognormal (means sum; medians do not);
+// 1-4 samples trust the matched median but take spread from the seed; zero
+// samples fall back to the seed entirely.
+function fitHours(stats, seed) {
+  if (stats.samples >= 5) return lognormalFit(stats);
+  if (stats.samples >= 1) return { e: stats.p50 / 60, sigma: (seed.p - seed.o) / 6 / 60 };
+  const { e, sigma } = pert(seed);
+  return { e: e / 60, sigma: sigma / 60 };
+}
+
+// Bounds per band: a lognormal fit reports p50..p95; with 1-4 samples the
+// only honest bounds are the extremes actually observed (and p50 == e there,
+// which would violate the low < hours < high deliverable rule); no samples
+// falls back to the seed range.
+function bounds(stats, seed) {
+  if (stats.samples >= 5) return { lowH: stats.p50 / 60, highH: stats.p95 / 60 };
+  if (stats.samples >= 1) return { lowH: stats.minM / 60, highH: stats.maxM / 60 };
+  return { lowH: seed.o / 60, highH: seed.p / 60 };
+}
+
+export function agenticTask(task, ctx) {
+  const stats = matchBaseline(task, ctx);
+  const calibrated = stats.samples > 0;
+  const { e, sigma } = fitHours(stats, task.seedMinutes);
+  return {
+    e,
+    sigma,
+    ...bounds(stats, task.seedMinutes),
+    minutes: calibrated ? stats.p50 : null,
+    samples: stats.samples,
+    matchLevel: stats.matchLevel,
+    confidence: confidenceFor(stats),
+    evidence: stats.evidence,
+    calibrated,
+  };
+}

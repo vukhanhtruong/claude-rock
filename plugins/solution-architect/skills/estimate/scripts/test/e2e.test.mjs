@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,4 +31,31 @@ test('fixture flows compute → validate → render → serve', async () => {
     assert.equal(res.status, 200);
     assert.match(await res.text(), /Booking App/);
   } finally { srv.close(); }
+});
+
+// Agentic fixture flows the same pipeline, plus the honesty gate: a vague
+// range in the md must fail validate.mjs before it can ever reach render.mjs.
+const agenticFixture = join(scripts, 'test/fixtures/agentic-inputs.json');
+const agenticPassMd = join(scripts, 'test/fixtures/agentic-estimation-pass.md');
+const measurementsFixture = join(scripts, 'test/fixtures/measurements.jsonl');
+
+test('agentic fixture flows compute → validate → render, and a vague range is refused', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-e2e-agentic-'));
+  const inputs = JSON.parse(readFileSync(agenticFixture, 'utf8'));
+  inputs.measurementsPath = measurementsFixture;
+  const inputsPath = join(dir, 'inputs.json');
+  writeFileSync(inputsPath, JSON.stringify(inputs));
+
+  const json = join(dir, 'estimation.json');
+  execFileSync('node', [join(scripts, 'compute.mjs'), '--inputs', inputsPath, '--out', json]);
+  execFileSync('node', [join(scripts, 'validate.mjs'), '--md', agenticPassMd, '--json', json]); // exit 0 or throws
+  execFileSync('node', [join(scripts, 'render.mjs'), '--json', json, '--md', agenticPassMd, '--out', dir]);
+  const html = readFileSync(join(dir, 'estimate.html'), 'utf8');
+  assert.match(html, /Delivery: agentic/);
+
+  const vagueMd = readFileSync(agenticPassMd, 'utf8')
+    .replace(/(Delivery: agentic.*\n)/, '$1This will take 1–2 hours depending on complexity.\n');
+  const vagueMdPath = join(dir, 'vague.md');
+  writeFileSync(vagueMdPath, vagueMd);
+  assert.throws(() => execFileSync('node', [join(scripts, 'validate.mjs'), '--md', vagueMdPath, '--json', json]));
 });

@@ -1,0 +1,917 @@
+<!doctype html>
+<!-- data-theme is stated rather than left to the browser: this page opens dark,
+     and the toggle flips from a known state so its first click always bites. -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive project estimate with scenario comparison">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f766e'/%3E%3C/svg%3E">
+<title><!-- slot:TITLE --> — Estimate</title>
+<style>
+<!-- slot:FONTS -->
+/* color-scheme is declared, not left at `normal`: a page that never states its
+   scheme is the page a force-dark browser rewrites, and then the toggle flips
+   data-theme with nothing visible changing — the button reads as broken. Stated
+   per theme, forced dark is off and the native controls in the what-if rail
+   (number, range, select) follow the page instead of fighting it.
+
+   The light palette is unconditional and the dark one is scoped to @media screen
+   below, so this block doubles as the paper palette: the page opens dark on a
+   display, and printing it falls back here instead of spending a full-bleed page
+   of ink. Written as a fallback rather than as a second copy inside @media print
+   — a duplicated palette is a palette that drifts. */
+:root {
+  color-scheme:light;
+  --bg:#f7f5f0; --ink:#1c1b18; --ink-dim:#6f6a5e;
+  --accent:#0f766e; --accent-ink:#0b5a54; --accent-soft:rgba(15,118,110,.08);
+  --warn:#b45309; --warn-soft:rgba(180,83,9,.1);
+  --bad:#b91c1c; --ok:#15803d; --card:#fffdf9;
+  --border:#e6e1d5; --border-strong:#cfc8b8;
+  --shadow:0 1px 2px rgba(60,55,40,.05), 0 6px 20px rgba(60,55,40,.05);
+}
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme:dark;
+    --bg:#101413; --ink:#e8e6e1; --ink-dim:#93a09b;
+    --accent:#3ba99f; --accent-ink:#6fd1c7; --accent-soft:rgba(59,169,159,.12);
+    --warn:#d98b3d; --warn-soft:rgba(217,139,61,.12);
+    --bad:#e5726b; --ok:#5dbb7a; --card:#181d1c;
+    --border:#263230; --border-strong:#3a4a46;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  font-family:'IBM Plex Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink);
+  margin:0; line-height:1.5;
+}
+button {
+  font-family:inherit; font-size:.8rem; padding:.35rem .75rem; border-radius:.35rem;
+  border:1px solid var(--border-strong); background:var(--card); color:var(--ink); cursor:pointer;
+  transition:background-color .15s ease, border-color .15s ease, transform .1s ease;
+}
+button:hover { border-color:var(--accent); color:var(--accent-ink); }
+button:active { transform:translateY(1px); }
+/* companion-mode back-link to the arch-docs viewer; dressed as a header button */
+#viewer-link {
+  font-size:.8rem; padding:.35rem .75rem; border-radius:.35rem;
+  border:1px solid var(--border-strong); color:var(--ink); text-decoration:none;
+}
+#viewer-link:hover { border-color:var(--accent); color:var(--accent-ink); }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+/* header bar: constrained to the same column as main via padding math */
+header {
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; gap:.6rem;
+  padding:.8rem max(1.25rem, calc((100% - 1160px) / 2));
+  border-bottom:1px solid var(--border); background:var(--card);
+}
+.titles { flex:1; min-width:0; }
+.eyebrow {
+  margin:0; font-family:'IBM Plex Mono',monospace; font-size:.62rem;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim);
+}
+header h1 {
+  font-size:1.05rem; font-weight:600; letter-spacing:-.01em; margin:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#confidence-badge {
+  font-family:'IBM Plex Mono',monospace; font-size:.72rem; text-transform:uppercase;
+  padding:.18rem .5rem; border-radius:.3rem; border:1px solid var(--border-strong);
+}
+#confidence-badge.high { color:var(--ok); border-color:var(--ok); background:rgba(21,128,61,.08); }
+#confidence-badge.med { color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+#confidence-badge.low { color:var(--bad); border-color:var(--bad); background:rgba(185,28,28,.08); }
+#confidence-badge.uncalibrated { color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+#modified-banner {
+  margin:0; padding:.5rem max(1.25rem, calc((100% - 1160px) / 2));
+  background:var(--warn-soft); color:var(--warn); font-size:.85rem;
+  border-bottom:1px solid var(--border);
+}
+#modified-banner button { margin-left:.5rem; }
+main {
+  display:grid; grid-template-columns:1fr; gap:1.1rem;
+  max-width:1160px; margin:0 auto; padding:1.25rem 1.25rem 3rem;
+}
+.col { display:grid; gap:1.1rem; min-width:0; align-content:start; }
+.col > section:empty { display:none; }
+main section h2, main aside h2 {
+  font-size:.82rem; font-weight:600; color:var(--ink-dim);
+  margin:0 0 .8rem; letter-spacing:.01em;
+}
+/* panels: every section except the scenario card grid reads as one surface */
+.col > section {
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
+  padding:1.1rem 1.2rem; box-shadow:var(--shadow);
+}
+#scenario-cards { background:none; border:none; box-shadow:none; padding:0; display:flex; flex-direction:column; }
+#scenario-cards .cards {
+  flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:.9rem;
+}
+.sec-head { display:flex; align-items:center; gap:.45rem; margin:0 0 .8rem; }
+.sec-head h2 { margin:0; }
+details.help { position:relative; display:inline-block; line-height:1; }
+details.help summary {
+  list-style:none; cursor:help; width:1.05rem; height:1.05rem; border-radius:50%;
+  border:1px solid var(--border-strong); color:var(--ink-dim); background:var(--card);
+  font-size:.68rem; font-weight:600; font-family:'IBM Plex Mono',monospace;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+details.help summary::-webkit-details-marker { display:none; }
+details.help[open] summary { color:var(--accent-ink); border-color:var(--accent); }
+details.help > p {
+  position:absolute; z-index:20; top:1.4rem; left:0; width:270px; margin:0;
+  background:var(--card); border:1px solid var(--border-strong); border-radius:.45rem;
+  padding:.6rem .75rem; font-size:.76rem; font-weight:400; line-height:1.45;
+  color:var(--ink); text-transform:none; letter-spacing:normal; text-align:left;
+  box-shadow:var(--shadow);
+}
+#controls details.help > p, td details.help > p, caption details.help > p { left:auto; right:0; }
+#method summary { list-style:none; display:flex; align-items:baseline; gap:.6rem; cursor:pointer; }
+#method summary::-webkit-details-marker { display:none; }
+#method summary h2 { margin:0; }
+#method .tech { font-size:.8rem; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; }
+#method .chev { margin-left:auto; color:var(--ink-dim); transition:transform .15s ease; }
+#method details[open] .chev { transform:rotate(90deg); }
+#method ul { margin:.8rem 0 .9rem; padding-left:1.1rem; font-size:.85rem; }
+#method li { margin-bottom:.35rem; }
+#method .sources { font-size:.78rem; color:var(--ink-dim); margin:0; }
+#method .sources span { display:block; margin-bottom:.2rem; }
+.card {
+  position:relative; background:var(--card); border:1px solid var(--border);
+  border-radius:.6rem; padding:1rem 1.1rem; box-shadow:var(--shadow);
+}
+/* card anatomy: header, hero (top-aligned so the months figures sit on the
+   same line across cards), facts pinned to the bottom. */
+.scenario { display:flex; flex-direction:column; gap:.7rem; padding:1.2rem; }
+.scenario h3 {
+  font-family:'IBM Plex Mono',monospace; font-size:.78rem; font-weight:600;
+  color:var(--ink-dim); margin:0; overflow-wrap:anywhere;
+}
+.hero { flex:1; display:flex; flex-direction:column; justify-content:flex-start; gap:.55rem; }
+.hero .num {
+  font-size:2.2rem; font-weight:600; line-height:1.05; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.hero .unit { font-size:.8rem; color:var(--ink-dim); }
+.gauge { height:.45rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
+.gauge span { display:block; height:100%; background:var(--accent); border-radius:.3rem; }
+.delta {
+  align-self:flex-start; font-family:'IBM Plex Mono',monospace; font-size:.68rem;
+  color:var(--warn); background:var(--warn-soft); padding:.14rem .45rem; border-radius:.25rem;
+}
+.facts {
+  display:grid; grid-template-columns:1fr 1fr; gap:.7rem 1.1rem;
+  border-top:1px solid var(--border); padding-top:.8rem; margin:0;
+}
+.facts dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+.facts dd { margin:.1rem 0 0; font-family:'IBM Plex Mono',monospace; font-size:.86rem; }
+.scenario.recommended { border-color:var(--accent); background:linear-gradient(var(--accent-soft), transparent 55%) var(--card); }
+.flag {
+  position:absolute; top:.7rem; right:.8rem; font-size:.62rem; font-weight:600;
+  letter-spacing:.04em; color:var(--accent-ink); background:var(--accent-soft);
+  padding:.14rem .4rem; border-radius:.25rem;
+}
+.months { margin:.2rem 0 .9rem; font-size:.8rem; color:var(--ink-dim); }
+.months .num {
+  display:block; font-size:2.4rem; font-weight:600; line-height:1.15;
+  color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+}
+#whatif-readout dl { display:flex; gap:1.2rem; margin:0; }
+#whatif-readout dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+#whatif-readout dd { margin:0; font-family:'IBM Plex Mono',monospace; font-size:.88rem; }
+#whatif-readout { border-top:1px solid var(--border); padding-top:.7rem; }
+#whatif-readout .months { display:flex; align-items:baseline; gap:.4rem; margin:0 0 .4rem; }
+#whatif-readout .months .num { font-size:1.3rem; color:var(--accent-ink); }
+/* bars are styled divs — width set inline from data, no canvas, printable */
+/* when the section is stretched to match the rail beside it, the bars float
+   to the vertical center instead of leaving a dead band at the bottom. */
+#cost-bars { display:flex; flex-direction:column; }
+#cost-bars .bar-group { flex:1; display:flex; flex-direction:column; justify-content:center; }
+.bar-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.85rem; }
+.bar-label {
+  flex:0 0 170px; font-size:.78rem; color:var(--ink-dim);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.bar-track { flex:1; height:1.05rem; background:var(--border); border-radius:.3rem; overflow:hidden; }
+.bar-fill { display:block; height:100%; background:var(--accent); opacity:.5; border-radius:.3rem; }
+.bar-fill.is-rec { opacity:1; }
+.bar-val {
+  flex:0 0 auto; min-width:5.5rem; text-align:right;
+  font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
+}
+/* roadmap: Gantt-style shared axis. Every row is a flex triple (label |
+   track | months) with the same label/months widths as the axis strip below
+   it, so a given month lines up under the same x-position in every row's
+   track and in the axis ticks — one shared coordinate system, not a
+   per-row axis. */
+.roadmap-chart { display:flex; flex-direction:column; }
+.roadmap-row { display:flex; align-items:center; gap:.7rem; padding:.4rem 0; }
+.roadmap-row + .roadmap-row { border-top:1px solid var(--border); }
+.roadmap-label { flex:0 0 150px; min-width:0; display:flex; flex-direction:column; gap:.15rem; }
+.roadmap-name { font-size:.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.roadmap-feature-names { font-size:.7rem; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.roadmap-track {
+  position:relative; flex:1; min-width:0; height:.8rem;
+  background:var(--border); border-radius:.3rem; overflow:hidden;
+}
+.roadmap-gridline { position:absolute; top:0; bottom:0; width:1px; background:var(--border-strong); opacity:.55; }
+.roadmap-band {
+  position:absolute; top:0; height:100%; background:var(--accent); border-radius:.3rem;
+  display:flex; overflow:hidden; /* container segments fill it left to right */
+}
+.roadmap-seg { height:100%; }
+.roadmap-months {
+  flex:0 0 auto; min-width:4.6rem; text-align:right;
+  font-family:'IBM Plex Mono',monospace; font-size:.72rem;
+  color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+/* the axis mirrors the row's flex geometry (same label/months widths) so its
+   ticks land under the matching month position in every track above. */
+.roadmap-axis {
+  display:flex; align-items:flex-end; gap:.7rem; height:1rem; margin-top:.6rem;
+  padding-top:.4rem; border-top:1px solid var(--border);
+  font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--ink-dim);
+}
+.roadmap-axis-spacer { flex:0 0 150px; }
+.roadmap-axis-ticks { position:relative; flex:1; min-width:0; height:100%; }
+.roadmap-axis-ticks span { position:absolute; transform:translateX(-50%); }
+.roadmap-axis-unit { flex:0 0 auto; min-width:4.6rem; text-align:right; }
+table { width:100%; border-collapse:collapse; font-size:.85rem; }
+table th, table td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--border); }
+table th { color:var(--ink-dim); font-weight:600; font-size:.76rem; }
+table caption {
+  caption-side:top; text-align:left; font-size:.82rem; font-weight:600;
+  color:var(--ink-dim); padding:0 0 .6rem;
+}
+tbody tr { transition:background-color .15s ease; }
+tbody tr:hover { background:var(--accent-soft); }
+td.num, th.num { text-align:right; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+.tag {
+  font-size:.68rem; font-weight:600; padding:.12rem .4rem; border-radius:.25rem;
+  background:var(--border); color:var(--ink-dim);
+}
+.tag.proposed { background:var(--warn-soft); color:var(--warn); }
+.conf { font-weight:600; font-size:.78rem; }
+tr.conf-high .conf { color:var(--ok); }
+tr.conf-med .conf { color:var(--warn); }
+tr.conf-low .conf { color:var(--bad); }
+tr.conf-uncalibrated .conf { color:var(--warn); }
+/* effort-by-container donut: slices are stroked circles (pathLength=100 turns
+   stroke-dasharray into percent), legend carries the exact numbers. */
+#containers .pie-wrap { display:flex; flex-wrap:wrap; align-items:center; gap:1.8rem; }
+#containers svg { width:172px; height:172px; flex:0 0 auto; }
+#containers .pie-slice.hot { opacity:.75; }
+#containers .pie-legend { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; flex:1; min-width:230px; align-content:center; }
+#containers .pie-legend li { display:flex; align-items:center; gap:.5rem; font-size:.82rem; }
+.swatch { width:.7rem; height:.7rem; border-radius:.2rem; flex:0 0 auto; }
+#containers .pie-hours { margin-left:auto; }
+#containers .pie-hours, #containers .pie-share {
+  font-family:'IBM Plex Mono',monospace; font-size:.76rem; font-variant-numeric:tabular-nums;
+}
+#containers .pie-share { min-width:2.6rem; text-align:right; color:var(--ink-dim); }
+#containers .pie-note { margin:.8rem 0 0; font-size:.76rem; color:var(--ink-dim); }
+#containers .pie-legend li.hot { background:var(--accent-soft); border-radius:.3rem; }
+.bd-scroll { overflow-x:auto; }
+#detail table { min-width:720px; }
+.task-assump { font-size:.76rem; color:var(--ink-dim); }
+#register > div + table, #register > table + table { margin-top:1.4rem; }
+/* compact rail: the team roster, the plan select, the sliders, and the
+   readout stack full-width. Keeps the rail near the height of the two
+   scenario sections beside it. */
+#controls {
+  background:var(--card); border:1px solid var(--border); border-radius:.6rem;
+  padding:1.1rem 1.2rem; box-shadow:var(--shadow);
+  display:grid; grid-template-columns:1fr; gap:.7rem; align-content:start;
+}
+#controls label { display:flex; flex-direction:column; font-size:.76rem; gap:.3rem; color:var(--ink-dim); }
+/* the roster: one row per engineer (seniority + rate + remove), plus add.
+   Styled by class — the container id is internal-only page text and must
+   never appear in the head CSS a client render keeps. */
+#controls .team { display:flex; flex-direction:column; gap:.4rem; font-size:.76rem; color:var(--ink-dim); }
+#controls .team-row { display:flex; gap:.4rem; align-items:center; }
+#controls .team-row .cur { margin-right:-.15rem; }
+#controls .team-row select { flex:1; min-width:0; }
+#controls .team-row input { width:4.6rem; }
+#controls .team button { font-size:.76rem; padding:.3rem .5rem; background:var(--bg); color:var(--ink-dim); }
+#controls .team button:disabled { opacity:.4; cursor:default; }
+#controls .lab { display:flex; justify-content:space-between; align-items:baseline; }
+#controls output { font-family:'IBM Plex Mono',monospace; font-size:.74rem; color:var(--ink); }
+#controls input, #controls select {
+  font:inherit; padding:.35rem .45rem; border:1px solid var(--border-strong);
+  border-radius:.35rem; background:var(--bg); color:var(--ink);
+}
+#controls input:hover, #controls select:hover { border-color:var(--accent); }
+#controls input[type="range"] { padding:0; border:none; background:none; accent-color:var(--accent); }
+.view-client [data\2d internal] { display:none !important; }
+@media print {
+  header { position:static; }
+  header button, #viewer-link, #controls, #modified-banner, details.help { display:none; }
+  main { grid-template-columns:1fr; }
+  main > section, .card { box-shadow:none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="titles">
+    <p class="eyebrow">Project estimate</p>
+    <h1><!-- slot:TITLE --></h1>
+    <p id="delivery-line" class="eyebrow"></p>
+  </div>
+  <span id="confidence-badge"></span>
+  <button id="theme-toggle" type="button">theme</button>
+  <!-- internal:start --><!-- slot:VIEWER --><button id="view-toggle" type="button" data-internal>client view</button><!-- internal:end -->
+</header>
+<p id="modified-banner" role="status" hidden>modified from committed estimate — <button id="reset" type="button">reset</button></p>
+<main>
+  <div class="col col-wide">
+    <section id="method"></section>
+  </div>
+  <div class="col">
+    <section id="scenario-cards"></section>
+    <section id="cost-bars"></section>
+  </div>
+  <!-- internal:start -->
+  <style>
+  /* internal-only layout: the what-if rail sits beside the scenario sections
+     only — its readout (months, cost, effort) is comparable to nothing below
+     the cost bars, so the lower sections take the full width instead of
+     reserving an empty rail column. Lives in the internal range so the
+     client-only render collapses back to one column. @media screen so the
+     print rules in the head keep winning on paper. */
+  @media screen {
+    main { grid-template-columns:minmax(0, 1fr) 300px; }
+    .col-wide { grid-column:1 / -1; }
+    /* no hole under the cost bars: the scenario-cards row stretches so the
+       left column always ends level with the rail beside it, and the cards
+       stay the dominant section. */
+    .col:not(.col-wide) { grid-template-rows:1fr auto; }
+    .view-client main { grid-template-columns:1fr; }
+  }
+  @media screen and (max-width:900px) {
+    main { grid-template-columns:1fr; }
+  }
+  </style>
+  <aside class="rail" data-internal>
+  <div class="sec-head"><h2>What-if</h2><details class="help"><summary aria-label="explain this panel">?</summary>
+    <p>The levers re-run the exact same formulas as the committed numbers, in your browser. Nothing here changes the committed estimate — it answers "what would it look like if&hellip;". The readout below updates live.</p></details></div>
+  <div id="controls" data-internal>
+    <div id="ctl-team" class="team" role="group" aria-label="team"></div>
+    <label>claude plan <select id="ctl-plan"><option>none</option><option>max5x</option><option>max20x</option></select></label>
+    <label><span class="lab">risk buffer <output></output></span><input id="ctl-buffer" type="range" min="0" max="2" step="0.1"></label>
+    <label><span class="lab">overhead % <output></output></span><input id="ctl-overhead" type="range" min="0" max="0.6" step="0.05"></label>
+    <div id="whatif-readout" aria-live="polite"></div>
+  </div>
+  </aside>
+  <!-- internal:end -->
+  <div class="col col-wide">
+    <section id="containers"></section>
+    <section id="roadmap"></section>
+    <section id="detail"></section>
+    <section id="evidence"></section>
+    <section id="register"></section>
+  </div>
+</main>
+<script type="application/json" id="estimation-data"><!-- slot:DATA --></script>
+<script>
+<!-- slot:MATH -->
+/* boot: parse the data island, stamp the title + confidence badge, then wire
+   the sections, what-if controls, and view/theme toggles. */
+const DATA = JSON.parse(document.getElementById('estimation-data').textContent);
+document.querySelector('header h1').textContent = DATA.inputs.project;
+const confLevel = (c) => `conf-${c.toLowerCase()}`;
+const badge = document.getElementById('confidence-badge');
+badge.textContent = DATA.computed.projectConfidence;
+badge.className = `${DATA.computed.projectConfidence.toLowerCase()} ${confLevel(DATA.computed.projectConfidence)}`;
+
+// Header line: Delivery mode + agent/model, and how many distinct measured
+// runs back this estimate — the same "baseline count" the deliverable's
+// own header states.
+const evidenceIds = new Set(Object.values(DATA.computed.tasks)
+  .flatMap((t) => (t.evidence ?? []).map((e) => e.id)));
+const deliveryLine = document.getElementById('delivery-line');
+if (deliveryLine) {
+  deliveryLine.textContent = `Delivery: agentic (${DATA.inputs.agentContext.agent} + `
+    + `${DATA.inputs.agentContext.model}) · Baselines: ${evidenceIds.size} measurements`;
+}
+
+// Task hours are constants from the estimation data (measured or seeded,
+// never recomputed here) — only team/plan capacity and cost are live via
+// the what-if rail, same as the committed rollup.
+function recompute(p) {
+  const dev = DATA.computed.devHours;
+  const buffers = (DATA.computed.riskBufferHours + DATA.computed.spreadBufferHours) * p.bufferScale;
+  const hours = dev + dev * p.overheadPct + buffers;
+  return { hours, ...scenarioRollup({ hours, team: p.team, plan: p.plan }) };
+}
+window.__recompute = recompute;
+
+function defaultsFromRecommended() {
+  const rec = DATA.inputs.scenarios.find((s) => s.id === DATA.inputs.recommendedScenario);
+  return {
+    team: rec.team.map((m) => ({ ...m })),
+    plan: rec.plan,
+    bufferScale: 1,
+    overheadPct: DATA.inputs.overheadPct,
+  };
+}
+
+// Control ids are assembled at runtime (never one static "ctl-*" literal)
+// so the client-only render, which keeps this whole script but drops the
+// controls markup, never carries an internal control id as page text.
+const CTL_SUFFIX = { plan: 'plan', bufferScale: 'buffer', overheadPct: 'overhead' };
+const CTL_KEYS = Object.keys(CTL_SUFFIX);
+const ctlId = (key) => `ctl-${CTL_SUFFIX[key]}`;
+// The roster container is found by its class — its id is internal-only page
+// text, and the class already ships in the head CSS either way.
+const teamBox = () => document.querySelector('#controls .team');
+const TEAM_MAX = 8;
+
+function setControls(values) {
+  CTL_KEYS.forEach((key) => {
+    const el = document.getElementById(ctlId(key));
+    if (el) el.value = values[key];
+  });
+}
+
+function syncOutputs() {
+  CTL_KEYS.forEach((key) => {
+    const el = document.getElementById(ctlId(key));
+    const out = el?.parentElement.querySelector('output');
+    if (out) out.textContent = el.value;
+  });
+}
+
+// The committed scenarios are the page's only rate table: the first rate
+// seen per seniority re-seeds a row's rate when its level changes.
+const RATE_BY_SENIORITY = {};
+for (const s of DATA.inputs.scenarios) {
+  for (const m of s.team) if (m.rate != null) RATE_BY_SENIORITY[m.seniority] ??= m.rate;
+}
+
+function teamRow({ seniority, rate }) {
+  const row = document.createElement('div');
+  row.className = 'team-row';
+  const sel = document.createElement('select');
+  for (const s of Object.keys(SENIORITY_FACTOR)) sel.add(new Option(s, s));
+  sel.value = seniority;
+  const cur = Object.assign(document.createElement('span'), { className: 'cur', textContent: '$' });
+  const rateEl = Object.assign(document.createElement('input'),
+    { type: 'number', min: 10, max: 300, step: 5, value: rate });
+  rateEl.setAttribute('aria-label', 'hourly rate');
+  const del = Object.assign(document.createElement('button'),
+    { type: 'button', className: 'team-del', textContent: '×' });
+  del.setAttribute('aria-label', 'remove engineer');
+  row.append(sel, cur, rateEl, del);
+  return row;
+}
+
+function syncTeamButtons() {
+  const box = teamBox();
+  const rows = box.querySelectorAll('.team-row');
+  box.querySelector('.team-add').disabled = rows.length >= TEAM_MAX;
+  rows.forEach((r) => { r.querySelector('.team-del').disabled = rows.length <= 1; });
+}
+
+// Rebuild-from-array is the only write path (boot, reset), so reset can
+// never leave stale rows behind.
+function renderTeam(team) {
+  const box = teamBox();
+  if (!box) return;
+  box.replaceChildren(
+    Object.assign(document.createElement('span'), { textContent: 'team' }),
+    ...team.map(teamRow),
+    Object.assign(document.createElement('button'),
+      { type: 'button', className: 'team-add', textContent: '+ engineer' }),
+  );
+  syncTeamButtons();
+}
+
+function currentTeam(defaults) {
+  const box = teamBox();
+  if (!box) return defaults.team;
+  return [...box.querySelectorAll('.team-row')].map((r) => ({
+    seniority: r.querySelector('select').value,
+    rate: Number(r.querySelector('input').value),
+  }));
+}
+
+function currentParams(defaults) {
+  const p = { team: currentTeam(defaults) };
+  CTL_KEYS.forEach((key) => {
+    const raw = document.getElementById(ctlId(key))?.value ?? defaults[key];
+    p[key] = key === 'plan' ? raw : Number(raw);
+  });
+  return p;
+}
+
+const fmtMoney = (v) => `$${Math.round(v).toLocaleString()}`;
+
+const help = (text) => `<details class="help"><summary aria-label="explain this section">?</summary><p>${text}</p></details>`;
+const secHead = (title, text) => `<div class="sec-head"><h2>${title}</h2>${help(text)}</div>`;
+
+function barRow({ label, value, max, text, cls }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return `<div class="bar-row"><span class="bar-label" title="${label}">${label}</span>
+    <span class="bar-track"><span class="bar-fill${cls ? ` ${cls}` : ''}" style="width:${pct}%"></span></span>
+    <span class="bar-val">${text}</span></div>`;
+}
+
+function teamSummary(team) {
+  const counts = new Map();
+  for (const m of team) counts.set(m.seniority, (counts.get(m.seniority) ?? 0) + 1);
+  return [...counts].map(([s, n]) => `${n}&times; ${s}`).join(' &middot; ');
+}
+
+// Derived in-browser from committed numbers, like every bar width on the
+// page — never written into the JSON.
+function deltaChip(id, s) {
+  if (id === DATA.inputs.recommendedScenario) return '';
+  const rec = DATA.computed.scenarios[DATA.inputs.recommendedScenario];
+  if (!rec) return '';
+  const dm = s.months - rec.months;
+  const dc = s.totalCost - rec.totalCost;
+  return `<span class="delta">${dm >= 0 ? '+' : '-'}${Math.abs(dm).toFixed(2)} mo &middot; `
+    + `${dc >= 0 ? '+' : '-'}$${Math.round(Math.abs(dc)).toLocaleString()} vs recommended</span>`;
+}
+
+function scenarioCard(id, s) {
+  const rec = id === DATA.inputs.recommendedScenario;
+  const input = DATA.inputs.scenarios.find((x) => x.id === id);
+  const max = Math.max(...Object.values(DATA.computed.scenarios).map((x) => x.months));
+  return `<article class="card scenario${rec ? ' recommended' : ''}">
+    ${rec ? '<span class="flag">recommended</span>' : ''}<h3>${id}</h3>
+    <div class="hero"><div><span class="num">${s.months.toFixed(2)}</span> <span class="unit">months</span></div>
+      <div class="gauge"><span style="width:${Math.round((s.months / max) * 100)}%"></span></div>
+      ${deltaChip(id, s)}</div>
+    <dl class="facts"><div><dt>team</dt><dd>${teamSummary(input.team)}</dd></div>
+      <div><dt>claude plan</dt><dd>${input.plan}</dd></div>
+      <div><dt>effort</dt><dd>${s.hours.toFixed(1)}h</dd></div>
+      <div><dt>total cost</dt><dd>${fmtMoney(s.totalCost)}</dd></div></dl></article>`;
+}
+
+function renderCards() {
+  const el = document.getElementById('scenario-cards');
+  if (!el) return;
+  const entries = Object.entries(DATA.computed.scenarios);
+  el.innerHTML = secHead('Delivery scenarios',
+    'Each card is one committed way to staff and deliver the same scope. Months and cost are '
+    + 'computed from the same task hours; the highlighted card is the recommended estimate. '
+    + 'Sandbox variations live in the what-if panel.')
+    + `<div class="cards">${entries.map(([id, s]) => scenarioCard(id, s)).join('')}</div>`;
+}
+
+function renderBars() {
+  const el = document.getElementById('cost-bars');
+  if (!el) return;
+  const entries = Object.entries(DATA.computed.scenarios);
+  const max = Math.max(...entries.map(([, s]) => s.totalCost));
+  el.innerHTML = secHead('Total cost by scenario',
+    'Labor (months × team rates) plus Claude plan seats, per scenario. Bar lengths are '
+    + 'proportional to the most expensive scenario.')
+    + `<div class="bar-group">${entries.map(([id, s]) => barRow({ label: id, value: s.totalCost,
+      max, text: fmtMoney(s.totalCost),
+      cls: id === DATA.inputs.recommendedScenario ? 'is-rec' : '' })).join('')}</div>`;
+}
+
+// Containers and roadmap are generic — they price/visualize hours, never a
+// task category — so they carry over unchanged. The task table and Evidence
+// section below are baseline-native: every column comes from a measured or
+// seeded baseline, never from a category/PERT calc.
+// Two levels max (schema-enforced), so a component's container is one parent
+// hop at most; a top-level id is its own container.
+const COMP_PARENT = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.parent]));
+const containerOf = (id) => COMP_PARENT[id] ?? id;
+// One color per top-level container, shared by the donut and the roadmap
+// segments so a hue means the same container everywhere on the page.
+const CT_COLORS = ['#5a9fd4', '#d97757', '#3ba99f', '#d9b95e', '#9d86c9',
+  '#5dbb7a', '#c47a94', '#7c8f9e', '#c98a4b', '#a8a29e'];
+const CT_TOPS = (DATA.inputs.components ?? []).filter((c) => !c.parent).map((c) => c.id);
+const ctColor = (id) => CT_COLORS[CT_TOPS.indexOf(id) % CT_COLORS.length];
+const CT_NAMES = Object.fromEntries((DATA.inputs.components ?? []).map((c) => [c.id, c.name]));
+
+// Slice ↔ legend row, both directions: a 2% donut slice is unhoverable-thin
+// for reading, so pointing at it lights the row that names it — and pointing
+// at a legend row lights its slice, so a name finds its arc just as easily.
+function onPieHover(e) {
+  const id = e.target.closest?.('[data-ct]')?.dataset.ct;
+  const on = e.type === 'mouseover';
+  for (const el of document.querySelectorAll('#containers [data-ct]')) {
+    el.classList.toggle('hot', on && el.dataset.ct === id);
+  }
+}
+
+// Ticks are whole months (0, 1, 2…) once the span is long enough for that to
+// read as a timeline; below that a whole-month grid would be a bare "0", so
+// fall back to each band's own start/end. Either way ticks are computed once
+// and shared by every row's gridlines and the axis strip below them — one
+// coordinate system, not a per-row axis.
+function roadmapTicks(total, roadmap) {
+  if (total >= 2) {
+    const whole = [];
+    for (let m = 0; m <= Math.floor(total); m++) whole.push(m);
+    return whole;
+  }
+  return [...new Set(roadmap.flatMap((b) => [b.startMonths, b.endMonths]))].sort((a, b) => a - b);
+}
+
+const tickPct = (m, total) => (total > 0 ? (m / total) * 100 : 0);
+
+// Milestone names and feature lists are the only free text the roadmap draws, and
+// they now land in an attribute as well as in the body — so both are escaped
+// rather than the quote being left to break out of the title.
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+// Inside a band, each top-level container the milestone touches gets a slice
+// of the bar sized by its share of the milestone's hours — several colors is a
+// vertical slice, one color is the horizontal-slice smell. Same palette as the
+// donut. No roster → empty string, and the band keeps its solid accent fill.
+function bandSegments(band) {
+  if (!DATA.computed.components) return '';
+  const compOf = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.component]));
+  const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
+  const hours = {};
+  for (const id of band.features) {
+    const c = containerOf(compOf[id]);
+    hours[c] = (hours[c] ?? 0) + DATA.computed.features[id].hours;
+  }
+  const sum = Object.values(hours).reduce((a, b) => a + b, 0);
+  return Object.entries(hours).map(([c, h]) =>
+    `<span class="roadmap-seg" style="width:${((h / sum) * 100).toFixed(2)}%;background:${ctColor(c)}"
+      title="${esc(`${names[c] ?? c} · ${h.toFixed(2)}h (${Math.round((h / sum) * 100)}%)`)}"></span>`).join('');
+}
+
+// total, names and ticks are one thing — the chart's scale, shared by every row
+// and by the axis beneath them — so they travel together.
+function roadmapRow(band, scale) {
+  const { total, names, ticks } = scale;
+  const left = (band.startMonths / total) * 100;
+  const width = ((band.endMonths - band.startMonths) / total) * 100;
+  const gridlines = ticks.map((m) => {
+    const pct = tickPct(m, total);
+    const style = pct <= 0 ? 'left:0' : pct >= 100 ? 'right:0' : `left:${pct}%`;
+    return `<span class="roadmap-gridline" style="${style}"></span>`;
+  }).join('');
+  // 150px of label column against "M1 - Foundation: the governed write path": every
+  // row clips, and a clipped Gantt label names nothing. Widening the column would
+  // cost the axis the span it needs, so each label carries its own full text as a
+  // hover title instead.
+  const feats = band.features.map((id) => names[id]);
+  return `<div class="roadmap-row" data-milestone="${esc(band.milestone)}">
+    <div class="roadmap-label"><span class="roadmap-name" title="${esc(band.milestone)}">${esc(band.milestone)}</span>
+      <span class="roadmap-feature-names" title="${esc(feats.join(' · '))}">${feats.map(esc).join(' &middot; ')}</span></div>
+    <div class="roadmap-track">${gridlines}<span class="roadmap-band" style="left:${left}%;width:${width}%">${bandSegments(band)}</span></div>
+    <span class="roadmap-months">${band.startMonths}&ndash;${band.endMonths} mo</span></div>`;
+}
+
+// The two edge ticks are pinned to the track's own edges instead of centered,
+// so they never overhang the section.
+function roadmapAxis({ total, ticks }) {
+  const tick = (m) => {
+    const pct = tickPct(m, total);
+    const style = pct <= 0 ? 'left:0;transform:none'
+      : pct >= 100 ? 'right:0;transform:none' : `left:${pct}%`;
+    return `<span style="${style}">${m}</span>`;
+  };
+  return `<div class="roadmap-axis"><span class="roadmap-axis-spacer"></span>
+    <div class="roadmap-axis-ticks">${ticks.map(tick).join('')}</div>
+    <span class="roadmap-axis-unit">months</span></div>`;
+}
+
+// Committed numbers only: the roadmap draws the recommended scenario as
+// computed — the what-if rail owns every live number on this page.
+function renderRoadmap() {
+  const el = document.getElementById('roadmap');
+  if (!el) return;
+  const roadmap = DATA.computed.scenarios[DATA.inputs.recommendedScenario]?.roadmap;
+  if (!roadmap) { el.remove(); return; }
+  const total = roadmap[roadmap.length - 1].endMonths;
+  const names = Object.fromEntries(DATA.inputs.features.map((f) => [f.id, f.name]));
+  const scale = { total, names, ticks: roadmapTicks(total, roadmap) };
+  el.innerHTML = secHead('Roadmap',
+    'Sequential delivery by the recommended scenario team. Bands are relative months from '
+    + 'kickoff, not calendar dates; each milestone\'s width is its share of the work. Band '
+    + 'colors are the containers the milestone touches (same palette as the chart above).')
+    + `<div class="roadmap-chart">${roadmap.map((b) => roadmapRow(b, scale)).join('')}`
+    + `${roadmapAxis(scale)}</div>`;
+}
+
+// Committed numbers only, like every section: expected hours summed per
+// top-level container (computed.components), drawn as a donut. A container
+// the roster excused with notEstimated never becomes a zero-width slice —
+// it keeps the honest words in the note under the chart instead.
+function pieSlice([id, h], ctx) {
+  const share = (h / ctx.total) * 100;
+  const off = 25 - ctx.acc;
+  ctx.acc += share;
+  return `<circle class="pie-slice" data-ct="${esc(id)}" cx="21" cy="21" r="15.915" fill="none" pathLength="100"
+    stroke="${ctColor(id)}" stroke-width="7" stroke-dasharray="${share.toFixed(2)} ${(100 - share).toFixed(2)}"
+    stroke-dashoffset="${off.toFixed(2)}"><title>${esc(`${ctx.names[id] ?? id} · ${h}h (${Math.round(share)}%)`)}</title></circle>`;
+}
+
+function pieLegendRow([id, h], ctx) {
+  return `<li data-ct="${esc(id)}"><span class="swatch" style="background:${ctColor(id)}"></span>
+    <span>${esc(ctx.names[id] ?? id)}</span>
+    <span class="pie-hours">${h}h</span> <span class="pie-share">${Math.round((h / ctx.total) * 100)}%</span></li>`;
+}
+
+function pieNote() {
+  const excused = (DATA.inputs.components ?? []).filter((c) => c.notEstimated);
+  if (!excused.length) return '';
+  return `<p class="pie-note">Not estimated: ${excused.map((c) =>
+    `${esc(c.name)} (${esc(c.notEstimated)})`).join('; ')}. In the architecture, no sized work yet.</p>`;
+}
+
+function renderContainers() {
+  const el = document.getElementById('containers');
+  if (!el) return;
+  const comp = DATA.computed.components;
+  if (!comp) { el.remove(); return; }
+  const names = Object.fromEntries(DATA.inputs.components.map((c) => [c.id, c.name]));
+  const entries = Object.entries(comp).filter(([, h]) => h > 0).sort(([, a], [, b]) => b - a);
+  const ctx = { names, total: entries.reduce((s, [, h]) => s + h, 0), acc: 0 };
+  el.innerHTML = secHead('Effort by container',
+    'Share of expected hours per top-level container, from the same task numbers as the '
+    + 'estimation detail below. The colors match the roadmap bands. A container nobody sized '
+    + 'is named under the chart, never drawn as a zero slice.')
+    + `<div class="pie-wrap"><svg viewBox="0 0 42 42" role="img" aria-label="effort share by container">
+      ${entries.map((e) => pieSlice(e, ctx)).join('')}</svg>
+      <ul class="pie-legend">${entries.map((e) => pieLegendRow(e, { ...ctx, acc: 0 })).join('')}</ul></div>${pieNote()}`;
+}
+
+// Match level: how far the ladder had to climb to find enough history —
+// 1 is the tightest match (same repo + agent + model), 0 means no evidence.
+const MATCH_LABELS = { 0: 'none', 1: 'repo+agent+model', 2: 'agent', 3: 'similar scope', 4: 'global shape' };
+
+function taskRow(t, c) {
+  return `<tr class="${confLevel(c.confidence)}">
+    <td>${esc(t.id)}</td>
+    <td class="num">${c.minutes ?? 'not estimated'}</td>
+    <td class="num">${c.samples}</td>
+    <td>${MATCH_LABELS[c.matchLevel] ?? 'none'}</td>
+    <td><span class="conf">${c.confidence}</span></td>
+    <td class="task-assump">${esc(t.assumptions.join('; ') || 'none')}</td>
+    <td><span class="tag ${t.provenance}">${t.provenance}</span></td></tr>`;
+}
+
+// Committed numbers only: every row is a task, baselined from measured
+// history where it exists — never a category or PERT calc.
+function renderDetail() {
+  const el = document.getElementById('detail');
+  if (!el) return;
+  const rows = DATA.inputs.features.flatMap((f) => f.tasks)
+    .map((t) => taskRow(t, DATA.computed.tasks[t.id])).join('');
+  el.innerHTML = secHead('Estimation detail',
+    'Baseline is the measured median from matched history (Match narrows from same repo + '
+    + 'agent + model down to a global shape). UNCALIBRATED means no matching history existed — '
+    + 'the number is the interview seed guess, not a measurement.')
+    + `<div class="bd-scroll"><table><thead><tr><th>Task</th><th class="num">Baseline (min)</th>
+      <th class="num">Samples</th><th>Match</th><th>Confidence</th><th>Assumptions</th><th>src</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderEvidence() {
+  const el = document.getElementById('evidence');
+  if (!el) return;
+  const rows = Object.entries(DATA.computed.tasks)
+    .flatMap(([id, t]) => (t.evidence ?? []).map((e) => `<tr><td>${e.id}</td><td>${e.description}</td><td class="num">${e.minutes}</td><td>${id}</td></tr>`))
+    .join('');
+  el.innerHTML = `<table><caption>Evidence — measured runs backing the baselines ${help(
+    'Every baseline is the median of these actual past executions. No row here, no number above.')}</caption>
+    <thead><tr><th>Id</th><th>Task</th><th class="num">Actual (min)</th><th>Backs</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function renderRegister() {
+  const el = document.getElementById('register');
+  if (!el) return;
+  const riskRows = DATA.inputs.risks.map((r) => `<tr><td>${r.name}</td><td class="num">${Math.round(r.probability * 100)}%</td><td class="num">${r.impactMinutes}min</td></tr>`).join('');
+  el.innerHTML = `<table><caption>Risk register ${help(
+    'Each risk adds probability &times; impact minutes to the risk buffer, so unlikely-but-costly '
+    + 'events are priced in without padding every task.')}</caption>
+    <thead><tr><th>Risk</th><th class="num">Probability</th><th class="num">Impact</th></tr></thead>
+    <tbody>${riskRows}</tbody></table>`;
+}
+
+// The method's step list is pulled into its own function purely to keep
+// renderMethod under the template's function-length gate — the content is
+// unchanged from a single block.
+function methodSteps() {
+  return `<ul>
+      <li>Each task is classified by shape and matched against measured past executions,
+        narrowing from same repo + agent + model down to a global shape baseline.</li>
+      <li>With &ge;5 samples, duration comes from a lognormal fit of the measured
+        percentiles: the estimate is the distribution mean (means sum across tasks;
+        medians do not), the spread feeds a project-level &radic;&Sigma;&sigma;&sup2; buffer.</li>
+      <li>Tasks without history use the interview's seed guess and are labeled
+        UNCALIBRATED — never presented as measured.</li>
+      <li>Risks are explicit: probability &times; impact minutes, each with a stated
+        reason. No blanket contingency exists anywhere on this page.</li>
+      <li>Confidence per task comes from sample count and variance; the project badge
+        is the worst task confidence on the largest feature.</li>
+    </ul>`;
+}
+
+// The words are static; every number shown is read from inputs, never derived.
+// Collapsed by default: the title row names the technique, the fold carries
+// the full pipeline and sources for whoever wants them.
+function renderMethod() {
+  const el = document.getElementById('method');
+  if (!el) return;
+  el.innerHTML = `<details class="method-fold" open><summary><h2>Method</h2>
+    <span class="tech">measurement-based &middot; ${DATA.inputs.agentContext.agent} + ${DATA.inputs.agentContext.model}</span>
+    <span class="chev" aria-hidden="true">&#9656;</span></summary>
+    ${methodSteps()}
+    <p class="sources"><span>Lognormal task durations and median-vs-mean — Erik Bernhardsson,
+      erikbern.com/2019/04/15/why-software-projects-take-longer-than-you-think-a-statistical-model.html.</span>
+    <span>Percentile-based cycle-time forecasting — Daniel Vacanti, Actionable Agile Metrics for Predictability.</span>
+    <span>Buffer machinery — Atomic Object, atomicobject.com/client-resources/better-custom-software-estimates.</span></p></details>`;
+}
+
+// Live feedback at the point of interaction: the sticky rail is usually on
+// screen while the custom card is not, so the rail repeats the custom rollup.
+function renderReadout(custom) {
+  const el = document.getElementById('whatif-readout');
+  if (!el) return;
+  el.innerHTML = Number.isFinite(custom.totalCost)
+    ? `<p class="months"><span class="num">${custom.months.toFixed(2)}</span>months</p>
+      <dl><div><dt>total cost</dt><dd>${fmtMoney(custom.totalCost)}</dd></div>
+      <div><dt>effort</dt><dd>${custom.hours.toFixed(1)}h</dd></div></dl>`
+    : '';
+}
+
+function renderAll(defaults) {
+  renderCards();
+  renderBars();
+  renderRoadmap();
+  renderContainers();
+  renderDetail();
+  renderEvidence();
+  renderRegister();
+  renderMethod();
+  renderReadout(recompute(currentParams(defaults)));
+}
+
+const defaults = defaultsFromRecommended();
+
+function applyDefaults() {
+  setControls(defaults);
+  renderTeam(defaults.team);
+  syncOutputs();
+  renderAll(defaults);
+}
+applyDefaults();
+
+function onWhatIfChange() {
+  syncOutputs();
+  renderAll(defaults);
+  const banner = document.getElementById('modified-banner');
+  if (banner) banner.hidden = false;
+}
+
+CTL_KEYS.forEach((key) => document.getElementById(ctlId(key))?.addEventListener('input', onWhatIfChange));
+teamBox()?.addEventListener('input', (e) => {
+  if (e.target.matches('select')) {
+    const rate = RATE_BY_SENIORITY[e.target.value];
+    if (rate != null) e.target.closest('.team-row').querySelector('input').value = rate;
+  }
+  onWhatIfChange();
+});
+teamBox()?.addEventListener('click', (e) => {
+  if (e.target.matches('.team-add')) {
+    e.target.before(teamRow(currentTeam(defaults).at(-1)));
+  } else if (e.target.matches('.team-del')) {
+    e.target.closest('.team-row').remove();
+  } else return;
+  syncTeamButtons();
+  onWhatIfChange();
+});
+
+document.getElementById('reset')?.addEventListener('click', () => {
+  applyDefaults();
+  const banner = document.getElementById('modified-banner');
+  if (banner) banner.hidden = true;
+});
+
+document.getElementById('containers')?.addEventListener('mouseover', onPieHover);
+document.getElementById('containers')?.addEventListener('mouseout', onPieHover);
+
+document.getElementById('view-toggle')?.addEventListener('click', () => {
+  document.body.classList.toggle('view-client');
+});
+
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// A collapsed <details> prints as its summary line only — force the method
+// fold open on print so the paper copy still explains itself.
+window.addEventListener('beforeprint', () => {
+  document.querySelector('#method details.method-fold')?.setAttribute('open', '');
+});
+</script>
+</body>
+</html>

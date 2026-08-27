@@ -11,12 +11,29 @@ const cli = new URL('../render.mjs', import.meta.url).pathname;
 const fixture = new URL('./fixtures/booking-inputs.json', import.meta.url).pathname;
 const passMd = new URL('./fixtures/estimation-pass.md', import.meta.url).pathname;
 const computeCli = new URL('../compute.mjs', import.meta.url).pathname;
+const agenticFixture = new URL('./fixtures/agentic-inputs.json', import.meta.url).pathname;
+const agenticPassMd = new URL('./fixtures/agentic-estimation-pass.md', import.meta.url).pathname;
+const measurementsFixture = new URL('./fixtures/measurements.jsonl', import.meta.url).pathname;
 
 function renderedPage(extra = []) {
   const dir = mkdtempSync(join(tmpdir(), 'estimate-render-'));
   const json = join(dir, 'estimation.json');
   execFileSync('node', [computeCli, '--inputs', fixture, '--out', json]);
   execFileSync('node', [cli, '--json', json, '--md', passMd, '--out', dir, ...extra]);
+  return readFileSync(join(dir, 'estimate.html'), 'utf8');
+}
+
+// Agentic fixtures point measurementsPath at the shared fixture file, same
+// as validate.test.mjs's agenticEstimation() helper.
+function renderAgentic({ clientOnly = false } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'estimate-render-agentic-'));
+  const inputs = JSON.parse(readFileSync(agenticFixture, 'utf8'));
+  inputs.measurementsPath = measurementsFixture;
+  const inputsPath = join(dir, 'inputs.json');
+  writeFileSync(inputsPath, JSON.stringify(inputs));
+  const json = join(dir, 'estimation.json');
+  execFileSync('node', [computeCli, '--inputs', inputsPath, '--out', json]);
+  execFileSync('node', [cli, '--json', json, '--md', agenticPassMd, '--out', dir, ...(clientOnly ? ['--client-only'] : [])]);
   return readFileSync(join(dir, 'estimate.html'), 'utf8');
 }
 
@@ -120,4 +137,18 @@ test('the rendered page carries the roadmap section markup', () => {
   const html = renderedPage();
   assert.match(html, /id="roadmap"/);
   assert.match(html, /roadmapRow|roadmap-row/); // renderer present, not stripped
+});
+
+// Agentic template routing.
+test('agentic estimation renders the agentic template', () => {
+  const html = renderAgentic();
+  assert.match(html, /Delivery: agentic/);
+  assert.match(html, /UNCALIBRATED/);
+  assert.match(html, /Refactor A/); // evidence rendered from computed data
+  assert.doesNotMatch(html, /boilerplate/); // no AI-category machinery on this page
+});
+
+test('agentic client render still redacts rates', () => {
+  const html = renderAgentic({ clientOnly: true });
+  assert.doesNotMatch(html, /"rate":/);
 });

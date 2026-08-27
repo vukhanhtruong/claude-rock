@@ -4,8 +4,16 @@ import { embed } from '../../analyze-requirements/scripts/lib/embed.mjs';
 import { buildFontFaces } from '../../analyze-requirements/scripts/lib/fonts.mjs';
 import { escapeHtml } from '../../analyze-requirements/scripts/lib/md-inline.mjs';
 import { checkDeliverables } from './lib/checks.mjs';
-import { inlineModule, stripInternal } from './lib/inline.mjs';
+import { inlineModule, stripInternal, extractExports } from './lib/inline.mjs';
 import { redactForClient } from './lib/redact.mjs';
+
+// The agentic template's what-if rail only prices team/plan capacity —
+// task hours are constants from the estimation data, not recomputed from
+// PERT/AI-category inputs — so it needs only these exports inlined.
+const AGENTIC_MATH_EXPORTS = [
+  'HOURS_PER_MONTH', 'COORDINATION_TAX', 'PLAN_PRICES', 'SENIORITY_FACTOR',
+  'effectiveCapacity', 'scenarioRollup',
+];
 
 function parseArgs(argv) {
   const args = {};
@@ -22,11 +30,13 @@ function parseArgs(argv) {
 
 const archFontsDir = new URL('../../analyze-requirements/assets/fonts/', import.meta.url).pathname;
 const mathPath = new URL('./lib/estimate-math.mjs', import.meta.url).pathname;
-const templatePath = new URL('../assets/estimate-template.html', import.meta.url).pathname;
+const assetsDir = new URL('../assets/', import.meta.url).pathname;
 
 const args = parseArgs(process.argv.slice(2));
 const estimation = JSON.parse(readFileSync(args.json, 'utf8'));
 const md = readFileSync(args.md, 'utf8');
+const isAgentic = estimation.inputs.deliveryMode === 'agentic';
+const templatePath = join(assetsDir, isAgentic ? 'estimate-template-agentic.html' : 'estimate-template.html');
 
 // Validation blocks rendering: this is the hard rule enforced in code, not
 // just in SKILL.md prose. No skip flag exists.
@@ -44,6 +54,7 @@ const viewerSlot = typeof args.viewer === 'string'
   ? `<a id="viewer-link" data-internal href="${escapeHtml(args.viewer)}">architecture docs</a>`
   : '';
 const template = readFileSync(templatePath, 'utf8');
+const mathSrc = readFileSync(mathPath, 'utf8');
 const html = embed({
   template,
   slots: {
@@ -51,7 +62,7 @@ const html = embed({
     FONTS: buildFontFaces(archFontsDir),
     // Escaped so a literal </script in the JSON can't close the data tag early.
     DATA: JSON.stringify(dataForEmbed).replaceAll('</script', '<\\/script'),
-    MATH: inlineModule(readFileSync(mathPath, 'utf8')),
+    MATH: inlineModule(isAgentic ? extractExports(mathSrc, AGENTIC_MATH_EXPORTS) : mathSrc),
     VIEWER: viewerSlot,
   },
 });

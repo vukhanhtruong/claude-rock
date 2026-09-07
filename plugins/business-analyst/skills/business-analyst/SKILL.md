@@ -45,7 +45,9 @@ Turn incomplete client input into two artifacts in the lead directory:
 7. **Write**: requirements.md + requirements.json per
    `references/writing.md`.
 8. **Validate**: `node scripts/validate.mjs --json <dir>/requirements.json
-   --md <dir>/requirements.md` — fix findings, re-run until clean.
+   --md <dir>/requirements.md` — fix findings, re-run until clean. No Node
+   in the environment (e.g. the claude.ai sandbox) → run
+   `python3 scripts/validate.py` with the same flags; identical checks.
 9. **Fresh-eyes review**: dispatch a subagent per `references/review.md`;
    apply findings, re-validate; one cycle max.
 10. **Human review**: show Part 5 (readiness report); the human confirms
@@ -66,4 +68,6 @@ estimates can cite them.
 
 ## Dependency
 
-Node ≥ 20. Scripts are dependency-free.
+Node ≥ 20, or Python ≥ 3.10 where Node is unavailable (`scripts/validate.py`
+is a parity-tested port of `scripts/validate.mjs`). Scripts are
+dependency-free either way.

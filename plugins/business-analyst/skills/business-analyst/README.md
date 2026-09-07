@@ -17,4 +17,7 @@ The package is gated by `scripts/validate.mjs`: schema, ID traceability,
 label discipline, an ambiguity lint on requirement text, readiness math,
 and md↔json consistency.
 
-Requires Node ≥ 20. No npm dependencies.
+Requires Node ≥ 20 or Python ≥ 3.10 (`scripts/validate.py` is a
+parity-tested port of the validator, so the skill also runs on claude.ai —
+zip this folder and upload it under Settings → Features). No dependencies
+either way.

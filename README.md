@@ -81,6 +81,7 @@ rather than a hang.
 
 | Plugin               | Description                                                                                                                                                                                   | Version |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `business-analyst`   | Business-analysis toolkit: interview-driven requirements discovery that turns raw client input into a validated, traceable requirements package ready for solution architecture.               | 0.1.0   |
 | `solution-architect` | Solution-architecture toolkit: interview-driven architecture documentation with interactive diagrams and provenance-tagged facts, AI-aware project estimation, and client-ready proposals.    | 1.0.0   |
 | `lmk`                | Terminal-native visual explainer: explains the current topic with cheap diagrams (flowcharts, sequences, timelines, tables) rendered directly in the terminal via a bundled Mermaid renderer. | 0.1.0   |
 
@@ -93,11 +94,12 @@ for automatically by the agent when the task fits.
 
 **User-invoked**
 
-- **[new-lead](./plugins/solution-architect/skills/new-lead/SKILL.md)** (`solution-architect`) — Orchestrator: sets up a lead workspace and launches analyze-requirements → estimate → proposal in order, stopping between each, plus a leads dashboard.
+- **[new-lead](./plugins/solution-architect/skills/new-lead/SKILL.md)** (`solution-architect`) — Orchestrator: sets up a lead workspace and launches business-analyst (when installed) → analyze-requirements → estimate → proposal in order, stopping between each, plus a leads dashboard.
 - **[lmk](./plugins/lmk/skills/lmk/SKILL.md)** (`lmk`) — `/lmk` explains the current topic visually in the terminal; bare `/lmk` recaps the last substantial thing. Also auto-triggers on keywords like "explain this", "show me", or "I'm lost".
 
 **Model-invoked**
 
+- **[business-analyst](./plugins/business-analyst/skills/business-analyst/SKILL.md)** (`business-analyst`) — Interview-driven requirements discovery: turns raw client input (emails, notes, transcripts) into a validated requirements package (requirements.md + requirements.json) with labeled facts, open questions, and a readiness gate; triggers on asks to analyze client requirements, run discovery, or clarify a vague request. `new-lead` offers it as optional step 0 when installed.
 - **[analyze-requirements](./plugins/solution-architect/skills/analyze-requirements/SKILL.md)** (`solution-architect`) — Interview-driven architecture documentation with interactive diagrams and provenance-tagged facts; triggers on asks for architecture docs, C4 diagrams, ADRs, or a threat model.
 - **[estimate](./plugins/solution-architect/skills/estimate/SKILL.md)** (`solution-architect`) — Interview-driven, AI-aware project estimation with an interactive what-if page; triggers on asks for an estimate, quote, timeline, or "how long would this take".
 - **[proposal](./plugins/solution-architect/skills/proposal/SKILL.md)** (`solution-architect`) — Pre-sales client proposal rendered as a print-ready page; triggers on asks for a proposal, client pitch, or "something I can send the client".
